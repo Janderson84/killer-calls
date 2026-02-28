@@ -141,6 +141,45 @@ export async function POST(request: Request) {
         if (result.ts) {
           await sql`UPDATE scorecards SET slack_review_ts = ${result.ts} WHERE id = ${scorecardId}`;
 
+          // --- Post to #killer-calls if score >= 80 ---
+          const killerChannelId = process.env.SLACK_CHANNEL_KILLER;
+          if (killerChannelId && scorecard.score >= 80) {
+            try {
+              const killerBlocks: any[] = [
+                { type: "section", text: { type: "mrkdwn", text: `🔥 *KILLER CALL | ${mention} — ${scorecard.score}/100*` } },
+                {
+                  type: "section",
+                  fields: [
+                    { type: "mrkdwn", text: `*Prospect*\n${companyName}` },
+                    { type: "mrkdwn", text: `*Duration*\n${durationMinutes || "?"} min · ${date}` },
+                    { type: "mrkdwn", text: `*SPICED*\n${spicedLine}` },
+                  ],
+                },
+                { type: "section", text: { type: "mrkdwn", text: `> _${scorecard.verdict}_` } },
+              ];
+              if (url) {
+                killerBlocks.push({
+                  type: "actions",
+                  elements: [{ type: "button", text: { type: "plain_text", text: "🔥 View Full Scorecard" }, url, style: "primary" }],
+                });
+              }
+              killerBlocks.push({ type: "context", elements: [{ type: "mrkdwn", text: "📖 Study this call — drop your takeaways in the thread 👇" }] });
+
+              const killerResult = await slack.chat.postMessage({
+                channel: killerChannelId,
+                text: `🔥 KILLER CALL | ${mention} — ${scorecard.score}/100`,
+                blocks: killerBlocks,
+                unfurl_links: false,
+              });
+              if (killerResult.ts) {
+                await sql`UPDATE scorecards SET slack_killer_ts = ${killerResult.ts} WHERE id = ${scorecardId}`;
+              }
+            } catch (killerErr: unknown) {
+              const msg = killerErr instanceof Error ? killerErr.message : String(killerErr);
+              console.error("Killer calls Slack error:", msg);
+            }
+          }
+
           // --- Thread reply: detailed coaching ---
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const threadBlocks: any[] = [];

@@ -214,7 +214,8 @@ function getRAG(score) {
 
 const CONFIG = {
   port: process.env.PORT || 3000,
-  claudeModel: "claude-sonnet-4-5-20250929",
+  // Override via CLAUDE_MODEL env var in Railway/Vercel to pin a specific snapshot.
+  claudeModel: process.env.CLAUDE_MODEL || "claude-sonnet-4-6-20250514",
   firefliesEndpoint: "https://api.fireflies.ai/graphql"
 };
 
