@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import { ScorecardRow, Scorecard, SpicedElement, BantElement, CriterionScore } from "@/lib/types";
+import { ScorecardRow, Scorecard, SpicedElement, BantElement, SvcElement, CriterionScore } from "@/lib/types";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import "./call-detail.css";
@@ -25,6 +25,7 @@ const CRITERIA_LABELS: Record<string, string> = {
   noDiscount: "Did NOT cave on discount/terms prematurely",
   ecir: "ECIR objection handling",
   pushToClose: "Pushed to close the deal on the call",
+  svc: "SVC Close (Summarize → Surface Concern → Commit)",
   followUp: "Scheduled a specific follow-up date and time",
 };
 
@@ -41,6 +42,12 @@ const BANT_WORDS: Record<string, string> = {
   a: "Authority",
   n: "Need",
   t: "Timeline",
+};
+
+const SVC_WORDS: Record<string, string> = {
+  summarize: "Summarize Value",
+  surface: "Surface Concern",
+  commit: "Commit",
 };
 
 function ragClass(rag: string): string {
@@ -218,6 +225,41 @@ export default async function CallDetailPage({
                       <div className="bant-note">{el.feedback}</div>
                       {el.timestamps && el.timestamps.length > 0 && (
                         <div className="bant-ts">
+                          {el.timestamps.map((ts, i) => (
+                            <span key={i}>{"\u25B6"} {ts}{i < el.timestamps.length - 1 ? " \u00B7 " : ""}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* SVC CLOSE BREAKDOWN */}
+          {sc.svc && (
+            <>
+              <div className="section-hd">
+                <div className="section-hd-title">SVC Close</div>
+              </div>
+
+              <div className="svc-grid">
+                {(["summarize", "surface", "commit"] as const).map((key) => {
+                  const el: SvcElement = sc.svc![key];
+                  const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
+                  const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
+                  const letter = key === "summarize" ? "S" : key === "surface" ? "V" : "C";
+                  return (
+                    <div key={key} className={`svc-card ${cls}`}>
+                      <div className="svc-letter">{letter}</div>
+                      <div className="svc-word">{SVC_WORDS[key]}</div>
+                      <div className="svc-status">
+                        {cls === "g" ? "\u2713" : cls === "y" ? "~" : "\u2717"} {statusLabel}
+                      </div>
+                      <div className="svc-note">{el.feedback}</div>
+                      {el.timestamps && el.timestamps.length > 0 && (
+                        <div className="svc-ts">
                           {el.timestamps.map((ts, i) => (
                             <span key={i}>{"\u25B6"} {ts}{i < el.timestamps.length - 1 ? " \u00B7 " : ""}</span>
                           ))}

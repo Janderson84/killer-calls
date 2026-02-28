@@ -51,6 +51,7 @@ export async function POST(request: Request) {
         score_pre_call, score_discovery, score_presentation, score_pricing, score_closing,
         spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
         bant_b, bant_a, bant_n, bant_t,
+        svc_summarize, svc_surface, svc_commit,
         scorecard_json
       ) VALUES (
         ${repId}, ${meetingId}, ${title || `${repName} → ${companyName}`}, ${companyName}, ${repName},
@@ -70,13 +71,18 @@ export async function POST(request: Request) {
         ${scorecard.bant?.a?.status || null},
         ${scorecard.bant?.n?.status || null},
         ${scorecard.bant?.t?.status || null},
+        ${scorecard.svc?.summarize?.status || null},
+        ${scorecard.svc?.surface?.status || null},
+        ${scorecard.svc?.commit?.status || null},
         ${JSON.stringify(scorecard)}
       )
       ON CONFLICT (meeting_id) DO UPDATE SET
         score = EXCLUDED.score, rag = EXCLUDED.rag, verdict = EXCLUDED.verdict,
         scorecard_json = EXCLUDED.scorecard_json,
         bant_b = EXCLUDED.bant_b, bant_a = EXCLUDED.bant_a,
-        bant_n = EXCLUDED.bant_n, bant_t = EXCLUDED.bant_t
+        bant_n = EXCLUDED.bant_n, bant_t = EXCLUDED.bant_t,
+        svc_summarize = EXCLUDED.svc_summarize, svc_surface = EXCLUDED.svc_surface,
+        svc_commit = EXCLUDED.svc_commit
       RETURNING id`;
 
     const scorecardId = inserted[0].id;
@@ -107,6 +113,18 @@ export async function POST(request: Request) {
           })
           .join("   ");
 
+        const svcLine = [
+          { key: "summarize", label: "S" },
+          { key: "surface", label: "V" },
+          { key: "commit", label: "C" },
+        ]
+          .map(({ key, label }) => {
+            const d = scorecard.svc?.[key];
+            const pip = d?.status === "strong" ? "✅" : d?.status === "partial" ? "🟡" : "🔴";
+            return `${pip} ${label}`;
+          })
+          .join("   ");
+
         const url = process.env.APP_URL
           ? `${process.env.APP_URL.replace(/\/$/, "")}/calls/${scorecardId}`
           : null;
@@ -118,10 +136,12 @@ export async function POST(request: Request) {
           {
             type: "section",
             fields: [
-              { type: "mrkdwn", text: `*Score*\n${scorecard.score}/100 · ${ragLabel}` },
-              { type: "mrkdwn", text: `*Duration*\n${durationMinutes || "?"} min` },
               { type: "mrkdwn", text: `*Date*\n${date}` },
-              { type: "mrkdwn", text: `*SPICED*\n${spicedLine}\n\n*BANT*\n${bantLine}` },
+              { type: "mrkdwn", text: `*SPICED*\n${spicedLine}` },
+              { type: "mrkdwn", text: `*Duration*\n${durationMinutes || "?"} min` },
+              { type: "mrkdwn", text: `*BANT*\n${bantLine}` },
+              { type: "mrkdwn", text: `*Score*\n${scorecard.score}/100 · ${ragLabel}` },
+              { type: "mrkdwn", text: `*SVC Close*\n${svcLine}` },
             ],
           },
           { type: "section", text: { type: "mrkdwn", text: `> _${scorecard.verdict}_` } },

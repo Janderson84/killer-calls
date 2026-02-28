@@ -101,7 +101,7 @@
 }
 .top-calls-label {
   font-family: 'DM Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -202,7 +202,7 @@ thead th {
   padding: 12px 20px;
   text-align: left;
   font-family: 'DM Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--muted);
   text-transform: uppercase;
@@ -313,10 +313,10 @@ td.center { text-align: center; }
 /* SPICED MINI */
 .spiced-mini { display: flex; gap: 3px; justify-content: center; }
 .spiced-pip {
-  width: 18px; height: 18px;
+  width: 20px; height: 20px;
   border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 9px;
+  font-size: 11px;
   font-family: 'DM Mono', monospace;
   font-weight: 500;
 }
@@ -327,10 +327,10 @@ td.center { text-align: center; }
 /* BANT MINI */
 .bant-mini { display: flex; gap: 3px; justify-content: center; }
 .bant-pip {
-  width: 18px; height: 18px;
+  width: 20px; height: 20px;
   border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 9px;
+  font-size: 11px;
   font-family: 'DM Mono', monospace;
   font-weight: 500;
 }
@@ -347,7 +347,7 @@ td.center { text-align: center; }
   border: 1px solid rgba(96,165,250,0.15);
   color: var(--blue-bright);
   text-decoration: none;
-  font-size: 10px;
+  font-size: 11px;
   transition: background 0.15s, border-color 0.15s;
 }
 .ff-link:hover {

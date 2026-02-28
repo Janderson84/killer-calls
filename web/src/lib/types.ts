@@ -12,6 +12,13 @@ export interface BantElement {
   timestamps: string[];
 }
 
+export interface SvcElement {
+  score: number;
+  status: "strong" | "partial" | "missing";
+  feedback: string;
+  timestamps: string[];
+}
+
 export interface CriterionScore {
   score: number;
   maxPoints: number;
@@ -63,6 +70,11 @@ export interface Scorecard {
     a: BantElement;
     n: BantElement;
     t: BantElement;
+  };
+  svc?: {
+    summarize: SvcElement;
+    surface: SvcElement;
+    commit: SvcElement;
   };
   wins: string[];
   fixes: string[];

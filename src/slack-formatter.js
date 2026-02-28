@@ -55,6 +55,24 @@ function formatBantLine(bant) {
     .join("   ");
 }
 
+// ─── SVC Pips ──────────────────────────────────────────────────
+
+function formatSvcLine(svc) {
+  const elements = [
+    { key: "summarize", label: "S" },
+    { key: "surface", label: "V" },
+    { key: "commit", label: "C" }
+  ];
+  return elements
+    .map(({ key, label }) => {
+      const data = svc[key];
+      if (data.status === "strong") return `✅ ${label}`;
+      if (data.status === "partial") return `🟡 ${label}`;
+      return `🔴 ${label}`;
+    })
+    .join("   ");
+}
+
 // ─── RAG Emoji ───────────────────────────────────────────────────
 
 function ragEmoji(rag) {
@@ -80,9 +98,16 @@ function buildFrameworkTags(scorecard) {
     tags.push(`🎯 ECIR on ${ecir.objectionsHandled} objection${ecir.objectionsHandled > 1 ? "s" : ""}`);
   }
 
-  // Closed on call?
-  const closeScore = scorecard.phases?.closing?.criteria?.pushToClose;
-  if (closeScore && closeScore.score >= 8) tags.push("✅ Closed on call");
+  // Perfect SVC close?
+  const svc = scorecard.svc;
+  if (svc) {
+    const allStrong = ["summarize", "surface", "commit"].every((el) => svc[el].status === "strong");
+    if (allStrong) {
+      tags.push("🎯 Perfect SVC Close");
+    } else if (svc.commit && svc.commit.status === "strong") {
+      tags.push("✅ Closed on call");
+    }
+  }
 
   // No discount?
   const discountScore = scorecard.phases?.pricing?.criteria?.noDiscount;
@@ -106,7 +131,13 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
   const rag = getRAG(scorecard.score);
   const spicedLine = formatSpicedLine(scorecard.spiced);
   const bantLine = scorecard.bant ? formatBantLine(scorecard.bant) : null;
+  const svcLine = scorecard.svc ? formatSvcLine(scorecard.svc) : null;
   const tags = buildFrameworkTags(scorecard);
+
+  // Build the frameworks field — SPICED always, plus BANT and SVC when present
+  let frameworksText = `*SPICED*\n${spicedLine}`;
+  if (bantLine) frameworksText += `\n\n*BANT*\n${bantLine}`;
+  if (svcLine) frameworksText += `\n\n*SVC Close*\n${svcLine}`;
 
   const blocks = [
     // Title
@@ -124,7 +155,7 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
         { type: "mrkdwn", text: `*Score*\n${scorecard.score}/100 · ${rag.label}` },
         { type: "mrkdwn", text: `*Duration*\n${meta.durationMinutes || "?"} min` },
         { type: "mrkdwn", text: `*Date*\n${meta.date}` },
-        { type: "mrkdwn", text: bantLine ? `*SPICED*\n${spicedLine}\n\n*BANT*\n${bantLine}` : `*SPICED*\n${spicedLine}` }
+        { type: "mrkdwn", text: frameworksText }
       ]
     },
     // Verdict

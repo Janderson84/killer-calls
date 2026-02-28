@@ -155,13 +155,31 @@ const RUBRIC = {
       maxPoints: 12,
       criteria: [
         {
-          id: "pushToClose",
-          name: "Pushed to close the deal on the call",
+          id: "svc",
+          name: "SVC Close (Summarize → Surface Concern → Commit)",
           maxPoints: 10,
+          isSvc: true,
+          elements: {
+            summarize: {
+              name: "Summarize Value",
+              maxPoints: 4,
+              question: "Did the AE recap 2-3 specific benefits tied to the prospect's stated pain BEFORE asking for the close? This is NOT a feature recap — it must reference what the prospect said they cared about during discovery."
+            },
+            surface: {
+              name: "Surface Concern",
+              maxPoints: 3,
+              question: "Did the AE proactively ask 'What would stop you from moving forward today?' or similar — giving the prospect a chance to voice remaining hesitation BEFORE the commitment ask?"
+            },
+            commit: {
+              name: "Commit",
+              maxPoints: 3,
+              question: "Did the AE make a clear, direct ask for a commitment (sign today, start a trial, schedule an onboarding call) — not just 'what do you think?' or 'I'll send a proposal'?"
+            }
+          },
           ragGuide: {
-            green: "Genuine close attempt before scheduling follow-up",
-            yellow: "Soft close attempt but didn't press",
-            red: "Jumped straight to follow-up without trying to close"
+            green: "All three SVC steps executed in order — value summarized, concerns surfaced, commitment asked",
+            yellow: "Attempted to close but skipped the value summary or didn't surface concerns first",
+            red: "No real close attempt — defaulted to 'I'll send a follow-up email'"
           }
         },
         {
