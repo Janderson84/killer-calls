@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+
+# environment / secrets
+.env
+.env.*
+!.env.example
+
+# runtime state
+.skipped-meetings.json
+.tmp-transcripts/
+poller.log
+
+# vercel
+.vercel/
+
+# next.js
+web/.next/
+web/out/
+
+# misc
+.DS_Store
+*.pem
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# claude
+.claude/

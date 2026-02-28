@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Call Detail — Marcus Reid · Brightpath Marketing</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0F1A;
+    --surface: #121828;
+    --surface2: #1A2235;
+    --surface3: #1E2A3A;
+    --border: #1E2D45;
+    --blue: #2563EB;
+    --blue-glow: rgba(37,99,235,0.12);
+    --blue-bright: #60A5FA;
+    --text: #E8EDF5;
+    --muted: #5A6A85;
+    --green: #10B981;
+    --green-bg: rgba(16,185,129,0.1);
+    --yellow: #F59E0B;
+    --yellow-bg: rgba(245,158,11,0.1);
+    --red: #EF4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --gold: #F59E0B;
+    --gold-bg: rgba(245,158,11,0.08);
+    --gold-border: rgba(245,158,11,0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    background-image: radial-gradient(ellipse 60% 40% at 50% -10%, rgba(37,99,235,0.07) 0%, transparent 60%);
+  }
+
+  /* ── NAV ── */
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .nav a { color: var(--blue-bright); text-decoration: none; }
+  .nav a:hover { color: var(--text); }
+  .nav-sep { color: var(--border); }
+
+  /* ── LAYOUT ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 0;
+    min-height: calc(100vh - 49px);
+  }
+
+  .main { padding: 32px; border-right: 1px solid var(--border); overflow-y: auto; }
+  .sidebar { padding: 24px; overflow-y: auto; }
+
+  /* ── HEADER CARD ── */
+  .header-card {
+    background: var(--surface);
+    border: 1px solid var(--gold-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 28px;
+    box-shadow: 0 0 0 1px var(--gold-border), 0 4px 24px rgba(245,158,11,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .header-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+  }
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .header-rep {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .avatar-lg {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,#1d4ed8,#3b82f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .rep-name-lg {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .rep-meta-row {
+    display: flex;
+    gap: 16px;
+    margin-top: 4px;
+  }
+  .rep-meta-item {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .rep-meta-item span { color: var(--text); }
+
+  /* Score block */
+  .score-block {
+    text-align: right;
+  }
+  .score-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .score-big {
+    font-family: 'Syne', sans-serif;
+    font-size: 56px;
+    font-weight: 800;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .score-big small { font-size: 22px; color: var(--muted); }
+  .score-rag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid rgba(16,185,129,0.25);
+    margin-top: 6px;
+  }
+  .rag-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Verdict */
+  .verdict-row {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  .verdict-bar {
+    width: 3px;
+    background: var(--gold);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .verdict-text {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.6;
+    font-style: italic;
+  }
+  .verdict-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  /* Outcome pill */
+  .outcome-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid rgba(16,185,129,0.25);
+    margin-left: 12px;
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-hd {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    margin-top: 28px;
+  }
+  .section-hd-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .section-hd::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── SPICED PANEL ── */
+  .spiced-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .spiced-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .spiced-card.g { border-top: 2px solid var(--green); }
+  .spiced-card.y { border-top: 2px solid var(--yellow); }
+  .spiced-card.r { border-top: 2px solid var(--red); }
+
+  .spiced-letter {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+  .spiced-card.g .spiced-letter { color: var(--green); }
+  .spiced-card.y .spiced-letter { color: var(--yellow); }
+  .spiced-card.r .spiced-letter { color: var(--red); }
+
+  .spiced-word {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+  .spiced-status {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .spiced-card.g .spiced-status { background: var(--green-bg); color: var(--green); }
+  .spiced-card.y .spiced-status { background: var(--yellow-bg); color: var(--yellow); }
+  .spiced-card.r .spiced-status { background: var(--red-bg); color: var(--red); }
+
+  .spiced-note {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .spiced-ts {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--blue-bright);
+    margin-top: 6px;
+    cursor: pointer;
+  }
+  .spiced-ts:hover { color: var(--text); }
+
+  /* ── SCORECARD ROWS ── */
+  .phase-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 8px 0 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+  }
+
+  .criterion-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 8px;
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .cr-rag {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .cr-rag.g { background: var(--green-bg); }
+  .cr-rag.y { background: var(--yellow-bg); }
+  .cr-rag.r { background: var(--red-bg); }
+
+  .cr-content {}
+  .cr-title {
+    font-weight: 500;
+    font-size: 13.5px;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .cr-feedback {
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+  .cr-feedback strong { color: var(--text); font-weight: 500; }
+
+  .cr-timestamps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .ts-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--blue-bright);
+    background: var(--blue-glow);
+    border: 1px solid rgba(96,165,250,0.15);
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .ts-chip:hover { background: rgba(37,99,235,0.2); color: var(--text); }
+  .ts-chip.warn {
+    color: var(--yellow);
+    background: var(--yellow-bg);
+    border-color: rgba(245,158,11,0.2);
+  }
+  .ts-chip.bad {
+    color: var(--red);
+    background: var(--red-bg);
+    border-color: rgba(239,68,68,0.2);
+  }
+
+  .cr-score {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .cr-score-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .cr-score-num.g { color: var(--green); }
+  .cr-score-num.y { color: var(--yellow); }
+  .cr-score-num.r { color: var(--red); }
+  .cr-score-max {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .cr-score-bar {
+    width: 48px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 5px;
+    margin-left: auto;
+  }
+  .cr-score-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+  .cr-score-fill.g { background: var(--green); }
+  .cr-score-fill.y { background: var(--yellow); }
+  .cr-score-fill.r { background: var(--red); }
+
+  /* FLAG BADGE */
+  .flag-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--red-bg);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 12.5px;
+    color: var(--red);
+  }
+  .flag-row.gold-flag {
+    background: var(--gold-bg);
+    border-color: var(--gold-border);
+    color: var(--gold);
+  }
+
+  /* ── COACHING SUMMARY ── */
+  .coaching-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .coaching-block-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .coaching-block-header.wins { color: var(--green); background: var(--green-bg); }
+  .coaching-block-header.fixes { color: var(--yellow); background: var(--yellow-bg); }
+  .coaching-block-header.quote { color: var(--blue-bright); background: var(--blue-glow); }
+  .coaching-block-body {
+    padding: 14px 16px;
+  }
+  .coaching-item {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.6;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+  }
+  .coaching-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .coaching-item-icon { flex-shrink: 0; margin-top: 1px; }
+  .coaching-quote {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text);
+    line-height: 1.7;
+    border-left: 2px solid var(--blue-bright);
+    padding-left: 12px;
+  }
+  .coaching-quote-ts {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--blue-bright);
+    margin-top: 6px;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar-section {
+    margin-bottom: 24px;
+  }
+  .sidebar-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Score breakdown donut-style */
+  .score-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .score-phase-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .score-phase-name {
+    font-size: 12px;
+    color: var(--muted);
+    width: 120px;
+    flex-shrink: 0;
+  }
+  .score-phase-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+  }
+  .score-phase-bar {
+    height: 100%;
+    border-radius: 3px;
+  }
+  .score-phase-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    width: 40px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Pipedrive panel */
+  .pipedrive-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .pd-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+  .pd-row:last-child { border-bottom: none; }
+  .pd-label { color: var(--muted); }
+  .pd-val { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); }
+  .pd-val.green { color: var(--green); }
+
+  /* Reactions sidebar */
+  .reactions-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .reaction-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .reaction-pill:hover { border-color: var(--blue); background: var(--blue-glow); }
+  .reaction-pill.active { border-color: rgba(96,165,250,0.4); background: var(--blue-glow); }
+  .reaction-count { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+
+  /* Comments */
+  .comment-list { margin-bottom: 14px; }
+  .comment {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .c-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .c-bubble {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 0 8px 8px 8px;
+    padding: 9px 12px;
+    flex: 1;
+  }
+  .c-author {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--blue-bright);
+    margin-bottom: 4px;
+  }
+  .c-author.manager { color: var(--gold); }
+  .c-text { font-size: 12.5px; color: var(--text); line-height: 1.5; }
+  .c-ts-ref {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--blue-bright);
+    margin-top: 5px;
+    display: inline-block;
+    cursor: pointer;
+  }
+  .c-time { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  .comment-input-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .comment-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    outline: none;
+    resize: none;
+    line-height: 1.5;
+  }
+  .comment-input::placeholder { color: var(--muted); }
+  .comment-input:focus { border-color: rgba(96,165,250,0.3); }
+  .comment-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ts-hint {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .comment-send {
+    background: var(--blue);
+    border: none;
+    color: white;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 7px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .comment-send:hover { background: #1d4ed8; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .header-card { animation: fadeInUp 0.35s ease both; }
+  .spiced-card { animation: fadeInUp 0.3s ease both; }
+  .spiced-card:nth-child(1) { animation-delay: 0.1s; }
+  .spiced-card:nth-child(2) { animation-delay: 0.15s; }
+  .spiced-card:nth-child(3) { animation-delay: 0.2s; }
+  .spiced-card:nth-child(4) { animation-delay: 0.25s; }
+  .spiced-card:nth-child(5) { animation-delay: 0.3s; }
+  .criterion-row { animation: fadeInUp 0.3s ease both; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="nav">
+  <a href="#">Killer Calls</a>
+  <span class="nav-sep">›</span>
+  <span>Marcus Reid → Brightpath Marketing</span>
+  <span class="nav-sep">·</span>
+  <span>Feb 14, 2026</span>
+  <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+    <span style="color:var(--gold);">🥇 #1 All Time</span>
+    <span class="nav-sep">·</span>
+    <a href="#">← Back to library</a>
+  </span>
+</div>
+
+<div class="layout">
+<div class="main">
+
+  <!-- HEADER CARD -->
+  <div class="header-card">
+    <div class="header-top">
+      <div class="header-rep">
+        <div class="avatar-lg">MR</div>
+        <div>
+          <div class="rep-name-lg">Marcus Reid
+            <span class="outcome-pill">✓ Closed Won</span>
+          </div>
+          <div class="rep-meta-row">
+            <div class="rep-meta-item">🏢 <span>Brightpath Marketing</span></div>
+            <div class="rep-meta-item">📅 <span>Feb 14, 2026</span></div>
+            <div class="rep-meta-item">⏱ <span>41 min</span></div>
+            <div class="rep-meta-item">💰 <span style="color:var(--green)">$8,400 ARR</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="score-block">
+        <div class="score-label">Overall Score</div>
+        <div class="score-big">97<small>/100</small></div>
+        <div style="text-align:right;">
+          <span class="score-rag"><span class="rag-dot"></span> Green</span>
+        </div>
+      </div>
+    </div>
+    <div class="verdict-row">
+      <div class="verdict-bar"></div>
+      <div>
+        <div class="verdict-label">Manager Verdict</div>
+        <div class="verdict-text">Textbook from start to finish. Pain was quantified before a single feature was shown, ECIR was run on all three objections without flinching, and Marcus closed on the call rather than booking a follow-up. This is what the framework looks like when it's fully internalised.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPICED BREAKDOWN -->
+  <div class="section-hd">
+    <div class="section-hd-title">SPICED Breakdown</div>
+  </div>
+
+  <div class="spiced-grid">
+    <div class="spiced-card g">
+      <div class="spiced-letter">S</div>
+      <div class="spiced-word">Situation</div>
+      <div class="spiced-status">✓ Strong</div>
+      <div class="spiced-note">Opened with 3 targeted questions about their current stack and team size. Had clearly researched the account beforehand.</div>
+      <div class="spiced-ts">▶ 02:15 — 04:40</div>
+    </div>
+    <div class="spiced-card g">
+      <div class="spiced-letter">P</div>
+      <div class="spiced-word">Pain</div>
+      <div class="spiced-status">✓ Strong</div>
+      <div class="spiced-note">Named a specific pain ("leads going cold after first touch") and confirmed it in the prospect's own words before moving on.</div>
+      <div class="spiced-ts">▶ 08:52 — 11:30</div>
+    </div>
+    <div class="spiced-card g">
+      <div class="spiced-letter">I</div>
+      <div class="spiced-word">Impact</div>
+      <div class="spiced-status">✓ Strong</div>
+      <div class="spiced-note">Asked "what does that cost you per month?" at 12:40. Prospect named $15K. Marcus closed against that number at the end of the call.</div>
+      <div class="spiced-ts">▶ 12:40 — 13:18</div>
+    </div>
+    <div class="spiced-card g">
+      <div class="spiced-letter">C</div>
+      <div class="spiced-word">Critical Event</div>
+      <div class="spiced-status">✓ Strong</div>
+      <div class="spiced-note">Prospect mentioned a Q2 campaign launch. Marcus tied the solution timeline to that event to create genuine urgency.</div>
+      <div class="spiced-ts">▶ 19:05 — 20:30</div>
+    </div>
+    <div class="spiced-card g">
+      <div class="spiced-letter">E</div>
+      <div class="spiced-word">Decision</div>
+      <div class="spiced-status">✓ Strong</div>
+      <div class="spiced-note">Confirmed sole decision maker early. No committee, no waiting. Removed the most common close-blocker before it appeared.</div>
+      <div class="spiced-ts">▶ 06:10 — 07:00</div>
+    </div>
+  </div>
+
+  <!-- FULL SCORECARD -->
+  <div class="section-hd">
+    <div class="section-hd-title">Full Scorecard</div>
+  </div>
+
+  <!-- Phase 1 -->
+  <div class="phase-label">Phase 1 · Pre-Call Preparation</div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">AE demonstrated research and preparation</div>
+      <div class="cr-feedback">Referenced the prospect's LinkedIn post about a recent agency hire at <strong>03:10</strong> — showed he'd done more than glance at the website. Prospect visibly responded positively.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 03:10 — agency hire reference</span>
+        <span class="ts-chip">▶ 04:05 — industry-specific opening</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">6</div>
+      <div class="cr-score-max">/ 6</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- Phase 2 -->
+  <div class="phase-label" style="margin-top:20px;">Phase 2 · Discovery</div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Set a proper agenda at call open</div>
+      <div class="cr-feedback">Stated a clear agenda in the first 90 seconds and explicitly asked "does that work for you?" — got verbal buy-in before proceeding. Prospect was anchored to the structure from the start.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 01:20 — agenda set</span>
+        <span class="ts-chip">▶ 01:44 — prospect confirms</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">7</div>
+      <div class="cr-score-max">/ 7</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">SPICED discovery (all 5 elements)</div>
+      <div class="cr-feedback">All five elements covered in full — see SPICED breakdown above. Impact quantification at <strong>12:40</strong> is the standout moment: asked for a number, got one, and used it to close. Most reps skip this step entirely.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 02:15 — Situation</span>
+        <span class="ts-chip">▶ 08:52 — Pain</span>
+        <span class="ts-chip">▶ 12:40 — Impact $</span>
+        <span class="ts-chip">▶ 19:05 — Critical Event</span>
+        <span class="ts-chip">▶ 06:10 — Decision</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">25</div>
+      <div class="cr-score-max">/ 25</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- Phase 3 -->
+  <div class="phase-label" style="margin-top:20px;">Phase 3 · Presentation</div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Presentation was smooth and professional</div>
+      <div class="cr-feedback">Clean transitions between sections with no filler phrases. Demo flow was logical and followed the pain points uncovered in discovery rather than a generic walkthrough.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 22:00 — demo begins</span>
+        <span class="ts-chip">▶ 26:40 — smooth transition to pricing</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">4</div>
+      <div class="cr-score-max">/ 4</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Avoided long monologues — strong talk ratio</div>
+      <div class="cr-feedback">Longest unbroken stretch was 68 seconds before a check-in. Consistent pattern of short explanations followed by questions. Prospect spoke for approximately 40% of the call.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 14:20 — "Does that reflect what you're seeing?"</span>
+        <span class="ts-chip">▶ 23:55 — mid-demo check-in</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">6</div>
+      <div class="cr-score-max">/ 6</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Personalized presentation to the prospect</div>
+      <div class="cr-feedback">Every feature shown was tied back to the prospect's stated pain. Referenced the "leads going cold" problem three times during the demo section — kept the prospect's problem, not the product, as the protagonist.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 22:45 — "This is exactly what you described earlier…"</span>
+        <span class="ts-chip">▶ 25:10 — re-anchors to Q2 campaign</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">8</div>
+      <div class="cr-score-max">/ 8</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Used tie-downs throughout — closed as they went</div>
+      <div class="cr-feedback">Consistent use of micro-closes between sections. "Does that make sense for where you're at?" used naturally, not robotically. By the time pricing came up, the prospect had already agreed to the value multiple times.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 16:30 — tie-down after discovery</span>
+        <span class="ts-chip">▶ 24:15 — tie-down mid-demo</span>
+        <span class="ts-chip">▶ 27:00 — value recap before price</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">4</div>
+      <div class="cr-score-max">/ 4</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- Phase 4 -->
+  <div class="phase-label" style="margin-top:20px;">Phase 4 · Pricing & Objection Handling</div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Provided value summary before stating price</div>
+      <div class="cr-feedback">Two-minute recap of everything included before the number was mentioned. Ended the recap by referencing the $15K/month cost the prospect had named — made the price feel like a fraction of the problem, not an expense.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 28:05 — value recap begins</span>
+        <span class="ts-chip">▶ 29:55 — "…which is why the investment is $1,750"</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">8</div>
+      <div class="cr-score-max">/ 8</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Discussed pricing simply — one option, then waited</div>
+      <div class="cr-feedback">Stated one price, said "does that work for you?", and went completely silent for 8 seconds. Did not fill the silence. Prospect responded. This is exactly how price conversations should go.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 30:02 — price stated, silence held</span>
+        <span class="ts-chip">▶ 30:10 — prospect speaks first</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">6</div>
+      <div class="cr-score-max">/ 6</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Did NOT cave on discount or terms prematurely</div>
+      <div class="cr-feedback">Three objections raised. Marcus ran ECIR on each one before any mention of flexibility. No discount was offered. Deal closed at full price.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 30:10 — first objection (price)</span>
+        <span class="ts-chip">▶ 33:44 — second objection (timing)</span>
+        <span class="ts-chip">▶ 36:20 — third objection (internal approval)</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">2</div>
+      <div class="cr-score-max">/ 2</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">ECIR objection handling — all 3 objections</div>
+      <div class="cr-feedback">
+        <strong>Objection 1 — Price (30:10):</strong> Empathized genuinely, clarified "is it the monthly amount or the total commitment?", isolated it as the only concern, then responded by anchoring back to the $15K/month impact number.<br><br>
+        <strong>Objection 2 — Timing (33:44):</strong> Empathized, clarified that it was a Q2 concern, isolated it, then tied urgency to the campaign deadline the prospect had mentioned.<br><br>
+        <strong>Objection 3 — Internal approval (36:20):</strong> Empathized, clarified who needed to approve, isolated ("if they're on board, are you ready to move forward today?"), then offered to send a one-pager for the approver rather than scheduling another call.
+      </div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 30:10 — ECIR on price</span>
+        <span class="ts-chip">▶ 33:44 — ECIR on timing</span>
+        <span class="ts-chip">▶ 36:20 — ECIR on approval</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">12</div>
+      <div class="cr-score-max">/ 12</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- Phase 5 -->
+  <div class="phase-label" style="margin-top:20px;">Phase 5 · Close & Next Steps</div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Pushed to close the deal on the call</div>
+      <div class="cr-feedback">After resolving the third objection, Marcus asked directly: "Based on everything we've covered today, is there any reason we can't get you started this week?" Deal was verbally agreed on the call. No follow-up required.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 38:50 — close attempt</span>
+        <span class="ts-chip">▶ 39:14 — verbal yes</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">10</div>
+      <div class="cr-score-max">/ 10</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="criterion-row">
+    <div class="cr-rag g">✓</div>
+    <div class="cr-content">
+      <div class="cr-title">Scheduled specific follow-up / onboarding next step</div>
+      <div class="cr-feedback">Booked the onboarding call before hanging up — specific date and time confirmed. No "I'll send you a calendar link" ambiguity.</div>
+      <div class="cr-timestamps">
+        <span class="ts-chip">▶ 40:10 — "Let's lock in Thursday at 2pm for onboarding"</span>
+      </div>
+    </div>
+    <div class="cr-score">
+      <div class="cr-score-num g">2</div>
+      <div class="cr-score-max">/ 2</div>
+      <div class="cr-score-bar"><div class="cr-score-fill g" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- Flags -->
+  <div class="section-hd">
+    <div class="section-hd-title">Flags & Highlights</div>
+  </div>
+  <div class="flag-row gold-flag">⭐ Enthusiasm was notably high throughout — energy was consistent from open to close without feeling forced.</div>
+  <div class="flag-row gold-flag">⭐ No jargon used — language was plain, direct, and matched the prospect's vocabulary throughout.</div>
+
+  <!-- Coaching Summary -->
+  <div class="section-hd">
+    <div class="section-hd-title">Coaching Summary</div>
+  </div>
+
+  <div class="coaching-block">
+    <div class="coaching-block-header wins">✅ What landed</div>
+    <div class="coaching-block-body">
+      <div class="coaching-item"><span class="coaching-item-icon">1.</span><span>Impact quantification at 12:40 — asking "what does that cost you?" and then using that number to close is the single most transferable technique on this call. Every rep should hear this sequence.</span></div>
+      <div class="coaching-item"><span class="coaching-item-icon">2.</span><span>Silence after price at 30:02. Eight seconds of silence that the prospect broke. This takes discipline and most reps fill it. Marcus didn't.</span></div>
+      <div class="coaching-item"><span class="coaching-item-icon">3.</span><span>The Isolate step on objection 3 — "if they're on board, are you ready to move forward today?" — confirmed the deal was there before offering the one-pager workaround. Eliminated the risk of a false objection killing the close.</span></div>
+    </div>
+  </div>
+
+  <div class="coaching-block">
+    <div class="coaching-block-header fixes">🔧 One thing to sharpen</div>
+    <div class="coaching-block-body">
+      <div class="coaching-item"><span class="coaching-item-icon">→</span><span>Critical Event could have been established earlier — it appeared at 19:05, after the demo had already started. Surfacing the Q2 campaign deadline during discovery would have let Marcus frame the entire demo around that urgency from minute one.</span></div>
+    </div>
+  </div>
+
+  <div class="coaching-block">
+    <div class="coaching-block-header quote">💬 Quote of the call</div>
+    <div class="coaching-block-body">
+      <div class="coaching-quote">
+        "You mentioned this is costing you about $15,000 a month in wasted follow-up time. We're at $1,750. Even if we only solve half the problem, you're coming out significantly ahead. So the question isn't really about the price — it's about whether this is the right solution. And based on everything you've told me today, I think it is. What do you think?"
+        <div class="coaching-quote-ts">▶ 38:50 — closing statement</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Score by phase</div>
+    <div class="score-breakdown">
+      <div class="score-phase-row">
+        <div class="score-phase-name">Pre-Call</div>
+        <div class="score-phase-bar-wrap"><div class="score-phase-bar" style="width:100%;background:var(--green)"></div></div>
+        <div class="score-phase-val" style="color:var(--green)">6/6</div>
+      </div>
+      <div class="score-phase-row">
+        <div class="score-phase-name">Discovery</div>
+        <div class="score-phase-bar-wrap"><div class="score-phase-bar" style="width:100%;background:var(--green)"></div></div>
+        <div class="score-phase-val" style="color:var(--green)">32/32</div>
+      </div>
+      <div class="score-phase-row">
+        <div class="score-phase-name">Presentation</div>
+        <div class="score-phase-bar-wrap"><div class="score-phase-bar" style="width:100%;background:var(--green)"></div></div>
+        <div class="score-phase-val" style="color:var(--green)">22/22</div>
+      </div>
+      <div class="score-phase-row">
+        <div class="score-phase-name">Pricing & Obj.</div>
+        <div class="score-phase-bar-wrap"><div class="score-phase-bar" style="width:100%;background:var(--green)"></div></div>
+        <div class="score-phase-val" style="color:var(--green)">28/28</div>
+      </div>
+      <div class="score-phase-row">
+        <div class="score-phase-name">Close</div>
+        <div class="score-phase-bar-wrap"><div class="score-phase-bar" style="width:100%;background:var(--green)"></div></div>
+        <div class="score-phase-val" style="color:var(--green)">12/12</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Pipedrive — deal data</div>
+    <div class="pipedrive-card">
+      <div class="pd-row">
+        <div class="pd-label">Status</div>
+        <div class="pd-val green">✓ Closed Won</div>
+      </div>
+      <div class="pd-row">
+        <div class="pd-label">ARR</div>
+        <div class="pd-val green">$8,400</div>
+      </div>
+      <div class="pd-row">
+        <div class="pd-label">Contract</div>
+        <div class="pd-val">6 months</div>
+      </div>
+      <div class="pd-row">
+        <div class="pd-label">Close date</div>
+        <div class="pd-val">Feb 14, 2026</div>
+      </div>
+      <div class="pd-row">
+        <div class="pd-label">Demo → close</div>
+        <div class="pd-val green">Same call</div>
+      </div>
+      <div class="pd-row">
+        <div class="pd-label">Discount given</div>
+        <div class="pd-val green">None</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Reactions</div>
+    <div class="reactions-row">
+      <div class="reaction-pill active">🔥 <span class="reaction-count">12</span></div>
+      <div class="reaction-pill active">👏 <span class="reaction-count">9</span></div>
+      <div class="reaction-pill active">📌 <span class="reaction-count">6</span></div>
+      <div class="reaction-pill">💡</div>
+      <div class="reaction-pill">🎯</div>
+    </div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-label">Comments · 8</div>
+    <div class="comment-list">
+
+      <div class="comment">
+        <div class="c-avatar" style="background:linear-gradient(135deg,#92400e,#f59e0b);">JM</div>
+        <div class="c-bubble">
+          <div class="c-author manager">James Mitchell · Manager</div>
+          <div class="c-text">This is what 25/25 SPICED looks like. He never showed the product until pain AND the impact number were confirmed. Jump to 11:55 to see it in real time.</div>
+          <div class="c-ts-ref">▶ 11:55</div>
+          <div class="c-time">2 days ago</div>
+        </div>
+      </div>
+
+      <div class="comment">
+        <div class="c-avatar" style="background:linear-gradient(135deg,#065f46,#10b981);">SC</div>
+        <div class="c-bubble">
+          <div class="c-author">Sarah Chen</div>
+          <div class="c-text">The Isolate step at 36:20 — "if they're on board, are you ready to move forward today?" — that's the one I'm stealing. Never thought to confirm the close was there before offering a workaround.</div>
+          <div class="c-ts-ref">▶ 36:20</div>
+          <div class="c-time">2 days ago</div>
+        </div>
+      </div>
+
+      <div class="comment">
+        <div class="c-avatar" style="background:linear-gradient(135deg,#312e81,#6366f1);">AT</div>
+        <div class="c-bubble">
+          <div class="c-author">Aisha Thompson</div>
+          <div class="c-text">8 seconds of silence after price. I counted. I would have talked at 3.</div>
+          <div class="c-ts-ref">▶ 30:02</div>
+          <div class="c-time">1 day ago</div>
+        </div>
+      </div>
+
+      <div class="comment">
+        <div class="c-avatar" style="background:linear-gradient(135deg,#92400e,#f59e0b);">DK</div>
+        <div class="c-bubble">
+          <div class="c-author">Daniel Kowalski</div>
+          <div class="c-text">The closing statement at 38:50 is the best example of anchoring back to the impact number I've ever heard. Screenshotting this for my notes.</div>
+          <div class="c-ts-ref">▶ 38:50</div>
+          <div class="c-time">1 day ago</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="comment-input-row">
+      <textarea class="comment-input" rows="2" placeholder="Add a comment… use ▶ 00:00 to reference a timestamp"></textarea>
+      <div class="comment-actions">
+        <div class="ts-hint">tip: ▶ 12:40 links to that moment</div>
+        <button class="comment-send">Post</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+</body>
+</html>

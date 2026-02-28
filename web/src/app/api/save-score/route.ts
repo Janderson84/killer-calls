@@ -1,0 +1,180 @@
+import { NextResponse } from "next/server";
+import { neon } from "@neondatabase/serverless";
+import { WebClient } from "@slack/web-api";
+
+const AE_SLACK_IDS: Record<string, string> = {
+  "Pedro Cavagnari": "U0A7HQWP3GU",
+  "Edgar Arana": "U0A6YPUEB7H",
+  "Marc James Beauchamp": "U0A7T59MFCZ",
+  "Zachary Obando": "U0A7C69UHK8",
+  "Alfred Du": "U0A7T58JVHP",
+  "Vanessa Fortune": "U0A7T58H2MP",
+  "Marysol Ortega": "U0A6YPVA53R",
+  "Gleidson Rocha": "U0A88GBQQQ0",
+  "David Morawietz": "U0A89DVTWQ1",
+};
+
+export const maxDuration = 30;
+
+export async function POST(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { meetingId, repName, companyName, date, durationMinutes, title, scorecard } = body;
+
+  if (!meetingId || !scorecard || typeof scorecard.score !== "number") {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  const sql = neon(process.env.DATABASE_URL!);
+
+  try {
+    // Find or create rep
+    const repRows = await sql`SELECT id FROM reps WHERE name = ${repName} LIMIT 1`;
+    let repId: string;
+    if (repRows.length > 0) {
+      repId = repRows[0].id;
+    } else {
+      const newRep = await sql`INSERT INTO reps (name) VALUES (${repName}) RETURNING id`;
+      repId = newRep[0].id;
+    }
+
+    // Save scorecard
+    const inserted = await sql`
+      INSERT INTO scorecards (
+        rep_id, meeting_id, title, company_name, rep_name,
+        call_date, duration_minutes,
+        score, rag, verdict,
+        score_pre_call, score_discovery, score_presentation, score_pricing, score_closing,
+        spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
+        bant_b, bant_a, bant_n, bant_t,
+        scorecard_json
+      ) VALUES (
+        ${repId}, ${meetingId}, ${title || `${repName} → ${companyName}`}, ${companyName}, ${repName},
+        ${date}, ${durationMinutes},
+        ${scorecard.score}, ${scorecard.rag}, ${scorecard.verdict},
+        ${scorecard.phases?.preCall?.score || null},
+        ${scorecard.phases?.discovery?.score || null},
+        ${scorecard.phases?.presentation?.score || null},
+        ${scorecard.phases?.pricing?.score || null},
+        ${scorecard.phases?.closing?.score || null},
+        ${scorecard.spiced?.s?.status || null},
+        ${scorecard.spiced?.p?.status || null},
+        ${scorecard.spiced?.i?.status || null},
+        ${scorecard.spiced?.c?.status || null},
+        ${scorecard.spiced?.e?.status || null},
+        ${scorecard.bant?.b?.status || null},
+        ${scorecard.bant?.a?.status || null},
+        ${scorecard.bant?.n?.status || null},
+        ${scorecard.bant?.t?.status || null},
+        ${JSON.stringify(scorecard)}
+      )
+      ON CONFLICT (meeting_id) DO UPDATE SET
+        score = EXCLUDED.score, rag = EXCLUDED.rag, verdict = EXCLUDED.verdict,
+        scorecard_json = EXCLUDED.scorecard_json,
+        bant_b = EXCLUDED.bant_b, bant_a = EXCLUDED.bant_a,
+        bant_n = EXCLUDED.bant_n, bant_t = EXCLUDED.bant_t
+      RETURNING id`;
+
+    const scorecardId = inserted[0].id;
+
+    // Post to Slack
+    const slackToken = process.env.SLACK_BOT_TOKEN;
+    const channelId = process.env.SLACK_CHANNEL_REVIEWS;
+    if (slackToken && channelId) {
+      try {
+        const slack = new WebClient(slackToken);
+        const mention = AE_SLACK_IDS[repName] ? `<@${AE_SLACK_IDS[repName]}>` : repName;
+        const ragEmoji = scorecard.rag === "green" ? "🟢" : scorecard.rag === "yellow" ? "🟡" : "🔴";
+        const ragLabel = scorecard.score >= 80 ? "Green" : scorecard.score >= 60 ? "Yellow" : "Red";
+
+        const spicedLine = ["s", "p", "i", "c", "e"]
+          .map((el) => {
+            const d = scorecard.spiced?.[el];
+            const pip = d?.status === "strong" ? "✅" : d?.status === "partial" ? "🟡" : "🔴";
+            return `${pip} ${el.toUpperCase()}`;
+          })
+          .join("   ");
+
+        const bantLine = ["b", "a", "n", "t"]
+          .map((el) => {
+            const d = scorecard.bant?.[el];
+            const pip = d?.status === "strong" ? "✅" : d?.status === "partial" ? "🟡" : "🔴";
+            return `${pip} ${el.toUpperCase()}`;
+          })
+          .join("   ");
+
+        const url = process.env.APP_URL
+          ? `${process.env.APP_URL.replace(/\/$/, "")}/calls/${scorecardId}`
+          : null;
+
+        // --- Main message: score summary only ---
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mainBlocks: any[] = [
+          { type: "section", text: { type: "mrkdwn", text: `${ragEmoji} *New Demo Scored | ${mention} → ${companyName}*` } },
+          {
+            type: "section",
+            fields: [
+              { type: "mrkdwn", text: `*Score*\n${scorecard.score}/100 · ${ragLabel}` },
+              { type: "mrkdwn", text: `*Duration*\n${durationMinutes || "?"} min` },
+              { type: "mrkdwn", text: `*Date*\n${date}` },
+              { type: "mrkdwn", text: `*SPICED*\n${spicedLine}\n\n*BANT*\n${bantLine}` },
+            ],
+          },
+          { type: "section", text: { type: "mrkdwn", text: `> _${scorecard.verdict}_` } },
+        ];
+
+        if (url) {
+          mainBlocks.push({ type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "📋 View Full Scorecard" }, url, style: "primary" }] });
+        }
+
+        const result = await slack.chat.postMessage({
+          channel: channelId,
+          text: `${ragEmoji} New Demo Scored | ${mention} → ${companyName} — ${scorecard.score}/100`,
+          blocks: mainBlocks,
+          unfurl_links: false,
+        });
+
+        if (result.ts) {
+          await sql`UPDATE scorecards SET slack_review_ts = ${result.ts} WHERE id = ${scorecardId}`;
+
+          // --- Thread reply: detailed coaching ---
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const threadBlocks: any[] = [];
+
+          if (scorecard.wins?.length > 0) {
+            threadBlocks.push({ type: "section", text: { type: "mrkdwn", text: `*✅ What landed*\n${scorecard.wins.map((w: string) => `• ${w}`).join("\n")}` } });
+          }
+          if (scorecard.fixes?.length > 0) {
+            threadBlocks.push({ type: "section", text: { type: "mrkdwn", text: `*🔧 Priority fixes*\n${scorecard.fixes.map((f: string) => `• ${f}`).join("\n")}` } });
+          }
+          if (scorecard.quoteOfTheCall?.text) {
+            threadBlocks.push({ type: "divider" });
+            threadBlocks.push({ type: "section", text: { type: "mrkdwn", text: `*💬 Quote of the call* (▶ ${scorecard.quoteOfTheCall.timestamp})\n> _"${scorecard.quoteOfTheCall.text}"_` } });
+          }
+
+          if (threadBlocks.length > 0) {
+            await slack.chat.postMessage({
+              channel: channelId,
+              thread_ts: result.ts,
+              text: "Detailed coaching notes",
+              blocks: threadBlocks,
+              unfurl_links: false,
+            });
+          }
+        }
+      } catch (slackErr: unknown) {
+        const msg = slackErr instanceof Error ? slackErr.message : String(slackErr);
+        console.error("Slack error:", msg);
+      }
+    }
+
+    return NextResponse.json({ status: "ok", scorecardId, score: scorecard.score, rag: scorecard.rag });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ status: "error", error: msg }, { status: 500 });
+  }
+}

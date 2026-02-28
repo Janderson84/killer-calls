@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slack Integration — SalesCloser.ai</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0F1A;
+    --surface: #121828;
+    --surface2: #1A2235;
+    --surface3: #1E2A3A;
+    --border: #1E2D45;
+    --blue: #2563EB;
+    --blue-glow: rgba(37,99,235,0.12);
+    --blue-bright: #60A5FA;
+    --text: #E8EDF5;
+    --muted: #5A6A85;
+    --green: #10B981;
+    --green-bg: rgba(16,185,129,0.1);
+    --yellow: #F59E0B;
+    --yellow-bg: rgba(245,158,11,0.1);
+    --red: #EF4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --gold: #F59E0B;
+    --gold-bg: rgba(245,158,11,0.08);
+    --gold-border: rgba(245,158,11,0.25);
+    --purple: #A78BFA;
+    --purple-bg: rgba(167,139,250,0.1);
+    /* Slack-specific */
+    --slack-bg: #1A1D21;
+    --slack-surface: #222529;
+    --slack-hover: #2C2E33;
+    --slack-border: #35373B;
+    --slack-text: #D1D2D3;
+    --slack-muted: #9B9C9E;
+    --slack-white: #F8F8F8;
+    --slack-green: #2BAC76;
+    --slack-blue: #1D9BD1;
+    --slack-yellow: #E8A427;
+    --slack-purple: #7C3AED;
+    --slack-sidebar: #19171D;
+    --slack-sidebar-active: #1164A3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px;
+    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37,99,235,0.06) 0%, transparent 60%);
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .brand {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--blue-bright);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .page-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-weight: 300;
+  }
+  .divider-line {
+    height: 1px;
+    background: linear-gradient(90deg, var(--blue) 0%, transparent 60%);
+    margin: 20px 0 32px;
+    opacity: 0.4;
+  }
+
+  /* SECTION LABELS */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ─── LAYOUT: TWO COLUMNS ─── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 48px;
+  }
+  .col-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .channel-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+  .channel-tag.reviews { color: var(--blue-bright); background: var(--blue-glow); border-color: rgba(96,165,250,0.2); }
+  .channel-tag.killer { color: var(--gold); background: var(--gold-bg); border-color: var(--gold-border); }
+
+  /* ─── SLACK MESSAGE MOCK ─── */
+  .slack-window {
+    background: var(--slack-bg);
+    border: 1px solid var(--slack-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .slack-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--slack-surface);
+    border-bottom: 1px solid var(--slack-border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--slack-white);
+  }
+  .slack-titlebar .hash { color: var(--slack-muted); font-size: 15px; font-weight: 400; }
+  .slack-titlebar .member-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--slack-muted);
+    font-weight: 400;
+    margin-left: auto;
+  }
+
+  .slack-body { padding: 16px; }
+
+  /* Individual message */
+  .slack-msg {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .slack-msg:last-child { margin-bottom: 0; }
+  .slack-avatar {
+    width: 36px; height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .slack-avatar.bot {
+    background: linear-gradient(135deg, #2563EB, #60A5FA);
+    font-size: 14px;
+  }
+  .slack-msg-content { flex: 1; min-width: 0; }
+  .slack-msg-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .slack-author {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--slack-white);
+  }
+  .slack-author.bot-name { color: var(--slack-white); }
+  .slack-app-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--slack-muted);
+    background: var(--slack-surface);
+    border: 1px solid var(--slack-border);
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .slack-time {
+    font-size: 11px;
+    color: var(--slack-muted);
+  }
+
+  .slack-msg-text {
+    font-size: 14px;
+    color: var(--slack-text);
+    line-height: 1.6;
+  }
+
+  /* Slack rich attachment / block */
+  .slack-attachment {
+    border-left: 4px solid var(--slack-green);
+    background: rgba(255,255,255,0.02);
+    border-radius: 0 6px 6px 0;
+    padding: 12px 14px;
+    margin-top: 8px;
+  }
+  .slack-attachment.gold-border { border-left-color: var(--gold); }
+  .slack-attachment.red-border { border-left-color: var(--red); }
+  .slack-attachment.blue-border { border-left-color: var(--slack-blue); }
+
+  .sa-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--slack-white);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sa-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 16px;
+    margin-bottom: 10px;
+  }
+  .sa-field-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--slack-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .sa-field-value {
+    font-size: 13px;
+    color: var(--slack-text);
+    margin-bottom: 4px;
+  }
+  .sa-field-value.green { color: var(--slack-green); }
+  .sa-field-value.gold { color: var(--gold); }
+  .sa-field-value.red { color: var(--red); }
+
+  .sa-text {
+    font-size: 13px;
+    color: var(--slack-text);
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+  .sa-text strong { color: var(--slack-white); font-weight: 600; }
+
+  .sa-spiced {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .sa-spiced-pip {
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .sa-spiced-pip.g { background: rgba(43,172,118,0.15); color: var(--slack-green); }
+  .sa-spiced-pip.y { background: rgba(232,164,39,0.15); color: var(--slack-yellow); }
+  .sa-spiced-pip.r { background: rgba(239,68,68,0.15); color: var(--red); }
+
+  .sa-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .sa-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+    color: var(--slack-muted);
+    border: 1px solid var(--slack-border);
+  }
+  .sa-tag.gold { color: var(--gold); background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.2); }
+
+  .sa-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .sa-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--slack-border);
+    background: var(--slack-surface);
+    color: var(--slack-text);
+    cursor: pointer;
+    transition: background 0.12s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+  }
+  .sa-btn:hover { background: var(--slack-hover); }
+  .sa-btn.primary {
+    background: var(--slack-green);
+    border-color: var(--slack-green);
+    color: white;
+  }
+  .sa-btn.primary:hover { background: #239B68; }
+
+  /* Slack reactions */
+  .slack-reactions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .slack-reaction {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--slack-border);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .slack-reaction:hover { background: rgba(255,255,255,0.08); }
+  .slack-reaction.active { border-color: rgba(29,155,209,0.5); background: rgba(29,155,209,0.08); }
+  .slack-reaction-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--slack-muted);
+  }
+  .slack-reaction.active .slack-reaction-count { color: var(--slack-blue); }
+
+  /* Thread indicator */
+  .slack-thread-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  .thread-avatars {
+    display: flex;
+  }
+  .thread-avatar {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 700;
+    color: white;
+    margin-right: -4px;
+    border: 2px solid var(--slack-bg);
+  }
+  .thread-text {
+    font-size: 12px;
+    color: var(--slack-blue);
+    font-weight: 500;
+  }
+  .thread-text:hover { text-decoration: underline; }
+  .thread-time {
+    font-size: 11px;
+    color: var(--slack-muted);
+  }
+
+  /* Thread expanded */
+  .slack-thread {
+    border-top: 1px solid var(--slack-border);
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+  .thread-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--slack-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .thread-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--slack-border);
+  }
+  .slack-thread .slack-msg { margin-bottom: 12px; }
+  .slack-thread .slack-avatar { width: 28px; height: 28px; font-size: 10px; }
+  .slack-thread .slack-author { font-size: 13px; }
+  .slack-thread .slack-msg-text { font-size: 13px; }
+
+  .ts-ref {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--slack-blue);
+    background: rgba(29,155,209,0.08);
+    border: 1px solid rgba(29,155,209,0.15);
+    padding: 1px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .ts-ref:hover { background: rgba(29,155,209,0.15); }
+
+  /* ─── CONNECTION FLOW SECTION ─── */
+  .flow-section {
+    margin-bottom: 48px;
+  }
+  .flow-grid {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 0;
+    align-items: start;
+  }
+  .flow-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .flow-card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface2);
+  }
+  .flow-card-header .icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .flow-card-header .icon.slack-icon { background: linear-gradient(135deg, #4A154B, #611f69); }
+  .flow-card-header .icon.dash-icon { background: linear-gradient(135deg, #1d4ed8, #3b82f6); }
+  .flow-card-header .label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .flow-card-header .sublabel {
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .flow-card-body {
+    padding: 16px 18px;
+  }
+  .flow-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-item-icon {
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .flow-item-icon.green { color: var(--green); }
+  .flow-item-icon.blue { color: var(--blue-bright); }
+  .flow-item-icon.gold { color: var(--gold); }
+
+  /* Arrow connector */
+  .flow-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding-top: 60px;
+    color: var(--muted);
+  }
+  .flow-arrow-line {
+    width: 1px;
+    height: 30px;
+    background: var(--border);
+  }
+  .flow-arrow-icon {
+    font-size: 18px;
+    color: var(--blue-bright);
+    margin: 4px 0;
+  }
+  .flow-arrow-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    writing-mode: horizontal-tb;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  /* ─── NOTIFICATION RULES TABLE ─── */
+  .rules-table {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 48px;
+  }
+  .rules-table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .rules-table-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .rules-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .rules-table thead th {
+    padding: 10px 20px;
+    text-align: left;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .rules-table tbody td {
+    padding: 12px 20px;
+    font-size: 13px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .rules-table tbody tr:last-child td { border-bottom: none; }
+  .rules-table .trigger-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .trigger-badge.auto { background: var(--green-bg); color: var(--green); }
+  .trigger-badge.condition { background: var(--yellow-bg); color: var(--yellow); }
+  .trigger-badge.alert { background: var(--red-bg); color: var(--red); }
+
+  /* ─── RED ALERT EXAMPLE ─── */
+  .alert-example {
+    margin-bottom: 48px;
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .slack-window { animation: fadeInUp 0.4s ease both; }
+  .slack-window:nth-child(2) { animation-delay: 0.15s; }
+  .flow-card { animation: fadeInUp 0.4s ease both; animation-delay: 0.2s; }
+  .rules-table { animation: fadeInUp 0.4s ease both; animation-delay: 0.25s; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="brand">SalesCloser.ai — Demo Intelligence</div>
+    <div class="page-title">Slack Integration</div>
+    <div class="page-subtitle">Notification design, channel structure, and dashboard connection points</div>
+  </div>
+</div>
+
+<div class="divider-line"></div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION 1: CHANNEL NOTIFICATIONS SIDE-BY-SIDE -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-label">Channel notifications — how scored demos appear in Slack</div>
+
+<div class="two-col">
+
+  <!-- LEFT: #demo-reviews -->
+  <div>
+    <div class="col-label">
+      <span class="channel-tag reviews"># demo-reviews</span>
+      Every scored demo · Full feedback loop
+    </div>
+    <div class="slack-window">
+      <div class="slack-titlebar">
+        <span class="hash">#</span> demo-reviews
+        <span class="member-count">14 members</span>
+      </div>
+      <div class="slack-body">
+        <div class="slack-msg">
+          <div class="slack-avatar bot">SC</div>
+          <div class="slack-msg-content">
+            <div class="slack-msg-header">
+              <span class="slack-author bot-name">SalesCloser AI</span>
+              <span class="slack-app-badge">App</span>
+              <span class="slack-time">2:14 PM</span>
+            </div>
+            <div class="slack-attachment" style="border-left-color: var(--slack-green);">
+              <div class="sa-title">New Demo Scored | Marcus Reid → Brightpath Marketing</div>
+              <div class="sa-fields">
+                <div>
+                  <div class="sa-field-label">Score</div>
+                  <div class="sa-field-value green">97/100 · Green</div>
+                </div>
+                <div>
+                  <div class="sa-field-label">Deal Outcome</div>
+                  <div class="sa-field-value green">Closed Won · $8,400 ARR</div>
+                </div>
+                <div>
+                  <div class="sa-field-label">Duration</div>
+                  <div class="sa-field-value">41 min</div>
+                </div>
+                <div>
+                  <div class="sa-field-label">Date</div>
+                  <div class="sa-field-value">Feb 14, 2026</div>
+                </div>
+              </div>
+              <div class="sa-text"><strong>Verdict:</strong> Textbook from start to finish — closed on the call, full price, no discount. Pain was quantified before a single feature was shown.</div>
+              <div class="sa-spiced">
+                <div class="sa-spiced-pip g">S ✓</div>
+                <div class="sa-spiced-pip g">P ✓</div>
+                <div class="sa-spiced-pip g">I ✓</div>
+                <div class="sa-spiced-pip g">C ✓</div>
+                <div class="sa-spiced-pip g">E ✓</div>
+              </div>
+              <div class="sa-actions">
+                <a class="sa-btn primary" href="#">View Full Scorecard →</a>
+                <a class="sa-btn" href="#">Killer Calls Leaderboard →</a>
+              </div>
+            </div>
+            <div class="slack-reactions">
+              <div class="slack-reaction active">🔥 <span class="slack-reaction-count">8</span></div>
+              <div class="slack-reaction active">👏 <span class="slack-reaction-count">6</span></div>
+              <div class="slack-reaction">📌 <span class="slack-reaction-count">3</span></div>
+              <div class="slack-reaction">🎯 <span class="slack-reaction-count">2</span></div>
+            </div>
+            <div class="slack-thread-indicator">
+              <div class="thread-avatars">
+                <div class="thread-avatar" style="background:linear-gradient(135deg,#92400e,#f59e0b);">JM</div>
+                <div class="thread-avatar" style="background:linear-gradient(135deg,#065f46,#10b981);">SC</div>
+                <div class="thread-avatar" style="background:linear-gradient(135deg,#312e81,#6366f1);">AT</div>
+              </div>
+              <span class="thread-text">5 replies</span>
+              <span class="thread-time">Last reply 2 hours ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- THREAD EXPANDED -->
+      <div class="slack-thread" style="padding: 0 16px 16px;">
+        <div class="thread-header">Thread · 5 replies</div>
+
+        <div class="slack-msg">
+          <div class="slack-avatar" style="background:linear-gradient(135deg,#92400e,#f59e0b);width:28px;height:28px;font-size:10px;">JM</div>
+          <div class="slack-msg-content">
+            <div class="slack-msg-header">
+              <span class="slack-author" style="font-size:13px;">James Mitchell</span>
+              <span class="slack-time">2:22 PM</span>
+            </div>
+            <div class="slack-msg-text" style="font-size:13px;">This is what 25/25 SPICED looks like. He never showed the product until he'd confirmed the pain AND the impact number. Jump to <span class="ts-ref">▶ 11:55</span> to see it in real time. Pinning this one for the team meeting.</div>
+          </div>
+        </div>
+
+        <div class="slack-msg">
+          <div class="slack-avatar" style="background:linear-gradient(135deg,#065f46,#10b981);width:28px;height:28px;font-size:10px;">SC</div>
+          <div class="slack-msg-content">
+            <div class="slack-msg-header">
+              <span class="slack-author" style="font-size:13px;">Sarah Chen</span>
+              <span class="slack-time">2:45 PM</span>
+            </div>
+            <div class="slack-msg-text" style="font-size:13px;">The Isolate step at <span class="ts-ref">▶ 36:20</span> — "if they're on board, are you ready to move forward today?" — that's the one I'm stealing.</div>
+          </div>
+        </div>
+
+        <div class="slack-msg">
+          <div class="slack-avatar" style="background:linear-gradient(135deg,#312e81,#6366f1);width:28px;height:28px;font-size:10px;">AT</div>
+          <div class="slack-msg-content">
+            <div class="slack-msg-header">
+              <span class="slack-author" style="font-size:13px;">Aisha Thompson</span>
+              <span class="slack-time">3:10 PM</span>
+            </div>
+            <div class="slack-msg-text" style="font-size:13px;">8 seconds of silence after price at <span class="ts-ref">▶ 30:02</span>. I counted. I would have talked at 3.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: #killer-calls -->
+  <div>
+    <div class="col-label">
+      <span class="channel-tag killer"># killer-calls</span>
+      80+ scores only · Hall of Fame feed
+    </div>
+    <div class="slack-window">
+      <div class="slack-titlebar">
+        <span class="hash">#</span> killer-calls
+        <span class="member-count">14 members</span>
+      </div>
+      <div class="slack-body">
+        <div class="slack-msg">
+          <div class="slack-avatar bot">SC</div>
+          <div class="slack-msg-content">
+            <div class="slack-msg-header">
+              <span class="slack-author bot-name">SalesCloser AI</span>
+              <span class="slack-app-badge">App</span>
+              <span class="slack-time">2:14 PM</span>
+            </div>
+            <div class="slack-attachment gold-border">
+              <div class="sa-title" style="color:var(--gold);">KILLER CALL | Marcus Reid — 97/100</div>
+              <div class="sa-fields">
+                <div>
+                  <div class="sa-field-label">Rank</div>
+                  <div class="sa-field-value gold">#1 All Time</div>
+                </div>
+                <div>
+                  <div class="sa-field-label">Deal</div>
+                  <div class="sa-field-value green">$8,400 ARR · Closed Won</div>
+                </div>
+              </div>
+              <div class="sa-text">Brightpath Marketing · Feb 14, 2026 · 41 min</div>
+              <div class="sa-tags">
+                <span class="sa-tag gold">Perfect SPICED</span>
+                <span class="sa-tag gold">ECIR on 3 objections</span>
+                <span class="sa-tag">Closed on call</span>
+                <span class="sa-tag">No discount</span>
+              </div>
+              <div class="sa-actions">
+                <a class="sa-btn primary" href="#">Study This Call →</a>
+              </div>
+            </div>
+            <div class="slack-reactions">
+              <div class="slack-reaction active">🔥 <span class="slack-reaction-count">12</span></div>
+              <div class="slack-reaction active">👏 <span class="slack-reaction-count">9</span></div>
+              <div class="slack-reaction active">🏆 <span class="slack-reaction-count">7</span></div>
+              <div class="slack-reaction">📌 <span class="slack-reaction-count">4</span></div>
+            </div>
+            <div class="slack-thread-indicator">
+              <div class="thread-avatars">
+                <div class="thread-avatar" style="background:linear-gradient(135deg,#92400e,#f59e0b);">JM</div>
+                <div class="thread-avatar" style="background:linear-gradient(135deg,#92400e,#f59e0b);">DK</div>
+              </div>
+              <span class="thread-text">3 replies</span>
+              <span class="thread-time">Last reply 1 hour ago</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Separator -->
+        <div style="border-top:1px solid var(--slack-border);margin:16px 0;"></div>
+
+        <!-- Second killer call: lower score example -->
+        <div class="slack-msg">
+          <div class="slack-avatar bot">SC</div>
+          <div class="slack-msg-content">
+            <div class="slack-msg-header">
+              <span class="slack-author bot-name">SalesCloser AI</span>
+              <span class="slack-app-badge">App</span>
+              <span class="slack-time">Yesterday, 4:38 PM</span>
+            </div>
+            <div class="slack-attachment gold-border">
+              <div class="sa-title" style="color:var(--gold);">KILLER CALL | Daniel Kowalski — 91/100</div>
+              <div class="sa-fields">
+                <div>
+                  <div class="sa-field-label">Rank</div>
+                  <div class="sa-field-value gold">#3 All Time</div>
+                </div>
+                <div>
+                  <div class="sa-field-label">Deal</div>
+                  <div class="sa-field-value" style="color:var(--slack-blue);">$9,100 potential · Open</div>
+                </div>
+              </div>
+              <div class="sa-text">Crestline Media · Feb 19, 2026 · 47 min</div>
+              <div class="sa-tags">
+                <span class="sa-tag">Best ECIR example</span>
+                <span class="sa-tag">Strong personalization</span>
+                <span class="sa-tag gold">8-month ramp</span>
+              </div>
+              <div class="sa-actions">
+                <a class="sa-btn primary" href="#">Study This Call →</a>
+              </div>
+            </div>
+            <div class="slack-reactions">
+              <div class="slack-reaction active">🔥 <span class="slack-reaction-count">5</span></div>
+              <div class="slack-reaction">👏 <span class="slack-reaction-count">3</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION 2: RED CALL ALERT (Yellow channel too) -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-label">Alert notifications — red calls and coaching triggers</div>
+
+<div class="two-col">
+
+  <!-- LEFT: Red alert in #demo-reviews -->
+  <div>
+    <div class="col-label">
+      <span class="channel-tag reviews"># demo-reviews</span>
+      Red score notification
+    </div>
+    <div class="slack-window">
+      <div class="slack-titlebar">
+        <span class="hash">#</span> demo-reviews
+        <span class="member-count">14 members</span>
+      </div>
+      <div class="slack-body">
+        <div class="slack-msg">
+          <div class="slack-avatar bot">SC</div>
+          <div class="slack-msg-content">
+            <div class="slack-msg-header">
+              <span class="slack-author bot-name">SalesCloser AI</span>
+              <span class="slack-app-badge">App</span>
+              <span class="slack-time">11:42 AM</span>
+            </div>
+            <div class="slack-attachment red-border">
+              <div class="sa-title" style="color:var(--red);">New Demo Scored | Nina Baxter → Redline Partners</div>
+              <div class="sa-fields">
+                <div>
+                  <div class="sa-field-label">Score</div>
+                  <div class="sa-field-value red">48/100 · Red</div>
+                </div>
+                <div>
+                  <div class="sa-field-label">Deal Outcome</div>
+                  <div class="sa-field-value" style="color:var(--slack-muted);">No deal created</div>
+                </div>
+                <div>
+                  <div class="sa-field-label">Duration</div>
+                  <div class="sa-field-value">22 min</div>
+                </div>
+                <div>
+                  <div class="sa-field-label">Date</div>
+                  <div class="sa-field-value">Feb 24, 2026</div>
+                </div>
+              </div>
+              <div class="sa-text"><strong>Verdict:</strong> Discovery skipped almost entirely — jumped to demo at the 4-minute mark. No pain uncovered, no impact quantified. Prospect disengaged by mid-demo. Price was stated without a value summary.</div>
+              <div class="sa-spiced">
+                <div class="sa-spiced-pip y">S ~</div>
+                <div class="sa-spiced-pip r">P ✗</div>
+                <div class="sa-spiced-pip r">I ✗</div>
+                <div class="sa-spiced-pip r">C ✗</div>
+                <div class="sa-spiced-pip r">E ✗</div>
+              </div>
+              <div class="sa-actions">
+                <a class="sa-btn" href="#">View Full Scorecard →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Manager DM alert -->
+  <div>
+    <div class="col-label">
+      <span class="channel-tag" style="color:var(--red);background:var(--red-bg);border-color:rgba(239,68,68,0.2);">DM alert</span>
+      Manager notification — back-to-back reds
+    </div>
+    <div class="slack-window">
+      <div class="slack-titlebar">
+        <span style="font-size:14px;">🔒</span> SalesCloser AI
+        <span class="member-count">Direct Message</span>
+      </div>
+      <div class="slack-body">
+        <div class="slack-msg">
+          <div class="slack-avatar bot">SC</div>
+          <div class="slack-msg-content">
+            <div class="slack-msg-header">
+              <span class="slack-author bot-name">SalesCloser AI</span>
+              <span class="slack-app-badge">App</span>
+              <span class="slack-time">11:42 AM</span>
+            </div>
+            <div class="slack-attachment red-border">
+              <div class="sa-title" style="color:var(--red);">Coaching Alert — Nina Baxter</div>
+              <div class="sa-text" style="margin-bottom:12px;">Nina has scored <strong style="color:var(--red);">red on 3 consecutive demos</strong> (48, 52, 44). Common failure points across all three calls:</div>
+              <div style="font-size:13px;color:var(--slack-text);line-height:1.8;margin-bottom:12px;">
+                <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:4px;"><span style="color:var(--red);flex-shrink:0;">1.</span> Discovery consistently skipped — SPICED score averaging 4/25</div>
+                <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:4px;"><span style="color:var(--red);flex-shrink:0;">2.</span> No impact quantification on any of the three calls</div>
+                <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:4px;"><span style="color:var(--red);flex-shrink:0;">3.</span> Price presented without value summary (0/8 on all three)</div>
+              </div>
+              <div class="sa-text"><strong>Recommended action:</strong> Priority 1:1 coaching session focused on SPICED discovery and value-before-price sequence.</div>
+              <div class="sa-actions">
+                <a class="sa-btn primary" href="#">View Nina's Scorecard History →</a>
+                <a class="sa-btn" href="#">Open Coaching Queue →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION 3: DASHBOARD ↔ SLACK CONNECTION FLOW  -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-label">Dashboard ↔ Slack — connection points</div>
+
+<div class="flow-grid" style="margin-bottom:48px;">
+  <!-- SLACK SIDE -->
+  <div class="flow-card">
+    <div class="flow-card-header">
+      <div class="icon slack-icon">💬</div>
+      <div>
+        <div class="label">Slack</div>
+        <div class="sublabel">Primary interaction layer</div>
+      </div>
+    </div>
+    <div class="flow-card-body">
+      <div class="flow-item">
+        <div class="flow-item-icon green">→</div>
+        <div><strong>Auto-post on score complete</strong> — notification fires to #demo-reviews immediately after Claude finishes scoring. 80+ calls also post to #killer-calls.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-item-icon blue">→</div>
+        <div><strong>Threaded comments as coaching</strong> — all feedback lives in the Slack thread. Manager pins the most important timestamp. Peers react and reply.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-item-icon blue">→</div>
+        <div><strong>Timestamp chips link to recording</strong> — clicking <span class="ts-ref" style="font-size:10px;">▶ 12:40</span> in any comment opens the call recording at that exact moment in the dashboard.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-item-icon gold">→</div>
+        <div><strong>Reactions as engagement data</strong> — emoji reactions (🔥 👏 📌 🎯) sync to the dashboard and appear on the scorecard page. Most-reacted calls surface higher in Killer Calls.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-item-icon" style="color:var(--red);">→</div>
+        <div><strong>Manager DM on red alerts</strong> — back-to-back red scores trigger a private DM to the manager with pattern analysis and coaching recommendations.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="flow-arrow">
+    <div class="flow-arrow-line"></div>
+    <div class="flow-arrow-icon">⇄</div>
+    <div class="flow-arrow-label">Sync</div>
+    <div class="flow-arrow-line"></div>
+  </div>
+
+  <!-- DASHBOARD SIDE -->
+  <div class="flow-card">
+    <div class="flow-card-header">
+      <div class="icon dash-icon">📊</div>
+      <div>
+        <div class="label">Dashboard</div>
+        <div class="sublabel">Scorecard viewer + leaderboard</div>
+      </div>
+    </div>
+    <div class="flow-card-body">
+      <div class="flow-item">
+        <div class="flow-item-icon green">←</div>
+        <div><strong>Scorecard links in every notification</strong> — "View Full Scorecard" and "Study This Call" buttons deep-link to the specific call detail page.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-item-icon blue">←</div>
+        <div><strong>Comment mirror (read-only)</strong> — Slack thread comments appear on the dashboard scorecard page as a read-only feed. Posting still happens in Slack.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-item-icon blue">←</div>
+        <div><strong>"Discuss in Slack" link</strong> — every scorecard page includes a link that opens the original Slack thread directly, keeping discussion centralized.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-item-icon gold">←</div>
+        <div><strong>Reaction counts displayed</strong> — 🔥 12 · 👏 9 · 📌 6 shown on call cards and scorecard headers. Sourced from Slack, not a separate system.</div>
+      </div>
+      <div class="flow-item">
+        <div class="flow-item-icon" style="color:var(--red);">←</div>
+        <div><strong>Coaching queue fed by alerts</strong> — the manager dashboard's coaching queue is populated by the same red-alert logic that triggers Slack DMs.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION 4: NOTIFICATION RULES TABLE          -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="section-label">Notification rules — what fires, where, and when</div>
+
+<div class="rules-table">
+  <div class="rules-table-header">
+    <div class="rules-table-title">Automated Notification Rules</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Trigger</th>
+        <th>Channel / Target</th>
+        <th>Type</th>
+        <th>Content</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Every scored demo</td>
+        <td><strong>#demo-reviews</strong></td>
+        <td><span class="trigger-badge auto">Auto</span></td>
+        <td>Full notification with score, verdict, SPICED status, deal outcome, and scorecard link</td>
+      </tr>
+      <tr>
+        <td>Score ≥ 80</td>
+        <td><strong>#killer-calls</strong></td>
+        <td><span class="trigger-badge condition">80+ only</span></td>
+        <td>Celebratory notification with rank, framework highlights, and "Study This Call" link</td>
+      </tr>
+      <tr>
+        <td>Score &lt; 60</td>
+        <td><strong>#demo-reviews</strong></td>
+        <td><span class="trigger-badge alert">Red flag</span></td>
+        <td>Standard notification with red attachment border. No special shaming — same format, different color.</td>
+      </tr>
+      <tr>
+        <td>2+ consecutive reds</td>
+        <td><strong>Manager DM</strong></td>
+        <td><span class="trigger-badge alert">Alert</span></td>
+        <td>Private coaching alert with pattern analysis across recent calls, common failure points, and recommended action</td>
+      </tr>
+      <tr>
+        <td>New #1 All Time score</td>
+        <td><strong>#killer-calls</strong></td>
+        <td><span class="trigger-badge condition">Conditional</span></td>
+        <td>Special "New #1" announcement with comparison to previous record holder</td>
+      </tr>
+      <tr>
+        <td>Rep breaks personal best</td>
+        <td><strong>#demo-reviews</strong></td>
+        <td><span class="trigger-badge auto">Auto</span></td>
+        <td>Standard notification with "Personal Best" tag appended — visible to the team as a milestone</td>
+      </tr>
+      <tr>
+        <td>Deal outcome updates (Pipedrive)</td>
+        <td><strong>#demo-reviews</strong> thread</td>
+        <td><span class="trigger-badge auto">Auto</span></td>
+        <td>Reply in the original demo's thread: "Update: This deal closed won — $8,400 ARR" or "Update: Deal marked lost"</td>
+      </tr>
+      <tr>
+        <td>Discount given before ECIR</td>
+        <td><strong>#demo-reviews</strong></td>
+        <td><span class="trigger-badge alert">Red flag</span></td>
+        <td>Auto-flagged in scorecard regardless of overall score. Notification includes the specific timestamp where discount was offered.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- SECTION 5: AUTH NOTE                          -->
+<!-- ═══════════════════════════════════════════════ -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;display:flex;gap:14px;align-items:flex-start;margin-bottom:32px;">
+  <div style="font-size:18px;flex-shrink:0;margin-top:1px;">🔑</div>
+  <div>
+    <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;">Authentication: Slack Identity Only</div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.6;">No separate accounts, passwords, or logins. Every comment, reaction, and interaction is attributed via the team's existing Slack identities. The dashboard is read-only for engagement data — all posting and discussion happens in Slack. This means zero onboarding friction and the team stays in the tool they already live in.</div>
+  </div>
+</div>
+
+</body>
+</html>

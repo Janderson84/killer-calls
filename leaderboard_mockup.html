@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo Review Leaderboard — SalesCloser.ai</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0F1A;
+    --surface: #121828;
+    --surface2: #1A2235;
+    --border: #1E2D45;
+    --blue: #2563EB;
+    --blue-glow: rgba(37,99,235,0.15);
+    --blue-bright: #60A5FA;
+    --text: #E8EDF5;
+    --muted: #5A6A85;
+    --green: #10B981;
+    --green-bg: rgba(16,185,129,0.1);
+    --yellow: #F59E0B;
+    --yellow-bg: rgba(245,158,11,0.1);
+    --red: #EF4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --gold: #F59E0B;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(37,99,235,0.08) 0%, transparent 60%);
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 36px;
+  }
+  .header-left {}
+  .brand {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--blue-bright);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .page-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-weight: 300;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .period-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+  }
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--green-bg);
+    border: 1px solid rgba(16,185,129,0.25);
+    color: var(--green);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* STAT CARDS */
+  .stat-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--blue) 0%, transparent 100%);
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 10px;
+  }
+  .stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .stat-value.green { color: var(--green); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-change {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-change.up { color: var(--green); }
+  .stat-change.down { color: var(--red); }
+
+  /* LEADERBOARD TABLE */
+  .table-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .table-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .table-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead th {
+    padding: 12px 20px;
+    text-align: left;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th:first-child { padding-left: 24px; }
+  thead th:last-child { padding-right: 24px; text-align: right; }
+  thead th.right { text-align: right; }
+  thead th.center { text-align: center; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr.top-row { background: rgba(37,99,235,0.04); }
+
+  td {
+    padding: 16px 20px;
+    vertical-align: middle;
+    font-size: 13.5px;
+  }
+  td:first-child { padding-left: 24px; }
+  td:last-child { padding-right: 24px; }
+  td.right { text-align: right; }
+  td.center { text-align: center; }
+
+  /* RANK */
+  .rank {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    width: 32px;
+  }
+  .rank.gold { color: var(--gold); font-weight: 500; }
+  .rank.silver { color: #94A3B8; }
+  .rank.bronze { color: #B87333; }
+
+  /* REP INFO */
+  .rep-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .rep-name {
+    font-weight: 500;
+    color: var(--text);
+    font-size: 14px;
+  }
+  .rep-tenure {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  /* SCORE */
+  .score-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .score-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    min-width: 38px;
+  }
+  .score-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    min-width: 60px;
+    max-width: 80px;
+  }
+  .score-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  /* RAG BADGE */
+  .rag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+  .rag.green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+  .rag.yellow { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245,158,11,0.2); }
+  .rag.red { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .rag-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  /* TREND */
+  .trend {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .trend.up { color: var(--green); }
+  .trend.down { color: var(--red); }
+  .trend.flat { color: var(--muted); }
+
+  /* REVENUE */
+  .revenue {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .revenue.dim { color: var(--muted); }
+
+  /* CLOSE RATE */
+  .close-rate {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* CALLS COUNT */
+  .calls-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* MINI SPICED */
+  .spiced-mini {
+    display: flex;
+    gap: 3px;
+  }
+  .spiced-pip {
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+  }
+  .spiced-pip.g { background: var(--green-bg); color: var(--green); }
+  .spiced-pip.y { background: var(--yellow-bg); color: var(--yellow); }
+  .spiced-pip.r { background: var(--red-bg); color: var(--red); }
+
+  /* ALERT BADGE */
+  .alert-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--red);
+    background: var(--red-bg);
+    border: 1px solid rgba(239,68,68,0.2);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  /* BOTTOM ROW */
+  .bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .bottom-note {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+  .bottom-note span { color: var(--blue-bright); }
+
+  .view-all {
+    font-size: 12px;
+    color: var(--blue-bright);
+    font-family: 'DM Mono', monospace;
+    cursor: pointer;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .view-all:hover { color: var(--text); }
+
+  /* Divider line in header */
+  .divider-line {
+    height: 1px;
+    background: linear-gradient(90deg, var(--blue) 0%, transparent 60%);
+    margin-bottom: 28px;
+    opacity: 0.4;
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .stat-card { animation: fadeInUp 0.4s ease both; }
+  .stat-card:nth-child(1) { animation-delay: 0.05s; }
+  .stat-card:nth-child(2) { animation-delay: 0.1s; }
+  .stat-card:nth-child(3) { animation-delay: 0.15s; }
+  .stat-card:nth-child(4) { animation-delay: 0.2s; }
+  tbody tr { animation: fadeInUp 0.35s ease both; }
+  tbody tr:nth-child(1) { animation-delay: 0.25s; }
+  tbody tr:nth-child(2) { animation-delay: 0.3s; }
+  tbody tr:nth-child(3) { animation-delay: 0.35s; }
+  tbody tr:nth-child(4) { animation-delay: 0.4s; }
+  tbody tr:nth-child(5) { animation-delay: 0.45s; }
+  tbody tr:nth-child(6) { animation-delay: 0.5s; }
+  tbody tr:nth-child(7) { animation-delay: 0.55s; }
+  tbody tr:nth-child(8) { animation-delay: 0.6s; }
+  tbody tr:nth-child(9) { animation-delay: 0.65s; }
+  tbody tr:nth-child(10) { animation-delay: 0.7s; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="brand">SalesCloser.ai — Demo Intelligence</div>
+    <div class="page-title">Team Leaderboard</div>
+    <div class="page-subtitle">Call quality score (primary) · Pipedrive revenue data (secondary) · Updated live</div>
+  </div>
+  <div class="header-right">
+    <select class="period-select">
+      <option>Last 30 days</option>
+      <option>Last 7 days</option>
+      <option>This month</option>
+      <option>This quarter</option>
+    </select>
+    <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+  </div>
+</div>
+
+<div class="divider-line"></div>
+
+<div class="stat-cards">
+  <div class="stat-card">
+    <div class="stat-label">Team Avg Score</div>
+    <div class="stat-value">67<span style="font-size:16px;color:var(--muted)">/100</span></div>
+    <div class="stat-change up">↑ +4.2 vs last month</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Revenue Closed</div>
+    <div class="stat-value green">$184K</div>
+    <div class="stat-change down">↓ –$12K vs last month</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Demos Scored</div>
+    <div class="stat-value">142</div>
+    <div class="stat-change up">↑ +18 vs last month</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Team Close Rate</div>
+    <div class="stat-value yellow">11.3%</div>
+    <div class="stat-change flat">→ flat vs last month</div>
+  </div>
+</div>
+
+<div class="table-container">
+  <div class="table-header-bar">
+    <div class="table-title">Account Executive Rankings</div>
+    <div class="table-meta">Sorted by avg call score · 30-day rolling window</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Account Executive</th>
+        <th>Avg Score</th>
+        <th class="center">Status</th>
+        <th class="center">SPICED</th>
+        <th class="center">Trend</th>
+        <th class="center">Calls</th>
+        <th class="right">Deals Won</th>
+        <th class="right">Revenue</th>
+        <th class="right">Pipeline</th>
+        <th class="right">Close Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- #1 -->
+      <tr class="top-row">
+        <td><div class="rank gold">01</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:white;">MR</div>
+            <div>
+              <div class="rep-name">Marcus Reid</div>
+              <div class="rep-tenure">14 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--green)">88</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:88%;background:var(--green)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag green"><span class="rag-dot"></span>Green</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip g">S</div><div class="spiced-pip g">P</div><div class="spiced-pip g">I</div><div class="spiced-pip y">C</div><div class="spiced-pip g">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend up">↑ +6</div></td>
+        <td class="center"><div class="calls-count">18</div></td>
+        <td class="right"><div class="revenue">4</div></td>
+        <td class="right"><div class="revenue">$28,400</div></td>
+        <td class="right"><div class="revenue">$47,200</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--green)">22.2%</div></td>
+      </tr>
+
+      <!-- #2 -->
+      <tr>
+        <td><div class="rank silver">02</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#065f46,#10b981);color:white;">SC</div>
+            <div>
+              <div class="rep-name">Sarah Chen</div>
+              <div class="rep-tenure">22 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--green)">84</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:84%;background:var(--green)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag green"><span class="rag-dot"></span>Green</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip g">S</div><div class="spiced-pip g">P</div><div class="spiced-pip y">I</div><div class="spiced-pip g">C</div><div class="spiced-pip g">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend up">↑ +3</div></td>
+        <td class="center"><div class="calls-count">21</div></td>
+        <td class="right"><div class="revenue">5</div></td>
+        <td class="right"><div class="revenue">$34,100</div></td>
+        <td class="right"><div class="revenue">$52,000</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--green)">23.8%</div></td>
+      </tr>
+
+      <!-- #3 -->
+      <tr>
+        <td><div class="rank bronze">03</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#92400e,#f59e0b);color:white;">DK</div>
+            <div>
+              <div class="rep-name">Daniel Kowalski</div>
+              <div class="rep-tenure">8 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--green)">81</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:81%;background:var(--green)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag green"><span class="rag-dot"></span>Green</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip g">S</div><div class="spiced-pip g">P</div><div class="spiced-pip g">I</div><div class="spiced-pip g">C</div><div class="spiced-pip y">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend up">↑ +9</div></td>
+        <td class="center"><div class="calls-count">14</div></td>
+        <td class="right"><div class="revenue">2</div></td>
+        <td class="right"><div class="revenue">$14,200</div></td>
+        <td class="right"><div class="revenue">$38,600</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--yellow)">14.3%</div></td>
+      </tr>
+
+      <!-- #4 -->
+      <tr>
+        <td><div class="rank">04</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#312e81,#6366f1);color:white;">AT</div>
+            <div>
+              <div class="rep-name">Aisha Thompson</div>
+              <div class="rep-tenure">11 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--yellow)">74</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:74%;background:var(--yellow)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag yellow"><span class="rag-dot"></span>Yellow</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip g">S</div><div class="spiced-pip y">P</div><div class="spiced-pip r">I</div><div class="spiced-pip g">C</div><div class="spiced-pip g">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend flat">→ 0</div></td>
+        <td class="center"><div class="calls-count">17</div></td>
+        <td class="right"><div class="revenue">3</div></td>
+        <td class="right"><div class="revenue">$22,600</div></td>
+        <td class="right"><div class="revenue">$29,800</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--yellow)">17.6%</div></td>
+      </tr>
+
+      <!-- #5 -->
+      <tr>
+        <td><div class="rank">05</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#0c4a6e,#0ea5e9);color:white;">LM</div>
+            <div>
+              <div class="rep-name">Liam Murphy</div>
+              <div class="rep-tenure">6 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--yellow)">71</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:71%;background:var(--yellow)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag yellow"><span class="rag-dot"></span>Yellow</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip g">S</div><div class="spiced-pip y">P</div><div class="spiced-pip y">I</div><div class="spiced-pip r">C</div><div class="spiced-pip y">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend up">↑ +5</div></td>
+        <td class="center"><div class="calls-count">12</div></td>
+        <td class="right"><div class="revenue">1</div></td>
+        <td class="right"><div class="revenue">$7,100</div></td>
+        <td class="right"><div class="revenue">$24,400</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--yellow)">8.3%</div></td>
+      </tr>
+
+      <!-- #6 -->
+      <tr>
+        <td><div class="rank">06</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#134e4a,#2dd4bf);color:white;">PV</div>
+            <div>
+              <div class="rep-name">Priya Varma</div>
+              <div class="rep-tenure">9 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--yellow)">68</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:68%;background:var(--yellow)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag yellow"><span class="rag-dot"></span>Yellow</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip g">S</div><div class="spiced-pip r">P</div><div class="spiced-pip r">I</div><div class="spiced-pip y">C</div><div class="spiced-pip g">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend down">↓ –4</div></td>
+        <td class="center"><div class="calls-count">15</div></td>
+        <td class="right"><div class="revenue">2</div></td>
+        <td class="right"><div class="revenue">$15,800</div></td>
+        <td class="right"><div class="revenue">$18,200</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--yellow)">13.3%</div></td>
+      </tr>
+
+      <!-- #7 -->
+      <tr>
+        <td><div class="rank">07</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#4a1942,#d946ef);color:white;">JO</div>
+            <div>
+              <div class="rep-name">Jake O'Brien</div>
+              <div class="rep-tenure">5 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--yellow)">63</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:63%;background:var(--yellow)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag yellow"><span class="rag-dot"></span>Yellow</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip y">S</div><div class="spiced-pip r">P</div><div class="spiced-pip r">I</div><div class="spiced-pip r">C</div><div class="spiced-pip g">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend up">↑ +2</div></td>
+        <td class="center"><div class="calls-count">11</div></td>
+        <td class="right"><div class="revenue">1</div></td>
+        <td class="right"><div class="revenue">$5,900</div></td>
+        <td class="right"><div class="revenue">$16,100</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--yellow)">9.1%</div></td>
+      </tr>
+
+      <!-- #8 -->
+      <tr>
+        <td><div class="rank">08</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#1c1917,#78716c);color:white;">NB</div>
+            <div>
+              <div class="rep-name">Nina Baxter</div>
+              <div class="rep-tenure">4 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--red)">54</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:54%;background:var(--red)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag red"><span class="rag-dot"></span>Red</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip y">S</div><div class="spiced-pip r">P</div><div class="spiced-pip r">I</div><div class="spiced-pip r">C</div><div class="spiced-pip r">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend down">↓ –7</div></td>
+        <td class="center"><div class="calls-count">13</div></td>
+        <td class="right"><div class="revenue">0</div></td>
+        <td class="right"><div class="revenue dim">—</div></td>
+        <td class="right"><div class="revenue">$9,400</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--red)">0%</div></td>
+      </tr>
+
+      <!-- #9 -->
+      <tr>
+        <td><div class="rank">09</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#1e3a5f,#3b82f6);color:white;">TW</div>
+            <div>
+              <div class="rep-name">Tom Walsh</div>
+              <div class="rep-tenure">3 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--red)">49</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:49%;background:var(--red)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag red"><span class="rag-dot"></span>Red</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip r">S</div><div class="spiced-pip r">P</div><div class="spiced-pip r">I</div><div class="spiced-pip r">C</div><div class="spiced-pip y">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend down">↓ –3</div></td>
+        <td class="center"><div class="calls-count">9</div></td>
+        <td class="right"><div class="revenue">0</div></td>
+        <td class="right"><div class="revenue dim">—</div></td>
+        <td class="right"><div class="revenue">$6,200</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--red)">0%</div></td>
+      </tr>
+
+      <!-- #10 -->
+      <tr>
+        <td><div class="rank">10</div></td>
+        <td>
+          <div class="rep-cell">
+            <div class="avatar" style="background:linear-gradient(135deg,#500724,#f43f5e);color:white;">RL</div>
+            <div>
+              <div class="rep-name">Ryan Li</div>
+              <div class="rep-tenure">2 months</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="score-cell">
+            <div class="score-num" style="color:var(--red)">41</div>
+            <div class="score-bar-wrap"><div class="score-bar" style="width:41%;background:var(--red)"></div></div>
+          </div>
+        </td>
+        <td class="center"><span class="rag red"><span class="rag-dot"></span>Red</span></td>
+        <td class="center">
+          <div class="spiced-mini" style="justify-content:center;">
+            <div class="spiced-pip r">S</div><div class="spiced-pip r">P</div><div class="spiced-pip r">I</div><div class="spiced-pip r">C</div><div class="spiced-pip r">E</div>
+          </div>
+        </td>
+        <td class="center"><div class="trend flat">→ 0</div></td>
+        <td class="center"><div class="calls-count">7</div></td>
+        <td class="right"><div class="revenue">0</div></td>
+        <td class="right"><div class="revenue dim">—</div></td>
+        <td class="right"><div class="revenue">$4,100</div></td>
+        <td class="right"><div class="close-rate" style="color:var(--red)">0%</div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div class="bottom-row">
+    <div class="bottom-note">⚠ <span>2 reps flagged</span> for back-to-back red calls — priority coaching queue active</div>
+    <a class="view-all" href="#">View all calls →</a>
+  </div>
+</div>
+
+</body>
+</html>

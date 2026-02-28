@@ -1,0 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg: #0B0F1A;
+  --surface: #121828;
+  --surface2: #1A2235;
+  --surface3: #1E2A3A;
+  --border: #1E2D45;
+  --blue: #2563EB;
+  --blue-glow: rgba(37,99,235,0.12);
+  --blue-bright: #60A5FA;
+  --text: #E8EDF5;
+  --muted: #5A6A85;
+  --green: #10B981;
+  --green-bg: rgba(16,185,129,0.1);
+  --yellow: #F59E0B;
+  --yellow-bg: rgba(245,158,11,0.1);
+  --red: #EF4444;
+  --red-bg: rgba(239,68,68,0.1);
+  --gold: #F59E0B;
+  --gold-bg: rgba(245,158,11,0.08);
+  --gold-border: rgba(245,158,11,0.25);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-surface3: var(--surface3);
+  --color-border: var(--border);
+  --color-kc-blue: var(--blue);
+  --color-blue-glow: var(--blue-glow);
+  --color-blue-bright: var(--blue-bright);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-kc-green: var(--green);
+  --color-green-bg: var(--green-bg);
+  --color-kc-yellow: var(--yellow);
+  --color-yellow-bg: var(--yellow-bg);
+  --color-kc-red: var(--red);
+  --color-red-bg: var(--red-bg);
+  --color-gold: var(--gold);
+  --color-gold-bg: var(--gold-bg);
+  --color-gold-border: var(--gold-border);
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --font-display: 'Syne', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  background-image: radial-gradient(ellipse 60% 40% at 50% -10%, rgba(37,99,235,0.07) 0%, transparent 60%);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

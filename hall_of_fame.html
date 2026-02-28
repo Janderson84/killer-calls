@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Killer Calls — SalesCloser.ai</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0F1A;
+    --surface: #121828;
+    --surface2: #1A2235;
+    --surface3: #1E2A3A;
+    --border: #1E2D45;
+    --blue: #2563EB;
+    --blue-glow: rgba(37,99,235,0.12);
+    --blue-bright: #60A5FA;
+    --text: #E8EDF5;
+    --muted: #5A6A85;
+    --green: #10B981;
+    --green-bg: rgba(16,185,129,0.1);
+    --yellow: #F59E0B;
+    --yellow-bg: rgba(245,158,11,0.1);
+    --red: #EF4444;
+    --red-bg: rgba(239,68,68,0.1);
+    --gold: #F59E0B;
+    --gold-bg: rgba(245,158,11,0.08);
+    --gold-border: rgba(245,158,11,0.25);
+    --purple: #A78BFA;
+    --purple-bg: rgba(167,139,250,0.1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px;
+    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245,158,11,0.05) 0%, transparent 60%);
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .brand {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand::before {
+    content: '★';
+    font-size: 10px;
+  }
+  .page-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-weight: 300;
+  }
+  .header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .filter-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+  }
+  .search-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    outline: none;
+    width: 200px;
+  }
+  .search-box::placeholder { color: var(--muted); }
+
+  .divider-line {
+    height: 1px;
+    background: linear-gradient(90deg, var(--gold) 0%, transparent 60%);
+    margin: 20px 0 32px;
+    opacity: 0.3;
+  }
+
+  /* SECTION LABEL */
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ─── FEATURED CARDS ─── */
+  .featured-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .call-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+  }
+  .call-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(245,158,11,0.3);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .call-card.hero {
+    border-color: var(--gold-border);
+    box-shadow: 0 0 0 1px var(--gold-border), 0 4px 24px rgba(245,158,11,0.08);
+  }
+
+  /* Card score banner */
+  .card-banner {
+    padding: 16px 18px 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero .card-banner {
+    background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, transparent 100%);
+  }
+
+  .card-rank {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .hero .card-rank { color: var(--gold); }
+  .card-rank-2 { color: #94A3B8 !important; }
+  .card-rank-3 { color: #B87333 !important; }
+
+  .card-score {
+    font-family: 'Syne', sans-serif;
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--gold);
+  }
+  .card-score.green { color: var(--green); }
+  .card-score small {
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .outcome-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .outcome-badge.won {
+    background: var(--green-bg);
+    color: var(--green);
+    border: 1px solid rgba(16,185,129,0.25);
+  }
+  .outcome-badge.open {
+    background: var(--blue-glow);
+    color: var(--blue-bright);
+    border: 1px solid rgba(96,165,250,0.25);
+  }
+  .outcome-badge.lost {
+    background: var(--red-bg);
+    color: var(--red);
+    border: 1px solid rgba(239,68,68,0.2);
+  }
+
+  /* Card body */
+  .card-body {
+    padding: 16px 18px;
+    flex: 1;
+  }
+  .card-rep {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .avatar-sm {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .card-rep-name {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .card-rep-meta {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .card-prospect {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-prospect span { color: var(--text); font-weight: 500; }
+
+  /* SPICED row */
+  .spiced-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 14px;
+  }
+  .spiced-chip {
+    flex: 1;
+    padding: 5px 0;
+    border-radius: 6px;
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .spiced-chip.g { background: var(--green-bg); color: var(--green); }
+  .spiced-chip.y { background: var(--yellow-bg); color: var(--yellow); }
+  .spiced-chip.r { background: var(--red-bg); color: var(--red); }
+
+  /* Framework tags */
+  .framework-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .ftag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    color: var(--blue-bright);
+    background: var(--blue-glow);
+    border: 1px solid rgba(96,165,250,0.15);
+  }
+  .ftag.gold {
+    color: var(--gold);
+    background: var(--gold-bg);
+    border-color: var(--gold-border);
+  }
+
+  /* Verdict */
+  .card-verdict {
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.5;
+    border-left: 2px solid var(--border);
+    padding-left: 10px;
+  }
+  .hero .card-verdict { border-left-color: var(--gold); }
+
+  /* Card footer */
+  .card-footer {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+  }
+  .card-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .reactions {
+    display: flex;
+    gap: 6px;
+  }
+  .reaction-pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .reaction-pill:hover { background: var(--surface2); border-color: var(--blue); }
+  .reaction-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ─── FULL TABLE ─── */
+  .table-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .table-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .table-filters {
+    display: flex;
+    gap: 8px;
+  }
+  .filter-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-btn.active {
+    background: var(--blue-glow);
+    border-color: rgba(96,165,250,0.3);
+    color: var(--blue-bright);
+  }
+  .filter-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 11px 16px;
+    text-align: left;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th:first-child { padding-left: 24px; }
+  thead th:last-child { padding-right: 24px; }
+  thead th.right { text-align: right; }
+  thead th.center { text-align: center; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+    cursor: pointer;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+
+  td { padding: 13px 16px; vertical-align: middle; font-size: 13px; }
+  td:first-child { padding-left: 24px; }
+  td:last-child { padding-right: 24px; }
+  td.right { text-align: right; }
+  td.center { text-align: center; }
+
+  .rank-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .rank-num.g1 { color: var(--gold); }
+  .rank-num.g2 { color: #94A3B8; }
+  .rank-num.g3 { color: #B87333; }
+
+  .rep-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rep-inline-name { font-weight: 500; font-size: 13.5px; }
+  .rep-inline-date { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .score-inline {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+  }
+
+  .spiced-mini-row {
+    display: flex;
+    gap: 3px;
+    justify-content: center;
+  }
+  .spip {
+    width: 16px; height: 16px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-family: 'DM Mono', monospace;
+  }
+  .spip.g { background: var(--green-bg); color: var(--green); }
+  .spip.y { background: var(--yellow-bg); color: var(--yellow); }
+  .spip.r { background: var(--red-bg); color: var(--red); }
+
+  .highlight-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--gold);
+    background: var(--gold-bg);
+    border: 1px solid var(--gold-border);
+    white-space: nowrap;
+  }
+
+  .duration-cell {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .comments-cell {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    justify-content: center;
+  }
+
+  .revenue-cell {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--green);
+    text-align: right;
+  }
+  .revenue-cell.dim { color: var(--muted); }
+
+  .view-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--blue-bright);
+    background: var(--blue-glow);
+    border: 1px solid rgba(96,165,250,0.2);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .view-btn:hover { background: rgba(37,99,235,0.2); }
+
+  /* Comment modal overlay feel */
+  .comment-panel {
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    padding: 14px 18px;
+  }
+  .comment-list { margin-bottom: 10px; }
+  .comment {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .comment-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'Syne', sans-serif;
+    color: white;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .comment-bubble {
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 0 8px 8px 8px;
+    padding: 8px 12px;
+    flex: 1;
+  }
+  .comment-author {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--blue-bright);
+    margin-bottom: 3px;
+    font-family: 'DM Mono', monospace;
+  }
+  .comment-text {
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .comment-time {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+  }
+  .comment-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .comment-input {
+    flex: 1;
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    padding: 7px 12px;
+    border-radius: 20px;
+    outline: none;
+  }
+  .comment-input::placeholder { color: var(--muted); }
+  .comment-input:focus { border-color: rgba(96,165,250,0.3); }
+  .comment-send {
+    background: var(--blue);
+    border: none;
+    color: white;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .call-card { animation: fadeInUp 0.4s ease both; }
+  .call-card:nth-child(1) { animation-delay: 0.1s; }
+  .call-card:nth-child(2) { animation-delay: 0.18s; }
+  .call-card:nth-child(3) { animation-delay: 0.26s; }
+  tbody tr { animation: fadeInUp 0.3s ease both; }
+  tbody tr:nth-child(1) { animation-delay: 0.35s; }
+  tbody tr:nth-child(2) { animation-delay: 0.4s; }
+  tbody tr:nth-child(3) { animation-delay: 0.45s; }
+  tbody tr:nth-child(4) { animation-delay: 0.5s; }
+  tbody tr:nth-child(5) { animation-delay: 0.55s; }
+  tbody tr:nth-child(6) { animation-delay: 0.6s; }
+  tbody tr:nth-child(7) { animation-delay: 0.65s; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="brand">SalesCloser.ai · Killer Calls</div>
+    <div class="page-title">Killer Calls</div>
+    <div class="page-subtitle">Highest-scoring demos · Framework execution</div>
+  </div>
+  <div class="header-actions">
+    <input class="search-box" type="text" placeholder="Search rep, prospect…">
+    <select class="filter-select">
+      <option>All time</option>
+      <option>Last 30 days</option>
+      <option>Last 90 days</option>
+    </select>
+    <select class="filter-select">
+      <option>All outcomes</option>
+      <option>✅ Closed won</option>
+      <option>🔵 Open pipeline</option>
+    </select>
+  </div>
+</div>
+
+<div class="divider-line"></div>
+
+<!-- FEATURED CALLS -->
+<div class="section-label">★ Featured calls — top 3 all time</div>
+
+<div class="featured-grid">
+
+  <!-- HERO: #1 -->
+  <div class="call-card hero">
+    <div class="card-banner">
+      <div>
+        <div class="card-rank">🥇 #1 ALL TIME</div>
+        <div class="card-score">97<small>/100</small></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+        <span class="outcome-badge won">✓ Closed Won</span>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--green);">$8,400 ARR</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-rep">
+        <div class="avatar-sm" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);">MR</div>
+        <div>
+          <div class="card-rep-name">Marcus Reid</div>
+          <div class="card-rep-meta">Feb 14, 2026 · 41 min</div>
+        </div>
+      </div>
+      <div class="card-prospect">Prospect: <span>Brightpath Marketing</span></div>
+      <div class="spiced-row">
+        <div class="spiced-chip g">S ✓</div>
+        <div class="spiced-chip g">P ✓</div>
+        <div class="spiced-chip g">I ✓</div>
+        <div class="spiced-chip g">C ✓</div>
+        <div class="spiced-chip g">E ✓</div>
+      </div>
+      <div class="framework-tags">
+        <span class="ftag gold">Perfect SPICED</span>
+        <span class="ftag gold">ECIR on 3 objections</span>
+        <span class="ftag">Closed on call</span>
+        <span class="ftag">No discount</span>
+        <span class="ftag">Single price option</span>
+      </div>
+      <div class="card-verdict">"Textbook pain quantification at 12:40 — asked what the problem was costing them before showing a single feature. Prospect named a number. Marcus closed against that number."</div>
+    </div>
+    <div class="card-footer">
+      <div class="card-meta-item">💬 8 comments</div>
+      <div class="reactions">
+        <div class="reaction-pill">🔥 <span class="reaction-count">12</span></div>
+        <div class="reaction-pill">👏 <span class="reaction-count">9</span></div>
+        <div class="reaction-pill">📌 <span class="reaction-count">6</span></div>
+      </div>
+    </div>
+    <!-- COMMENTS EXPANDED ON HERO -->
+    <div class="comment-panel">
+      <div class="comment-list">
+        <div class="comment">
+          <div class="comment-avatar" style="background:linear-gradient(135deg,#065f46,#10b981);">SC</div>
+          <div class="comment-bubble">
+            <div class="comment-author">Sarah Chen</div>
+            <div class="comment-text">The way Marcus isolated the objection at 28:15 before even thinking about price is exactly what I've been trying to do. Stealing this.</div>
+            <div class="comment-time">2 days ago</div>
+          </div>
+        </div>
+        <div class="comment">
+          <div class="comment-avatar" style="background:linear-gradient(135deg,#92400e,#f59e0b);">JM</div>
+          <div class="comment-bubble">
+            <div class="comment-author">James Mitchell · Manager</div>
+            <div class="comment-text">This is what 25/25 SPICED looks like. Notice he never showed the product until he'd confirmed the pain AND the impact number. Jump to 11:55 to see it in real time.</div>
+            <div class="comment-time">2 days ago</div>
+          </div>
+        </div>
+      </div>
+      <div class="comment-input-row">
+        <input class="comment-input" type="text" placeholder="Add a comment or timestamp note…">
+        <button class="comment-send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- #2 -->
+  <div class="call-card">
+    <div class="card-banner">
+      <div>
+        <div class="card-rank card-rank-2">🥈 #2 ALL TIME</div>
+        <div class="card-score green">94<small>/100</small></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+        <span class="outcome-badge won">✓ Closed Won</span>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--green);">$6,200 ARR</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-rep">
+        <div class="avatar-sm" style="background:linear-gradient(135deg,#065f46,#10b981);">SC</div>
+        <div>
+          <div class="card-rep-name">Sarah Chen</div>
+          <div class="card-rep-meta">Feb 3, 2026 · 38 min</div>
+        </div>
+      </div>
+      <div class="card-prospect">Prospect: <span>Vertex Solutions</span></div>
+      <div class="spiced-row">
+        <div class="spiced-chip g">S ✓</div>
+        <div class="spiced-chip g">P ✓</div>
+        <div class="spiced-chip g">I ✓</div>
+        <div class="spiced-chip g">C ✓</div>
+        <div class="spiced-chip y">E ~</div>
+      </div>
+      <div class="framework-tags">
+        <span class="ftag gold">Closed on call</span>
+        <span class="ftag">ECIR on 2 objections</span>
+        <span class="ftag">Strong agenda</span>
+        <span class="ftag">No discount</span>
+      </div>
+      <div class="card-verdict">"Set a hard agenda in the first 2 minutes and got explicit buy-in. Prospect was visibly more engaged from the start."</div>
+    </div>
+    <div class="card-footer">
+      <div class="card-meta-item">💬 5 comments</div>
+      <div class="reactions">
+        <div class="reaction-pill">🔥 <span class="reaction-count">8</span></div>
+        <div class="reaction-pill">👏 <span class="reaction-count">11</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- #3 -->
+  <div class="call-card">
+    <div class="card-banner">
+      <div>
+        <div class="card-rank card-rank-3">🥉 #3 ALL TIME</div>
+        <div class="card-score green">91<small>/100</small></div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+        <span class="outcome-badge open">◉ Open Pipeline</span>
+        <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--blue-bright);">$9,100 potential</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-rep">
+        <div class="avatar-sm" style="background:linear-gradient(135deg,#92400e,#f59e0b);">DK</div>
+        <div>
+          <div class="card-rep-name">Daniel Kowalski</div>
+          <div class="card-rep-meta">Feb 19, 2026 · 47 min</div>
+        </div>
+      </div>
+      <div class="card-prospect">Prospect: <span>Crestline Media</span></div>
+      <div class="spiced-row">
+        <div class="spiced-chip g">S ✓</div>
+        <div class="spiced-chip g">P ✓</div>
+        <div class="spiced-chip g">I ✓</div>
+        <div class="spiced-chip y">C ~</div>
+        <div class="spiced-chip g">E ✓</div>
+      </div>
+      <div class="framework-tags">
+        <span class="ftag">Best ECIR example</span>
+        <span class="ftag">Strong personalization</span>
+        <span class="ftag">Tie-downs throughout</span>
+        <span class="ftag gold">8-month ramp ↑</span>
+      </div>
+      <div class="card-verdict">"Remarkable improvement from his first call 8 months ago. Handled a budget objection at 34:20 with textbook ECIR — empathized, clarified it was the only concern, then responded directly."</div>
+    </div>
+    <div class="card-footer">
+      <div class="card-meta-item">💬 3 comments</div>
+      <div class="reactions">
+        <div class="reaction-pill">🔥 <span class="reaction-count">5</span></div>
+        <div class="reaction-pill">📌 <span class="reaction-count">4</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FULL LIBRARY TABLE -->
+<div class="section-label">Full call library</div>
+
+<div class="table-container">
+  <div class="table-header-bar">
+    <div class="table-title">All Scored Calls</div>
+    <div class="table-filters">
+      <button class="filter-btn active">All</button>
+      <button class="filter-btn">✓ Won</button>
+      <button class="filter-btn">◉ Open</button>
+      <button class="filter-btn">Perfect SPICED</button>
+      <button class="filter-btn">Closed on call</button>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Rep & Prospect</th>
+        <th class="center">Score</th>
+        <th class="center">Outcome</th>
+        <th class="center">SPICED</th>
+        <th class="center">Duration</th>
+        <th>Framework Highlights</th>
+        <th class="center">💬</th>
+        <th class="right">Revenue</th>
+        <th class="right"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td><div class="rank-num g1">01</div></td>
+        <td>
+          <div class="rep-inline">
+            <div class="avatar-sm" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);width:28px;height:28px;font-size:10px;">MR</div>
+            <div>
+              <div class="rep-inline-name">Marcus Reid <span style="color:var(--muted);font-weight:400;">→ Brightpath Marketing</span></div>
+              <div class="rep-inline-date">Feb 14, 2026</div>
+            </div>
+          </div>
+        </td>
+        <td class="center"><span class="score-inline" style="color:var(--gold)">97</span></td>
+        <td class="center"><span class="outcome-badge won">✓ Won</span></td>
+        <td class="center">
+          <div class="spiced-mini-row">
+            <div class="spip g">S</div><div class="spip g">P</div><div class="spip g">I</div><div class="spip g">C</div><div class="spip g">E</div>
+          </div>
+        </td>
+        <td class="duration-cell">41 min</td>
+        <td><span class="highlight-tag">Perfect SPICED</span> <span class="highlight-tag" style="margin-left:4px;">Closed on call</span></td>
+        <td class="comments-cell">💬 8</td>
+        <td class="revenue-cell">$8,400</td>
+        <td class="right"><button class="view-btn">View →</button></td>
+      </tr>
+
+      <tr>
+        <td><div class="rank-num g2">02</div></td>
+        <td>
+          <div class="rep-inline">
+            <div class="avatar-sm" style="background:linear-gradient(135deg,#065f46,#10b981);width:28px;height:28px;font-size:10px;">SC</div>
+            <div>
+              <div class="rep-inline-name">Sarah Chen <span style="color:var(--muted);font-weight:400;">→ Vertex Solutions</span></div>
+              <div class="rep-inline-date">Feb 3, 2026</div>
+            </div>
+          </div>
+        </td>
+        <td class="center"><span class="score-inline" style="color:var(--green)">94</span></td>
+        <td class="center"><span class="outcome-badge won">✓ Won</span></td>
+        <td class="center">
+          <div class="spiced-mini-row">
+            <div class="spip g">S</div><div class="spip g">P</div><div class="spip g">I</div><div class="spip g">C</div><div class="spip y">E</div>
+          </div>
+        </td>
+        <td class="duration-cell">38 min</td>
+        <td><span class="highlight-tag">Closed on call</span> <span class="highlight-tag" style="margin-left:4px;">No discount</span></td>
+        <td class="comments-cell">💬 5</td>
+        <td class="revenue-cell">$6,200</td>
+        <td class="right"><button class="view-btn">View →</button></td>
+      </tr>
+
+      <tr>
+        <td><div class="rank-num g3">03</div></td>
+        <td>
+          <div class="rep-inline">
+            <div class="avatar-sm" style="background:linear-gradient(135deg,#92400e,#f59e0b);width:28px;height:28px;font-size:10px;">DK</div>
+            <div>
+              <div class="rep-inline-name">Daniel Kowalski <span style="color:var(--muted);font-weight:400;">→ Crestline Media</span></div>
+              <div class="rep-inline-date">Feb 19, 2026</div>
+            </div>
+          </div>
+        </td>
+        <td class="center"><span class="score-inline" style="color:var(--green)">91</span></td>
+        <td class="center"><span class="outcome-badge open">◉ Open</span></td>
+        <td class="center">
+          <div class="spiced-mini-row">
+            <div class="spip g">S</div><div class="spip g">P</div><div class="spip g">I</div><div class="spip y">C</div><div class="spip g">E</div>
+          </div>
+        </td>
+        <td class="duration-cell">47 min</td>
+        <td><span class="highlight-tag">Best ECIR example</span></td>
+        <td class="comments-cell">💬 3</td>
+        <td class="revenue-cell dim">$9,100 est.</td>
+        <td class="right"><button class="view-btn">View →</button></td>
+      </tr>
+
+      <tr>
+        <td><div class="rank-num">04</div></td>
+        <td>
+          <div class="rep-inline">
+            <div class="avatar-sm" style="background:linear-gradient(135deg,#312e81,#6366f1);width:28px;height:28px;font-size:10px;">AT</div>
+            <div>
+              <div class="rep-inline-name">Aisha Thompson <span style="color:var(--muted);font-weight:400;">→ Ironridge Corp</span></div>
+              <div class="rep-inline-date">Jan 28, 2026</div>
+            </div>
+          </div>
+        </td>
+        <td class="center"><span class="score-inline" style="color:var(--green)">88</span></td>
+        <td class="center"><span class="outcome-badge won">✓ Won</span></td>
+        <td class="center">
+          <div class="spiced-mini-row">
+            <div class="spip g">S</div><div class="spip g">P</div><div class="spip y">I</div><div class="spip g">C</div><div class="spip g">E</div>
+          </div>
+        </td>
+        <td class="duration-cell">34 min</td>
+        <td><span class="highlight-tag">Tight talk ratio</span> <span class="highlight-tag" style="margin-left:4px;">Strong agenda</span></td>
+        <td class="comments-cell">💬 2</td>
+        <td class="revenue-cell">$5,100</td>
+        <td class="right"><button class="view-btn">View →</button></td>
+      </tr>
+
+      <tr>
+        <td><div class="rank-num">05</div></td>
+        <td>
+          <div class="rep-inline">
+            <div class="avatar-sm" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);width:28px;height:28px;font-size:10px;">MR</div>
+            <div>
+              <div class="rep-inline-name">Marcus Reid <span style="color:var(--muted);font-weight:400;">→ Novex Digital</span></div>
+              <div class="rep-inline-date">Jan 21, 2026</div>
+            </div>
+          </div>
+        </td>
+        <td class="center"><span class="score-inline" style="color:var(--green)">86</span></td>
+        <td class="center"><span class="outcome-badge open">◉ Open</span></td>
+        <td class="center">
+          <div class="spiced-mini-row">
+            <div class="spip g">S</div><div class="spip g">P</div><div class="spip g">I</div><div class="spip g">C</div><div class="spip y">E</div>
+          </div>
+        </td>
+        <td class="duration-cell">52 min</td>
+        <td><span class="highlight-tag">Best personalization</span></td>
+        <td class="comments-cell">💬 4</td>
+        <td class="revenue-cell dim">$11,200 est.</td>
+        <td class="right"><button class="view-btn">View →</button></td>
+      </tr>
+
+      <tr>
+        <td><div class="rank-num">06</div></td>
+        <td>
+          <div class="rep-inline">
+            <div class="avatar-sm" style="background:linear-gradient(135deg,#065f46,#10b981);width:28px;height:28px;font-size:10px;">SC</div>
+            <div>
+              <div class="rep-inline-name">Sarah Chen <span style="color:var(--muted);font-weight:400;">→ Kaliko Agency</span></div>
+              <div class="rep-inline-date">Jan 15, 2026</div>
+            </div>
+          </div>
+        </td>
+        <td class="center"><span class="score-inline" style="color:var(--green)">84</span></td>
+        <td class="center"><span class="outcome-badge won">✓ Won</span></td>
+        <td class="center">
+          <div class="spiced-mini-row">
+            <div class="spip g">S</div><div class="spip g">P</div><div class="spip g">I</div><div class="spip y">C</div><div class="spip g">E</div>
+          </div>
+        </td>
+        <td class="duration-cell">29 min</td>
+        <td><span class="highlight-tag">Fastest close</span> <span class="highlight-tag" style="margin-left:4px;">No discount</span></td>
+        <td class="comments-cell">💬 6</td>
+        <td class="revenue-cell">$4,800</td>
+        <td class="right"><button class="view-btn">View →</button></td>
+      </tr>
+
+      <tr>
+        <td><div class="rank-num">07</div></td>
+        <td>
+          <div class="rep-inline">
+            <div class="avatar-sm" style="background:linear-gradient(135deg,#134e4a,#2dd4bf);width:28px;height:28px;font-size:10px;">PV</div>
+            <div>
+              <div class="rep-inline-name">Priya Varma <span style="color:var(--muted);font-weight:400;">→ Summit Brands</span></div>
+              <div class="rep-inline-date">Feb 11, 2026</div>
+            </div>
+          </div>
+        </td>
+        <td class="center"><span class="score-inline" style="color:var(--green)">82</span></td>
+        <td class="center"><span class="outcome-badge open">◉ Open</span></td>
+        <td class="center">
+          <div class="spiced-mini-row">
+            <div class="spip g">S</div><div class="spip y">P</div><div class="spip g">I</div><div class="spip g">C</div><div class="spip g">E</div>
+          </div>
+        </td>
+        <td class="duration-cell">44 min</td>
+        <td><span class="highlight-tag">Best tie-downs</span></td>
+        <td class="comments-cell">💬 1</td>
+        <td class="revenue-cell dim">$7,600 est.</td>
+        <td class="right"><button class="view-btn">View →</button></td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>
