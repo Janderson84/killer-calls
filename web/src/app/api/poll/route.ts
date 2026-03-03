@@ -134,7 +134,7 @@ export async function GET(request: Request) {
 
     // 3. Process each new call
     // Skips are instant; limit to 2 actual scores per run to stay within Vercel timeout
-    const MAX_SCORED_PER_RUN = 2;
+    const MAX_SCORED_PER_RUN = 9;
     const results: { meetingId: string; score?: number; rag?: string; rep?: string; skipped?: boolean }[] = [];
     let scoredCount = 0;
 
