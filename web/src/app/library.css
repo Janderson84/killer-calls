@@ -193,7 +193,8 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table { width: 100%; border-collapse: collapse; }
@@ -355,6 +356,25 @@ td.center { text-align: center; }
   border-color: rgba(96,165,250,0.3);
 }
 
+/* SORTABLE HEADERS */
+thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+thead th.sortable:hover {
+  color: var(--text);
+}
+thead th.sortable.active {
+  color: var(--blue-bright);
+}
+.sort-arrow {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  vertical-align: middle;
+}
+
 /* META */
 .date-text {
   font-family: 'DM Mono', monospace;
@@ -367,9 +387,156 @@ td.center { text-align: center; }
   color: var(--muted);
 }
 
-/* RESPONSIVE */
+/* REP PERFORMANCE OVERVIEW */
+.rep-overview {
+  margin-bottom: 28px;
+}
+.rep-overview-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 12px;
+}
+.rep-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* REP SPARK CARD */
+.rep-spark-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  animation: fadeInUp 0.35s ease both;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rep-spark-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  border-color: rgba(96,165,250,0.25);
+}
+.spark-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.spark-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 11px; font-weight: 700;
+  color: white; flex-shrink: 0;
+}
+.spark-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.2;
+}
+.spark-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.spark-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.spark-avg {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+}
+.spark-trend {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+}
+.spark-trend.up { color: var(--green); }
+.spark-trend.down { color: var(--red); }
+.spark-trend.flat { color: var(--muted); }
+.spark-chart {
+  height: 40px;
+}
+.spark-placeholder {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+
+/* PAGINATION */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+.page-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.page-btn:hover:not(:disabled) {
+  background: var(--blue-glow);
+  border-color: rgba(96,165,250,0.25);
+  color: var(--blue-bright);
+}
+.page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.page-info {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ── TABLET ── */
 @media (max-width: 900px) {
   .lib-header { flex-direction: column; }
   .top-calls-grid { grid-template-columns: 1fr; }
   .period-filter { align-self: flex-start; }
+  .rep-overview-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+}
+
+/* ── PHONE ── */
+@media (max-width: 600px) {
+  .library-page { padding: 16px; }
+  .lib-title { font-size: 24px; }
+  .period-filter { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .period-btn { padding: 6px 10px; font-size: 10px; }
+  table { min-width: 700px; }
+  td { padding: 12px 14px; font-size: 13px; }
+  thead th { padding: 10px 14px; font-size: 10px; }
+  .score-num { font-size: 16px; }
+  .avatar { width: 30px; height: 30px; font-size: 11px; }
+  .rep-name { font-size: 13px; }
 }

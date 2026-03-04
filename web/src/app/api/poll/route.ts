@@ -58,6 +58,13 @@ You score calls against a strict 14-criterion, 100-point rubric. You write from 
 - C — Critical Event: Deadline or trigger that creates urgency
 - E — Decision: Decision process, timeline, and stakeholders mapped
 
+**Close Execution** (3-step close framework — evaluated by detected style):
+Detect which close style the AE used (consultative, assumptive, urgency, or none) and evaluate 3 steps:
+- Setup: Did the AE set up the close properly (e.g., value summary, trial close, urgency framing)?
+- Bridge: Did the AE transition smoothly from presentation to close (not abrupt or awkward)?
+- Ask: Did the AE make a clear, direct close ask (not wishy-washy or passive)?
+Each step is strong/partial/missing with a label describing what the step was, feedback, and timestamps.
+
 **ECIR** (Objection handling framework — 12 pts total):
 - E — Empathize: Genuinely acknowledge before defending
 - C — Clarify: Ask a question to fully understand the objection
@@ -82,6 +89,7 @@ You score calls against a strict 14-criterion, 100-point rubric. You write from 
 - Every feedback field must be 2–3 sentences minimum, written as coaching instruction ("Pedro should have asked..." not "the rep failed to...").
 - Wins should highlight specific moments by timestamp — not generic praise.
 - Fixes should be actionable instructions for the next call, not observations about this one.
+- closingTips should be 3-5 specific, actionable closing techniques tailored to what happened (or didn't happen) in this call. Reference the prospect's situation, the objections raised, and the close style used. Each tip should be a concrete sentence the AE could say or a specific tactic they could deploy next time — not generic advice.
 - quoteOfTheCall should capture the single most instructive moment — a win OR a miss — with enough context to be useful in a team review.`;
 
 // ─── Vercel Cron auth ───────────────────────────────────────────
@@ -277,8 +285,8 @@ async function scoreCall(prompt: string) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const message = await client.messages.create({
-    model: process.env.CLAUDE_MODEL || "claude-sonnet-4-6-20250514",
-    max_tokens: 4096,
+    model: process.env.CLAUDE_MODEL || "claude-sonnet-4-6",
+    max_tokens: 8192,
     system: SCORING_SYSTEM_PROMPT,
     messages: [{ role: "user", content: prompt }],
   });
@@ -386,6 +394,14 @@ Return ONLY this JSON:
     "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
     "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
   },
+  "close": {
+    "style": "consultative"|"assumptive"|"urgency"|"none",
+    "styleName": "<human-readable style name, e.g. 'Consultative Close', 'Assumptive Close', 'Urgency Close'>",
+    "setup": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<what the setup step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<what the bridge step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<what the ask step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
+  },
+  "closingTips": ["<tip #1 — specific tactic or phrase the AE should use to close this prospect>", "<tip #2>", "<tip #3>", "<tip #4>", "<tip #5>"],
   "wins": ["<win #1 with timestamp>", "<win #2>", "<win #3>"],
   "fixes": ["<fix #1>", "<fix #2>"],
   "flags": {
@@ -547,6 +563,13 @@ async function processOne(
         blocks.push({
           type: "section",
           text: { type: "mrkdwn", text: `*🔧 Priority fixes*\n${scorecard.fixes.map((f: string) => `• ${f}`).join("\n")}` },
+        });
+      }
+      if (scorecard.closingTips?.length > 0) {
+        blocks.push({ type: "divider" });
+        blocks.push({
+          type: "section",
+          text: { type: "mrkdwn", text: `*🎯 Closing tips*\n${scorecard.closingTips.map((t: string, i: number) => `${i + 1}. ${t}`).join("\n")}` },
         });
       }
       if (scorecard.quoteOfTheCall?.text) {

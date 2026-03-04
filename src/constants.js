@@ -155,30 +155,80 @@ const RUBRIC = {
       maxPoints: 12,
       criteria: [
         {
-          id: "svc",
-          name: "SVC Close (Summarize → Surface Concern → Commit)",
+          id: "closeExecution",
+          name: "Close execution (any style)",
           maxPoints: 10,
-          isSvc: true,
-          elements: {
-            summarize: {
-              name: "Summarize Value",
-              maxPoints: 4,
-              question: "Did the AE recap 2-3 specific benefits tied to the prospect's stated pain BEFORE asking for the close? This is NOT a feature recap — it must reference what the prospect said they cared about during discovery."
+          isClose: true,
+          // Claude picks the style that best matches what the rep did.
+          // All three styles use the same 4+3+3 = 10 point structure.
+          styles: {
+            consultative: {
+              name: "Consultative Close",
+              description: "Best when discovery was thorough and the prospect needs value re-anchored before committing.",
+              steps: {
+                setup: {
+                  name: "Summarize Value",
+                  maxPoints: 4,
+                  question: "Did the AE recap 2-3 specific benefits tied to the prospect's stated pain BEFORE asking for the close? Must reference what the prospect said during discovery — not a generic feature recap."
+                },
+                bridge: {
+                  name: "Surface Blockers",
+                  maxPoints: 3,
+                  question: "Did the AE proactively ask 'What would stop you from moving forward?' or similar — surfacing remaining hesitation BEFORE the commitment ask?"
+                },
+                ask: {
+                  name: "Ask for Commitment",
+                  maxPoints: 3,
+                  question: "Did the AE make a clear, direct ask? 'Can we get you started on the annual plan today?' counts. 'I'll send a proposal' does NOT."
+                }
+              }
             },
-            surface: {
-              name: "Surface Concern",
-              maxPoints: 3,
-              question: "Did the AE proactively ask 'What would stop you from moving forward today?' or similar — giving the prospect a chance to voice remaining hesitation BEFORE the commitment ask?"
+            assumptive: {
+              name: "Assumptive Close",
+              description: "Best when buying signals are strong throughout the call. The rep skips 'should we?' and goes straight to 'here's how we start.'",
+              steps: {
+                setup: {
+                  name: "Read Buying Signals",
+                  maxPoints: 4,
+                  question: "Were there clear buying signals (prospect asking about implementation, pricing details, timelines) that justified skipping the traditional value recap? If the AE assumed the close without signals, this is a 0."
+                },
+                bridge: {
+                  name: "Smooth Transition",
+                  maxPoints: 3,
+                  question: "Did the AE transition naturally from demo into next steps without an awkward shift? The move from 'showing' to 'doing' should feel effortless."
+                },
+                ask: {
+                  name: "Lock Specific Action",
+                  maxPoints: 3,
+                  question: "Did the AE lock in a specific next action — not just 'let's get started' but 'I'll send the contract today, can you sign by Thursday?' Vague enthusiasm without a locked action is partial credit."
+                }
+              }
             },
-            commit: {
-              name: "Commit",
-              maxPoints: 3,
-              question: "Did the AE make a clear, direct ask for a commitment (sign today, start a trial, schedule an onboarding call) — not just 'what do you think?' or 'I'll send a proposal'?"
+            urgency: {
+              name: "Urgency Close",
+              description: "Best when a real critical event or deadline exists. Ties the commitment to a time-bound reason uncovered in discovery.",
+              steps: {
+                setup: {
+                  name: "Tie to Critical Event",
+                  maxPoints: 4,
+                  question: "Did the AE reference a specific deadline, event, or business trigger that the PROSPECT mentioned during discovery? Manufactured urgency ('this price expires Friday') without a real business driver is a 0."
+                },
+                bridge: {
+                  name: "Build the Timeline",
+                  maxPoints: 3,
+                  question: "Did the AE work backwards from the critical event to show why starting now is necessary? ('If you need this live by Q3, we need to kick off onboarding by mid-April.')"
+                },
+                ask: {
+                  name: "Propose the Plan",
+                  maxPoints: 3,
+                  question: "Did the AE propose a concrete timeline with specific dates and milestones — not just 'we should move fast' but 'here's the plan to hit your deadline'?"
+                }
+              }
             }
           },
           ragGuide: {
-            green: "All three SVC steps executed in order — value summarized, concerns surfaced, commitment asked",
-            yellow: "Attempted to close but skipped the value summary or didn't surface concerns first",
+            green: "All three steps of the chosen closing style executed well — setup, bridge, and ask",
+            yellow: "Attempted to close but skipped the setup or bridge step",
             red: "No real close attempt — defaulted to 'I'll send a follow-up email'"
           }
         },
@@ -233,7 +283,7 @@ function getRAG(score) {
 const CONFIG = {
   port: process.env.PORT || 3000,
   // Override via CLAUDE_MODEL env var in Railway/Vercel to pin a specific snapshot.
-  claudeModel: process.env.CLAUDE_MODEL || "claude-sonnet-4-6-20250514",
+  claudeModel: process.env.CLAUDE_MODEL || "claude-sonnet-4-6",
   firefliesEndpoint: "https://api.fireflies.ai/graphql"
 };
 

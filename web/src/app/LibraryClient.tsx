@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { buildRepSummary } from "@/lib/chart-utils";
+import RepSparkCard from "./RepSparkCard";
 
 export interface CallRow {
   id: string;
@@ -26,6 +28,8 @@ export interface CallRow {
 }
 
 type Period = "7d" | "30d" | "90d" | "all";
+type SortKey = "score" | "rep" | "prospect" | "rag" | "date" | "duration";
+type SortDir = "asc" | "desc";
 
 const PERIODS: { key: Period; label: string }[] = [
   { key: "7d", label: "Last 7 days" },
@@ -82,8 +86,13 @@ function ordinalSuffix(n: number): string {
   return "th";
 }
 
+const PAGE_SIZE = 20;
+
 export default function LibraryClient({ rows }: { rows: CallRow[] }) {
   const [period, setPeriod] = useState<Period>("all");
+  const [page, setPage] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey>("score");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const filtered = useMemo(() => {
     if (period === "all") return rows;
@@ -92,13 +101,67 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
     return rows.filter((r) => parseCallDate(r.call_date) >= cutoff);
   }, [rows, period]);
 
-  // Sort by score descending for rankings
-  const ranked = useMemo(
-    () => [...filtered].sort((a, b) => b.score - a.score),
+  const ragOrder: Record<string, number> = { green: 3, yellow: 2, red: 1 };
+
+  const ranked = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "score":
+          cmp = a.score - b.score;
+          break;
+        case "rep":
+          cmp = a.rep_name.localeCompare(b.rep_name);
+          break;
+        case "prospect":
+          cmp = a.company_name.localeCompare(b.company_name);
+          break;
+        case "rag":
+          cmp = (ragOrder[a.rag] || 0) - (ragOrder[b.rag] || 0);
+          break;
+        case "date":
+          cmp = parseCallDate(a.call_date).getTime() - parseCallDate(b.call_date).getTime();
+          break;
+        case "duration":
+          cmp = (a.duration_minutes || 0) - (b.duration_minutes || 0);
+          break;
+      }
+      return cmp * dir;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  // Build per-rep summaries for sparkline cards
+  const repSummaries = useMemo(() => {
+    const byRep: Record<string, typeof filtered> = {};
+    filtered.forEach((r) => {
+      if (!byRep[r.rep_name]) byRep[r.rep_name] = [];
+      byRep[r.rep_name].push(r);
+    });
+    return Object.entries(byRep)
+      .map(([name, calls]) => buildRepSummary(name, calls))
+      .sort((a, b) => b.avgScore - a.avgScore);
+  }, [filtered]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "date" || key === "score" ? "desc" : "asc");
+    }
+    setPage(0);
+  }
+
+  function sortArrow(key: SortKey) {
+    if (sortKey !== key) return null;
+    return <span className="sort-arrow">{sortDir === "asc" ? "\u25B2" : "\u25BC"}</span>;
+  }
+
+  const top3 = useMemo(
+    () => [...filtered].sort((a, b) => b.score - a.score).slice(0, 3),
     [filtered]
   );
-
-  const top3 = ranked.slice(0, 3);
   const podiumColors = ["var(--gold)", "var(--muted)", "#CD7F32"];
   const podiumBgs = [
     "var(--gold-bg)",
@@ -127,7 +190,7 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
             <button
               key={p.key}
               className={`period-btn ${period === p.key ? "active" : ""}`}
-              onClick={() => setPeriod(p.key)}
+              onClick={() => { setPeriod(p.key); setPage(0); }}
             >
               {p.label}
             </button>
@@ -198,27 +261,39 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
             </div>
           )}
 
+          {/* REP PERFORMANCE */}
+          {repSummaries.length > 0 && (
+            <div className="rep-overview">
+              <div className="rep-overview-label">Rep Performance</div>
+              <div className="rep-overview-grid">
+                {repSummaries.map((rep) => (
+                  <RepSparkCard key={rep.name} rep={rep} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* RANKED TABLE */}
           <div className="table-container">
             <table>
               <thead>
                 <tr>
                   <th className="center">#</th>
-                  <th>Rep</th>
-                  <th>Prospect</th>
-                  <th>Score</th>
-                  <th className="center">Status</th>
+                  <th className={`sortable ${sortKey === "rep" ? "active" : ""}`} onClick={() => toggleSort("rep")}>Rep{sortArrow("rep")}</th>
+                  <th className={`sortable ${sortKey === "prospect" ? "active" : ""}`} onClick={() => toggleSort("prospect")}>Prospect{sortArrow("prospect")}</th>
+                  <th className={`sortable ${sortKey === "score" ? "active" : ""}`} onClick={() => toggleSort("score")}>Score{sortArrow("score")}</th>
+                  <th className={`center sortable ${sortKey === "rag" ? "active" : ""}`} onClick={() => toggleSort("rag")}>Status{sortArrow("rag")}</th>
                   <th className="center">SPICED</th>
                   <th className="center">BANT</th>
-                  <th>Date</th>
-                  <th className="right">Duration</th>
+                  <th className={`sortable ${sortKey === "date" ? "active" : ""}`} onClick={() => toggleSort("date")}>Date{sortArrow("date")}</th>
+                  <th className={`right sortable ${sortKey === "duration" ? "active" : ""}`} onClick={() => toggleSort("duration")}>Duration{sortArrow("duration")}</th>
                   <th className="center"></th>
                 </tr>
               </thead>
               <tbody>
-                {ranked.map((row, i) => {
+                {ranked.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((row, i) => {
                   const rc = ragClass(row.rag);
-                  const rank = i + 1;
+                  const rank = page * PAGE_SIZE + i + 1;
                   return (
                     <tr
                       key={row.id}
@@ -236,7 +311,7 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
                         </span>
                       </td>
                       <td>
-                        <Link href={`/calls/${row.id}`} className="rep-cell">
+                        <Link href={`/reps/${encodeURIComponent(row.rep_name)}`} className="rep-cell">
                           <div className="avatar">{initials(row.rep_name)}</div>
                           <div className="rep-name">{row.rep_name}</div>
                         </Link>
@@ -314,6 +389,27 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
                 })}
               </tbody>
             </table>
+            {ranked.length > PAGE_SIZE && (
+              <div className="pagination">
+                <button
+                  className="page-btn"
+                  disabled={page === 0}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  &larr; Prev
+                </button>
+                <span className="page-info">
+                  {page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, ranked.length)} of {ranked.length}
+                </span>
+                <button
+                  className="page-btn"
+                  disabled={(page + 1) * PAGE_SIZE >= ranked.length}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next &rarr;
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

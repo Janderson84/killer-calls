@@ -111,7 +111,12 @@ PHASE 4 — PRICING & OBJECTION HANDLING (28 pts)
 11. ECIR objection handling (12 pts): Empathize→Clarify→Isolate→Respond
 
 PHASE 5 — CLOSE & NEXT STEPS (12 pts)
-12. Pushed to close (10 pts) - Green: Genuine close attempt
+12. Close execution (10 pts total — 4 + 3 + 3)
+    There are THREE valid closing styles. Identify which style the AE used, then score Setup (4 pts), Bridge (3 pts), Ask (3 pts):
+    STYLE A — CONSULTATIVE CLOSE: Setup=Summarize Value, Bridge=Surface Blockers, Ask=Ask for Commitment
+    STYLE B — ASSUMPTIVE CLOSE: Setup=Read Buying Signals, Bridge=Smooth Transition, Ask=Lock Specific Action
+    STYLE C — URGENCY CLOSE: Setup=Tie to Critical Event, Bridge=Build the Timeline, Ask=Propose the Plan
+    If no close attempted, score 0/10 and set style to "none".
 13. Scheduled follow-up (2 pts) - Green: Specific date/time confirmed
 
 BANT QUALIFICATION (evaluated separately — does NOT affect the 100-point score)
@@ -146,7 +151,7 @@ Return ONLY this JSON:
     "discovery": { "score": <n>, "maxPoints": 32, "criteria": { "agenda": { "score": <n>, "maxPoints": 7, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "spiced": { "score": <n>, "maxPoints": 25 } } },
     "presentation": { "score": <n>, "maxPoints": 22, "criteria": { "smooth": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "talkRatio": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "personalization": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "tieDowns": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
     "pricing": { "score": <n>, "maxPoints": 28, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "simplePricing": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "noDiscount": { "score": <n>, "maxPoints": 2, "rag": "g"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "ecir": { "score": <n>, "maxPoints": 12, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
-    "closing": { "score": <n>, "maxPoints": 12, "criteria": { "pushToClose": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 2, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
+    "closing": { "score": <n>, "maxPoints": 12, "criteria": { "closeExecution": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on the overall close attempt>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 2, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
   },
   "spiced": {
     "s": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
@@ -161,6 +166,18 @@ Return ONLY this JSON:
     "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
     "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
   },
+  "close": {
+    "style": "consultative"|"assumptive"|"urgency"|"none",
+    "styleName": "<e.g. 'Consultative Close'>",
+    "setup": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
+  },
+  "closingTips": [
+    "<Specific, actionable closing tip #1 tailored to this call>",
+    "<Closing tip #2 referencing a specific moment where a different approach would improve the close>",
+    "<Closing tip #3 with a concrete technique or phrase the rep can use>"
+  ],
   "wins": ["<win #1 with timestamp>", "<win #2>", "<win #3>"],
   "fixes": ["<fix #1>", "<fix #2>"],
   "flags": {

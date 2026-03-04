@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import { ScorecardRow, Scorecard, SpicedElement, BantElement, SvcElement, CriterionScore } from "@/lib/types";
+import { ScorecardRow, Scorecard, SpicedElement, BantElement, CloseStepElement, CriterionScore } from "@/lib/types";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import "./call-detail.css";
@@ -24,8 +24,7 @@ const CRITERIA_LABELS: Record<string, string> = {
   simplePricing: "Discussed pricing simply with one option first",
   noDiscount: "Did NOT cave on discount/terms prematurely",
   ecir: "ECIR objection handling",
-  pushToClose: "Pushed to close the deal on the call",
-  svc: "SVC Close (Summarize → Surface Concern → Commit)",
+  closeExecution: "Close execution",
   followUp: "Scheduled a specific follow-up date and time",
 };
 
@@ -44,10 +43,10 @@ const BANT_WORDS: Record<string, string> = {
   t: "Timeline",
 };
 
-const SVC_WORDS: Record<string, string> = {
-  summarize: "Summarize Value",
-  surface: "Surface Concern",
-  commit: "Commit",
+const CLOSE_STEP_ICONS: Record<string, string> = {
+  setup: "1",
+  bridge: "2",
+  ask: "3",
 };
 
 function ragClass(rag: string): string {
@@ -126,7 +125,7 @@ export default async function CallDetailPage({
               <div className="header-rep">
                 <div className="avatar-lg">{initials(row.rep_name)}</div>
                 <div>
-                  <div className="rep-name-lg">{row.rep_name}</div>
+                  <Link href={`/reps/${encodeURIComponent(row.rep_name)}`} className="rep-name-link">{row.rep_name}</Link>
                   <div className="rep-meta-row">
                     <div className="rep-meta-item">
                       <span>{row.company_name}</span>
@@ -173,36 +172,6 @@ export default async function CallDetailPage({
             </div>
           </div>
 
-          {/* SPICED BREAKDOWN */}
-          <div className="section-hd">
-            <div className="section-hd-title">SPICED Breakdown</div>
-          </div>
-
-          <div className="spiced-grid">
-            {(["s", "p", "i", "c", "e"] as const).map((key) => {
-              const el: SpicedElement = sc.spiced[key];
-              const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
-              const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
-              return (
-                <div key={key} className={`spiced-card ${cls}`}>
-                  <div className="spiced-letter">{key.toUpperCase()}</div>
-                  <div className="spiced-word">{SPICED_WORDS[key]}</div>
-                  <div className="spiced-status">
-                    {cls === "g" ? "✓" : cls === "y" ? "~" : "✗"} {statusLabel}
-                  </div>
-                  <div className="spiced-note">{el.feedback}</div>
-                  {el.timestamps && el.timestamps.length > 0 && (
-                    <div className="spiced-ts">
-                      {el.timestamps.map((ts, i) => (
-                        <span key={i}>▶ {ts}{i < el.timestamps.length - 1 ? " · " : ""}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
           {/* BANT BREAKDOWN */}
           {sc.bant && (
             <>
@@ -237,29 +206,114 @@ export default async function CallDetailPage({
             </>
           )}
 
-          {/* SVC CLOSE BREAKDOWN */}
-          {sc.svc && (
+          {/* SPICED BREAKDOWN */}
+          <div className="section-hd">
+            <div className="section-hd-title">SPICED Breakdown</div>
+          </div>
+
+          <div className="spiced-grid">
+            {(["s", "p", "i", "c", "e"] as const).map((key) => {
+              const el: SpicedElement = sc.spiced[key];
+              const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
+              const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
+              return (
+                <div key={key} className={`spiced-card ${cls}`}>
+                  <div className="spiced-letter">{key.toUpperCase()}</div>
+                  <div className="spiced-word">{SPICED_WORDS[key]}</div>
+                  <div className="spiced-status">
+                    {cls === "g" ? "✓" : cls === "y" ? "~" : "✗"} {statusLabel}
+                  </div>
+                  <div className="spiced-note">{el.feedback}</div>
+                  {el.timestamps && el.timestamps.length > 0 && (
+                    <div className="spiced-ts">
+                      {el.timestamps.map((ts, i) => (
+                        <span key={i}>▶ {ts}{i < el.timestamps.length - 1 ? " · " : ""}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* CLOSING TIPS */}
+          {sc.closingTips && sc.closingTips.length > 0 && (
+            <>
+              <div className="section-hd">
+                <div className="section-hd-title">Closing Tips</div>
+              </div>
+
+              <div className="closing-tips-card">
+                {sc.closingTips.map((tip, i) => (
+                  <div key={i} className="closing-tip-row">
+                    <div className="closing-tip-num">{i + 1}</div>
+                    <div className="closing-tip-text">{tip}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* CLOSE BREAKDOWN */}
+          {sc.close && sc.close.style !== "none" && (
+            <>
+              <div className="section-hd">
+                <div className="section-hd-title">Close Execution</div>
+              </div>
+
+              <div className="close-style-badge">{sc.close.styleName}</div>
+
+              <div className="close-grid">
+                {(["setup", "bridge", "ask"] as const).map((key) => {
+                  const el: CloseStepElement = sc.close![key];
+                  const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
+                  const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
+                  return (
+                    <div key={key} className={`close-card ${cls}`}>
+                      <div className="close-step-num">{CLOSE_STEP_ICONS[key]}</div>
+                      <div className="close-word">{el.label}</div>
+                      <div className="close-status">
+                        {cls === "g" ? "\u2713" : cls === "y" ? "~" : "\u2717"} {statusLabel}
+                      </div>
+                      <div className="close-note">{el.feedback}</div>
+                      {el.timestamps && el.timestamps.length > 0 && (
+                        <div className="close-ts">
+                          {el.timestamps.map((ts, i) => (
+                            <span key={i}>{"\u25B6"} {ts}{i < el.timestamps.length - 1 ? " \u00B7 " : ""}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* LEGACY SVC BREAKDOWN — for old scorecards */}
+          {!sc.close && sc.svc && (
             <>
               <div className="section-hd">
                 <div className="section-hd-title">SVC Close</div>
               </div>
 
-              <div className="svc-grid">
+              <div className="close-grid">
                 {(["summarize", "surface", "commit"] as const).map((key) => {
-                  const el: SvcElement = sc.svc![key];
+                  const el = sc.svc![key];
                   const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
                   const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
                   const letter = key === "summarize" ? "S" : key === "surface" ? "V" : "C";
+                  const label = key === "summarize" ? "Summarize Value" : key === "surface" ? "Surface Concern" : "Commit";
                   return (
-                    <div key={key} className={`svc-card ${cls}`}>
-                      <div className="svc-letter">{letter}</div>
-                      <div className="svc-word">{SVC_WORDS[key]}</div>
-                      <div className="svc-status">
+                    <div key={key} className={`close-card ${cls}`}>
+                      <div className="close-step-num">{letter}</div>
+                      <div className="close-word">{label}</div>
+                      <div className="close-status">
                         {cls === "g" ? "\u2713" : cls === "y" ? "~" : "\u2717"} {statusLabel}
                       </div>
-                      <div className="svc-note">{el.feedback}</div>
+                      <div className="close-note">{el.feedback}</div>
                       {el.timestamps && el.timestamps.length > 0 && (
-                        <div className="svc-ts">
+                        <div className="close-ts">
                           {el.timestamps.map((ts, i) => (
                             <span key={i}>{"\u25B6"} {ts}{i < el.timestamps.length - 1 ? " \u00B7 " : ""}</span>
                           ))}
