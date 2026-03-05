@@ -24,6 +24,7 @@ export interface CallRow {
   bant_a: string;
   bant_n: string;
   bant_t: string;
+  call_type: string;
   created_at: string;
 }
 
@@ -342,6 +343,9 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
                         <td>
                           <Link href={`/calls/${row.id}`} className="company-link">
                             {row.company_name}
+                            {row.call_type === "followup" && (
+                              <span className="followup-badge">Follow-up</span>
+                            )}
                           </Link>
                         </td>
                         <td>

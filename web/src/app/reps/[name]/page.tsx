@@ -20,6 +20,7 @@ export default async function RepProfilePage({
            score, rag, verdict,
            spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
            bant_b, bant_a, bant_n, bant_t,
+           COALESCE(call_type, 'discovery') as call_type,
            created_at
     FROM scorecards
     WHERE rep_name = ${decodedName}

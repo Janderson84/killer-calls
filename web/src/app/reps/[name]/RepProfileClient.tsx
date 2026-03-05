@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ComposedChart,
   Scatter,
@@ -170,6 +170,17 @@ export default function RepProfileClient({
     return <span className="sort-arrow">{sortDir === "asc" ? "\u25B2" : "\u25BC"}</span>;
   }
 
+  const [coachingTips, setCoachingTips] = useState<string[] | null>(null);
+  const [coachingLoading, setCoachingLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/rep-coaching?rep=${encodeURIComponent(repName)}`)
+      .then((res) => res.json())
+      .then((data) => setCoachingTips(data.tips || []))
+      .catch(() => setCoachingTips(null))
+      .finally(() => setCoachingLoading(false));
+  }, [repName]);
+
   const summary = useMemo(() => buildRepSummary(repName, rows), [repName, rows]);
   const chartData = useMemo(() => buildChartData(rows), [rows]);
 
@@ -232,6 +243,26 @@ export default function RepProfileClient({
             </div>
           </div>
         </div>
+
+        {/* COACHING TIPS */}
+        {coachingLoading ? (
+          <div className="rep-coaching-card">
+            <div className="rep-coaching-label">Coaching &middot; Based on last 20 calls</div>
+            <div className="rep-coaching-skeleton">
+              <div className="rep-coaching-skeleton-line"></div>
+              <div className="rep-coaching-skeleton-line short"></div>
+            </div>
+          </div>
+        ) : coachingTips && coachingTips.length > 0 ? (
+          <div className="rep-coaching-card">
+            <div className="rep-coaching-label">Coaching &middot; Based on last 20 calls</div>
+            <ol className="rep-coaching-tips">
+              {coachingTips.map((tip, i) => (
+                <li key={i}>{tip}</li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
 
         {/* SCORE HISTORY CHART */}
         <div className="rep-section-label">Score History</div>
@@ -372,6 +403,9 @@ export default function RepProfileClient({
                     <td>
                       <Link href={`/calls/${row.id}`} className="company-link">
                         {row.company_name}
+                        {row.call_type === "followup" && (
+                          <span className="followup-badge">Follow-up</span>
+                        )}
                       </Link>
                     </td>
                     <td>

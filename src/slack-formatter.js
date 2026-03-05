@@ -148,7 +148,7 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `${rag.emoji} *New Demo Scored | ${slackMention(meta.repName)} → ${meta.companyName}*`
+        text: `${rag.emoji} *New Demo Scored | ${slackMention(meta.repName)} → ${meta.companyName}*${meta.callType === "followup" ? "  🔄 Follow-up" : ""}`
       }
     },
     // Score + verdict

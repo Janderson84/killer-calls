@@ -127,5 +127,7 @@ export interface ScorecardRow {
   bant_n: string;
   bant_t: string;
   scorecard_json: Scorecard;
+  call_type: string;
+  prospect_email: string | null;
   created_at: string;
 }

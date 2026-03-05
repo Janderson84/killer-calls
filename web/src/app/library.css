@@ -675,6 +675,23 @@ td.center { text-align: center; }
   color: var(--muted);
 }
 
+/* Follow-up badge */
+.followup-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.03em;
+  background: rgba(139, 92, 246, 0.12);
+  color: rgb(167, 139, 250);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  vertical-align: middle;
+}
+
 /* ── ANIMATION ── */
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(12px); }

@@ -89,6 +89,94 @@
 .rep-trend.down { color: var(--red); }
 .rep-trend.flat { color: var(--muted); }
 
+/* ── COACHING CARD ── */
+.rep-coaching-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue-bright);
+  border-radius: 14px;
+  padding: 24px 28px;
+  margin-bottom: 28px;
+  animation: fadeInUp 0.35s ease both;
+  animation-delay: 0.05s;
+}
+.rep-coaching-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 16px;
+}
+.rep-coaching-tips {
+  list-style: none;
+  counter-reset: tip;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rep-coaching-tips li {
+  counter-increment: tip;
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.rep-coaching-tips li::before {
+  content: counter(tip);
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--blue-glow);
+  color: var(--blue-bright);
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.rep-coaching-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rep-coaching-skeleton-line {
+  height: 16px;
+  border-radius: 8px;
+  background: var(--border);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.rep-coaching-skeleton-line.short {
+  width: 60%;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Follow-up badge */
+.followup-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.03em;
+  background: rgba(139, 92, 246, 0.12);
+  color: rgb(167, 139, 250);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  vertical-align: middle;
+}
+
 /* ── CHART SECTION ── */
 .rep-section-label {
   font-family: 'DM Mono', monospace;

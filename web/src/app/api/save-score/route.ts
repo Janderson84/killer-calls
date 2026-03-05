@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { meetingId, repName, companyName, date, durationMinutes, title, scorecard } = body;
+  const { meetingId, repName, companyName, date, durationMinutes, title, scorecard, call_type, prospect_email } = body;
 
   if (!meetingId || !scorecard || typeof scorecard.score !== "number") {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -52,6 +52,7 @@ export async function POST(request: Request) {
         spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
         bant_b, bant_a, bant_n, bant_t,
         close_style, close_setup, close_bridge, close_ask,
+        call_type, prospect_email,
         scorecard_json
       ) VALUES (
         ${repId}, ${meetingId}, ${title || `${repName} → ${companyName}`}, ${companyName}, ${repName},
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
         ${scorecard.close?.setup?.status || null},
         ${scorecard.close?.bridge?.status || null},
         ${scorecard.close?.ask?.status || null},
+        ${call_type || "discovery"}, ${prospect_email || null},
         ${JSON.stringify(scorecard)}
       )
       ON CONFLICT (meeting_id) DO UPDATE SET
@@ -83,7 +85,8 @@ export async function POST(request: Request) {
         bant_b = EXCLUDED.bant_b, bant_a = EXCLUDED.bant_a,
         bant_n = EXCLUDED.bant_n, bant_t = EXCLUDED.bant_t,
         close_style = EXCLUDED.close_style, close_setup = EXCLUDED.close_setup,
-        close_bridge = EXCLUDED.close_bridge, close_ask = EXCLUDED.close_ask
+        close_bridge = EXCLUDED.close_bridge, close_ask = EXCLUDED.close_ask,
+        call_type = EXCLUDED.call_type, prospect_email = EXCLUDED.prospect_email
       RETURNING id`;
 
     const scorecardId = inserted[0].id;

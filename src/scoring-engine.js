@@ -380,8 +380,138 @@ Return ONLY this JSON structure. No other text.
 ${transcriptText}`;
 }
 
-async function scoreTranscript({ transcriptText, repName, companyName, durationMinutes }) {
-  const prompt = buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
+// ─── Followup Scoring ────────────────────────────────────────────
+const FOLLOWUP_SYSTEM_PROMPT = `You are an expert sales call analyst and coaching system for SalesCloser.ai. Your role is to evaluate FOLLOW-UP sales calls — calls where the AE has already met this prospect before.
+
+## Key Difference from Discovery Calls
+Follow-up calls should NOT be penalized for skipping full discovery. The AE already uncovered situation/pain/impact on the first call. Instead, evaluate whether the AE effectively advanced the deal toward close by resolving objections, continuing the presentation, handling pricing, and executing a strong close.
+
+## Frameworks You Evaluate
+
+**ECIR** (Objection handling framework — critical for followups):
+- E — Empathize: Genuinely acknowledge before defending
+- C — Clarify: Ask a question to fully understand the objection
+- I — Isolate: Confirm this is the only/real blocker
+- R — Respond: Answer directly, don't deflect or pre-discount
+
+**Close Execution** (3-step close framework — the main event on followups):
+Detect which close style the AE used (consultative, assumptive, urgency, or none) and evaluate 3 steps:
+- Setup: Did the AE set up the close properly?
+- Bridge: Did the AE transition smoothly from presentation to close?
+- Ask: Did the AE make a clear, direct close ask?
+
+**BANT** (Qualification — evaluated separately, does NOT affect the 100-pt score):
+- B — Budget, A — Authority, N — Need, T — Timeline
+
+## Scoring Philosophy
+- Follow-up calls are about ADVANCING and CLOSING, not discovering.
+- If a prior call context is provided, credit the AE for closing gaps from the first call.
+- Score what you observe. If evidence is absent, score it low.
+- Timestamps are mandatory evidence. Never fabricate them.
+
+## Output Rules
+- Your output is ONLY valid JSON. No prose before or after. No markdown code fences.
+- Every feedback field must be 2-3 sentences minimum, written as coaching instruction.
+- Wins should highlight specific moments by timestamp.
+- Fixes should be actionable instructions for the next call.
+- closingTips should be 3-5 specific, actionable closing techniques.
+- quoteOfTheCall should capture the single most instructive moment.`;
+
+function buildFollowupScoringPrompt(transcriptText, repName, companyName, durationMinutes, priorCallContext) {
+  const priorBlock = priorCallContext
+    ? `\n─── PRIOR CALL CONTEXT ───\nThis is a follow-up call. Here is what happened on the first call:\n${priorCallContext}\n\nCredit the AE for closing gaps from the first call. For example, if Budget was "missing" in call 1 but addressed here, that's a strong BANT-B.\n`
+    : "";
+
+  return `You are an expert sales call analyst. Score this FOLLOW-UP call against a closing-focused rubric. This is NOT a discovery call — the AE has already met this prospect. Your output is ONLY valid JSON — no prose, no markdown fences.
+
+REP: ${repName}
+PROSPECT: ${companyName}
+DURATION: ${durationMinutes || "unknown"} minutes
+CALL TYPE: Follow-up
+${priorBlock}
+─── SCORING RUBRIC (100 points total) ───
+
+PHASE 1 — RECAP & CONTEXT SETTING (10 pts)
+1. Recap (10 pts) - Green (8-10): AE summarized prior call, confirmed understanding, set agenda for this call - Yellow (4-7): Brief recap but missed key items - Red (0-3): No recap, jumped straight in
+
+PHASE 2 — OBJECTION RESOLUTION (25 pts)
+2. ECIR objection handling (25 pts) - Evaluate each objection using Empathize→Clarify→Isolate→Respond
+   Green (20-25): All objections handled with full ECIR flow
+   Yellow (10-19): Some ECIR steps missed
+   Red (0-9): Jumped to defense/discount without ECIR
+
+PHASE 3 — PRESENTATION CONTINUATION (15 pts)
+3. Continued demo/presentation (15 pts) - Green (12-15): Picked up where left off, tied to prospect's specific needs - Yellow (7-11): Generic continuation - Red (0-6): No continuation or irrelevant
+
+PHASE 4 — PRICING & NEGOTIATION (20 pts)
+4. Value summary before price (8 pts) - Green: Summarized value before discussing price
+5. Pricing discussion (6 pts) - Green: Clear, confident pricing
+6. No premature discount (2 pts) - Auto red if discount before ECIR
+7. Negotiation handling (4 pts) - Green: Held firm on value, creative packaging
+
+PHASE 5 — CLOSE EXECUTION (30 pts) — THE MAIN EVENT
+8. Close setup (10 pts) - Green: Built urgency, summarized value, trial-closed
+9. Close bridge (8 pts) - Green: Smooth transition from presentation to ask
+10. Close ask (12 pts) - Green: Clear, direct, confident close ask with specific next step
+
+BANT QUALIFICATION (evaluated separately — does NOT affect the 100-point score)
+Evaluate each BANT element independently. Score 0-5 per element.
+- B — Budget (5 pts), A — Authority (5 pts), N — Need (5 pts), T — Timeline (5 pts)
+
+BONUS FLAGS: Enthusiasm, Unprofessional language, Premature disqualification
+
+─── OUTPUT FORMAT ───
+Return ONLY this JSON:
+{
+  "score": <0-100>,
+  "rag": "green"|"yellow"|"red",
+  "verdict": "<one sentence summary>",
+  "phases": {
+    "preCall": { "score": <n>, "maxPoints": 10, "criteria": { "recap": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<2-3 sentences>", "timestamps": ["MM:SS"] } } },
+    "discovery": { "score": <n>, "maxPoints": 25, "criteria": { "ecir": { "score": <n>, "maxPoints": 25, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
+    "presentation": { "score": <n>, "maxPoints": 15, "criteria": { "continuation": { "score": <n>, "maxPoints": 15, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
+    "pricing": { "score": <n>, "maxPoints": 20, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "simplePricing": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "noDiscount": { "score": <n>, "maxPoints": 2, "rag": "g"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "negotiation": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
+    "closing": { "score": <n>, "maxPoints": 30, "criteria": { "pushToClose": { "score": <n>, "maxPoints": 30, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
+  },
+  "spiced": {
+    "s": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "p": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "i": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "c": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "e": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }
+  },
+  "bant": {
+    "b": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "a": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
+    "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
+    "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
+  },
+  "close": {
+    "style": "consultative"|"assumptive"|"urgency"|"none",
+    "styleName": "<human-readable style name>",
+    "setup": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<what the setup step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<what the bridge step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<what the ask step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
+  },
+  "closingTips": ["<tip #1>", "<tip #2>", "<tip #3>", "<tip #4>", "<tip #5>"],
+  "wins": ["<win #1 with timestamp>", "<win #2>", "<win #3>"],
+  "fixes": ["<fix #1>", "<fix #2>"],
+  "flags": {
+    "enthusiasm": { "detected": true|false, "note": "<...>" },
+    "unprofessionalLanguage": { "detected": true|false, "note": "<...>" },
+    "prematureDisqualification": { "detected": true|false, "note": "<...>" }
+  },
+  "quoteOfTheCall": { "text": "<exact quote>", "timestamp": "MM:SS", "context": "<why it matters>" }
+}
+
+─── TRANSCRIPT ───
+
+${transcriptText}`;
+}
+
+async function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt: customSystemPrompt, userPrompt: customUserPrompt }) {
+  const prompt = customUserPrompt || buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
+  const sysPrompt = customSystemPrompt || SYSTEM_PROMPT;
 
   console.log(`[scoring] Sending transcript to Claude (${CONFIG.claudeModel})...`);
   console.log(`[scoring] Transcript length: ${transcriptText.length} chars`);
@@ -389,7 +519,7 @@ async function scoreTranscript({ transcriptText, repName, companyName, durationM
   const response = await client.messages.create({
     model: CONFIG.claudeModel,
     max_tokens: 8192,
-    system: SYSTEM_PROMPT,
+    system: sysPrompt,
     messages: [{ role: "user", content: prompt }]
   });
 
@@ -416,8 +546,20 @@ async function scoreTranscript({ transcriptText, repName, companyName, durationM
     throw new Error("Claude response missing required fields (score, rag, verdict)");
   }
 
+  // Close object fallback — if the model omits the close object, inject a default
+  if (!scorecard.close) {
+    console.warn("[scoring] Close object missing from Claude response — injecting default");
+    scorecard.close = {
+      style: "none",
+      styleName: "No Close Detected",
+      setup: { score: 0, status: "missing", label: "No setup detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      bridge: { score: 0, status: "missing", label: "No bridge detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      ask: { score: 0, status: "missing", label: "No ask detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+    };
+  }
+
   console.log(`[scoring] Result: ${scorecard.score}/100 (${scorecard.rag})`);
   return scorecard;
 }
 
-module.exports = { scoreTranscript };
+module.exports = { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt };

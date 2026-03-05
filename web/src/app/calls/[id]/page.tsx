@@ -122,7 +122,12 @@ export default async function CallDetailPage({
               <Link href={`/reps/${encodeURIComponent(row.rep_name)}`} className="hero-name">
                 {row.rep_name}
               </Link>
-              <div className="hero-prospect">{row.company_name}</div>
+              <div className="hero-prospect">
+                {row.company_name}
+                {row.call_type === "followup" && (
+                  <span className="followup-tag">Follow-up Call</span>
+                )}
+              </div>
               <div className="hero-meta">
                 <span>{row.call_date}</span>
                 {row.duration_minutes && (

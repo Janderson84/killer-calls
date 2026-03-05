@@ -64,6 +64,112 @@ Each step is strong/partial/missing with a label describing what the step was, f
 - closingTips should be 3-5 specific, actionable closing techniques tailored to what happened (or didn't happen) in this call. Reference the prospect's situation, the objections raised, and the close style used. Each tip should be a concrete sentence the AE could say or a specific tactic they could deploy next time — not generic advice.
 - quoteOfTheCall should capture the single most instructive moment — a win OR a miss — with enough context to be useful in a team review.`;
 
+const FOLLOWUP_SCORING_SYSTEM_PROMPT = `You are an expert sales call analyst and coaching system for SalesCloser.ai. Your role is to evaluate FOLLOW-UP sales calls — calls where the AE has already met this prospect before.
+
+## Key Difference from Discovery Calls
+Follow-up calls should NOT be penalized for skipping full discovery. The AE already uncovered situation/pain/impact on the first call. Instead, evaluate whether the AE effectively advanced the deal toward close by resolving objections, continuing the presentation, handling pricing, and executing a strong close.
+
+## Frameworks You Evaluate
+
+**ECIR** (Objection handling framework — critical for followups):
+- E — Empathize, C — Clarify, I — Isolate, R — Respond
+
+**Close Execution** (3-step close framework — the main event on followups):
+- Setup, Bridge, Ask — each strong/partial/missing
+
+**BANT** (Qualification — evaluated separately, does NOT affect the 100-pt score)
+
+## Scoring Philosophy
+- Follow-up calls are about ADVANCING and CLOSING, not discovering.
+- Score what you observe. If evidence is absent, score it low.
+- Timestamps are mandatory evidence. Never fabricate them.
+
+## Output Rules
+- Your output is ONLY valid JSON. No prose before or after. No markdown code fences.
+- Every feedback field must be 2–3 sentences minimum, written as coaching instruction.
+- closingTips should be 3-5 specific, actionable closing techniques.`;
+
+function buildFollowupPrompt(transcriptText: string, repName: string, companyName: string, durationMinutes: number | null) {
+  return `You are an expert sales call analyst. Score this FOLLOW-UP call against a closing-focused rubric. Your output is ONLY valid JSON — no prose, no markdown fences.
+
+REP: ${repName}
+PROSPECT: ${companyName}
+DURATION: ${durationMinutes || "unknown"} minutes
+CALL TYPE: Follow-up
+
+─── SCORING RUBRIC (100 points total) ───
+
+PHASE 1 — RECAP & CONTEXT SETTING (10 pts)
+1. Recap (10 pts)
+
+PHASE 2 — OBJECTION RESOLUTION (25 pts)
+2. ECIR objection handling (25 pts)
+
+PHASE 3 — PRESENTATION CONTINUATION (15 pts)
+3. Continued demo/presentation (15 pts)
+
+PHASE 4 — PRICING & NEGOTIATION (20 pts)
+4. Value summary before price (8 pts)
+5. Pricing discussion (6 pts)
+6. No premature discount (2 pts)
+7. Negotiation handling (4 pts)
+
+PHASE 5 — CLOSE EXECUTION (30 pts) — THE MAIN EVENT
+8. Close setup (10 pts)
+9. Close bridge (8 pts)
+10. Close ask (12 pts)
+
+BANT QUALIFICATION (evaluated separately)
+
+─── OUTPUT FORMAT ───
+Return ONLY this JSON:
+{
+  "score": <0-100>,
+  "rag": "green"|"yellow"|"red",
+  "verdict": "<one sentence summary>",
+  "phases": {
+    "preCall": { "score": <n>, "maxPoints": 10, "criteria": { "recap": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<2-3 sentences>", "timestamps": ["MM:SS"] } } },
+    "discovery": { "score": <n>, "maxPoints": 25, "criteria": { "ecir": { "score": <n>, "maxPoints": 25, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
+    "presentation": { "score": <n>, "maxPoints": 15, "criteria": { "continuation": { "score": <n>, "maxPoints": 15, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
+    "pricing": { "score": <n>, "maxPoints": 20, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 8 }, "simplePricing": { "score": <n>, "maxPoints": 6 }, "noDiscount": { "score": <n>, "maxPoints": 2 }, "negotiation": { "score": <n>, "maxPoints": 4 } } },
+    "closing": { "score": <n>, "maxPoints": 30, "criteria": { "pushToClose": { "score": <n>, "maxPoints": 30, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
+  },
+  "spiced": {
+    "s": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "p": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "i": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "c": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "e": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }
+  },
+  "bant": {
+    "b": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "a": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
+    "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
+    "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
+  },
+  "close": {
+    "style": "consultative"|"assumptive"|"urgency"|"none",
+    "styleName": "<human-readable style name>",
+    "setup": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] }
+  },
+  "closingTips": ["<tip #1>", "<tip #2>", "<tip #3>", "<tip #4>", "<tip #5>"],
+  "wins": ["<win #1 with timestamp>", "<win #2>", "<win #3>"],
+  "fixes": ["<fix #1>", "<fix #2>"],
+  "flags": {
+    "enthusiasm": { "detected": true|false, "note": "<...>" },
+    "unprofessionalLanguage": { "detected": true|false, "note": "<...>" },
+    "prematureDisqualification": { "detected": true|false, "note": "<...>" }
+  },
+  "quoteOfTheCall": { "text": "<exact quote>", "timestamp": "MM:SS", "context": "<why it matters>" }
+}
+
+─── TRANSCRIPT ───
+
+${transcriptText}`;
+}
+
 function buildPrompt(transcriptText: string, repName: string, companyName: string, durationMinutes: number | null) {
   return `You are an expert sales call analyst. Score this demo call against a strict 14-criterion rubric. Your output is ONLY valid JSON — no prose, no markdown fences.
 
@@ -233,7 +339,8 @@ export async function POST(request: Request) {
   const batchSize = 2;
 
   const rows = await sql`
-    SELECT id, meeting_id, rep_name, company_name, duration_minutes
+    SELECT id, meeting_id, rep_name, company_name, duration_minutes,
+           COALESCE(call_type, 'discovery') as call_type
     FROM scorecards
     ORDER BY created_at DESC
     LIMIT ${batchSize} OFFSET ${offset}
@@ -246,12 +353,16 @@ export async function POST(request: Request) {
       log.push(`Scoring ${row.rep_name} → ${row.company_name}...`);
 
       const { transcriptText, companyName } = await fetchTranscript(row.meeting_id);
-      const prompt = buildPrompt(transcriptText, row.rep_name, companyName || row.company_name, row.duration_minutes);
+      const isFollowup = row.call_type === "followup";
+      const prompt = isFollowup
+        ? buildFollowupPrompt(transcriptText, row.rep_name, companyName || row.company_name, row.duration_minutes)
+        : buildPrompt(transcriptText, row.rep_name, companyName || row.company_name, row.duration_minutes);
+      const systemPrompt = isFollowup ? FOLLOWUP_SCORING_SYSTEM_PROMPT : SCORING_SYSTEM_PROMPT;
 
       const message = await anthropic.messages.create({
         model: process.env.CLAUDE_MODEL || "claude-sonnet-4-6",
         max_tokens: 8192,
-        system: SCORING_SYSTEM_PROMPT,
+        system: systemPrompt,
         messages: [{ role: "user", content: prompt }],
       });
 

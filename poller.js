@@ -26,6 +26,9 @@ const TMP_DIR = path.join(__dirname, ".tmp-transcripts");
 const SKIP_FILE = path.join(__dirname, ".skipped-meetings.json");
 const MIN_DURATION_MINUTES = 20;
 
+const FOLLOWUP_TITLE_PATTERNS = /follow[\s-]?up|2nd\s+call|second\s+call|check[\s-]?in/i;
+const AE_EMAIL_SET = new Set(AE_EMAILS.map((e) => e.toLowerCase()));
+
 // ─── CLI flags ──────────────────────────────────────────────────
 const RESCORE = process.argv.includes("--rescore");
 
@@ -242,6 +245,18 @@ function scoreViaOpenClaw(promptFilePath, sessionId) {
   if (typeof scorecard.score !== "number" || !scorecard.rag) {
     throw new Error("OpenClaw response missing required fields");
   }
+
+  // Ensure close object always exists — model sometimes omits it
+  if (!scorecard.close) {
+    scorecard.close = {
+      style: "none",
+      styleName: "No Close Detected",
+      setup: { score: 0, status: "missing", label: "No setup detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      bridge: { score: 0, status: "missing", label: "No bridge detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      ask: { score: 0, status: "missing", label: "No ask detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+    };
+  }
+
   return scorecard;
 }
 
@@ -277,12 +292,43 @@ async function processOne(meetingId, label) {
   const scorecard = scoreViaOpenClaw(promptFile, sessionId);
   console.log(`${label} Score: ${scorecard.score}/100 (${scorecard.rag})`);
 
+  // Extract prospect email
+  const prospectEmail = (transcript.participants || [])
+    .map((e) => e.toLowerCase().trim())
+    .find((e) => e.includes("@") && !AE_EMAIL_SET.has(e)) || null;
+
+  // Detect followup
+  let callType = "discovery";
+  if (prospectEmail) {
+    const priorByEmail = await pool.query(
+      "SELECT id FROM scorecards WHERE prospect_email = $1 AND rep_name = $2 LIMIT 1",
+      [prospectEmail, transcript.repName]
+    );
+    if (priorByEmail.rows.length > 0) callType = "followup";
+  }
+  if (callType === "discovery") {
+    const priorByCompany = await pool.query(
+      "SELECT id FROM scorecards WHERE company_name = $1 AND rep_name = $2 LIMIT 1",
+      [transcript.companyName, transcript.repName]
+    );
+    if (priorByCompany.rows.length > 0) callType = "followup";
+  }
+  if (callType === "discovery" && FOLLOWUP_TITLE_PATTERNS.test(transcript.title || "")) {
+    callType = "followup";
+  }
+  if (callType === "followup") {
+    console.log(`${label} Detected as FOLLOW-UP call`);
+  }
+
   const meta = {
     repName: transcript.repName,
     companyName: transcript.companyName,
     date: transcript.date,
     durationMinutes: transcript.durationMinutes,
     meetingId,
+    title: transcript.title,
+    callType,
+    prospectEmail,
   };
   const scorecardId = await saveScorecard(scorecard, meta);
 
