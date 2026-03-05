@@ -57,11 +57,21 @@ async function saveScorecard(scorecard, meta) {
       score = EXCLUDED.score,
       rag = EXCLUDED.rag,
       verdict = EXCLUDED.verdict,
-      scorecard_json = EXCLUDED.scorecard_json,
+      score_pre_call = EXCLUDED.score_pre_call,
+      score_discovery = EXCLUDED.score_discovery,
+      score_presentation = EXCLUDED.score_presentation,
+      score_pricing = EXCLUDED.score_pricing,
+      score_closing = EXCLUDED.score_closing,
+      spiced_s = EXCLUDED.spiced_s,
+      spiced_p = EXCLUDED.spiced_p,
+      spiced_i = EXCLUDED.spiced_i,
+      spiced_c = EXCLUDED.spiced_c,
+      spiced_e = EXCLUDED.spiced_e,
       bant_b = EXCLUDED.bant_b,
       bant_a = EXCLUDED.bant_a,
       bant_n = EXCLUDED.bant_n,
-      bant_t = EXCLUDED.bant_t
+      bant_t = EXCLUDED.bant_t,
+      scorecard_json = EXCLUDED.scorecard_json
     RETURNING id`,
     [
       repId,

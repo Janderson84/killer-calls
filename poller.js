@@ -26,6 +26,9 @@ const TMP_DIR = path.join(__dirname, ".tmp-transcripts");
 const SKIP_FILE = path.join(__dirname, ".skipped-meetings.json");
 const MIN_DURATION_MINUTES = 20;
 
+// ─── CLI flags ──────────────────────────────────────────────────
+const RESCORE = process.argv.includes("--rescore");
+
 // ─── Skipped meetings tracker ───────────────────────────────────
 // Persists meeting IDs that were skipped (too short, no-show) so
 // they aren't re-fetched and re-evaluated every poll cycle.
@@ -307,9 +310,10 @@ async function poll() {
   console.log(`\n[${ts}] Polling Fireflies for new calls...`);
 
   // 1. Get already-scored meeting IDs + previously skipped
-  const scored = await getScoredMeetingIds();
-  const skipped = loadSkippedIds();
-  console.log(`  ${scored.size} scored in DB, ${skipped.size} previously skipped`);
+  const scored = RESCORE ? new Set() : await getScoredMeetingIds();
+  const skipped = RESCORE ? new Set() : loadSkippedIds();
+  if (RESCORE) console.log(`  --rescore mode: re-scoring ALL recent calls`);
+  else console.log(`  ${scored.size} scored in DB, ${skipped.size} previously skipped`);
 
   // 2. Fetch recent transcripts for each AE
   const newMeetings = [];

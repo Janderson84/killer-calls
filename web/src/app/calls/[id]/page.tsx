@@ -5,10 +5,10 @@ import Link from "next/link";
 import "./call-detail.css";
 
 const PHASE_META: Record<string, { label: string; num: number; maxPoints: number }> = {
-  preCall: { label: "Pre-Call Preparation", num: 1, maxPoints: 6 },
+  preCall: { label: "Pre-Call Prep", num: 1, maxPoints: 6 },
   discovery: { label: "Discovery", num: 2, maxPoints: 32 },
   presentation: { label: "Presentation", num: 3, maxPoints: 22 },
-  pricing: { label: "Pricing & Objection Handling", num: 4, maxPoints: 28 },
+  pricing: { label: "Pricing & Objections", num: 4, maxPoints: 28 },
   closing: { label: "Close & Next Steps", num: 5, maxPoints: 12 },
 };
 
@@ -25,28 +25,16 @@ const CRITERIA_LABELS: Record<string, string> = {
   noDiscount: "Did NOT cave on discount/terms prematurely",
   ecir: "ECIR objection handling",
   closeExecution: "Close execution",
+  pushToClose: "Close execution",
   followUp: "Scheduled a specific follow-up date and time",
 };
 
 const SPICED_WORDS: Record<string, string> = {
-  s: "Situation",
-  p: "Pain",
-  i: "Impact",
-  c: "Critical Event",
-  e: "Decision",
+  s: "Situation", p: "Pain", i: "Impact", c: "Critical Event", e: "Decision",
 };
 
 const BANT_WORDS: Record<string, string> = {
-  b: "Budget",
-  a: "Authority",
-  n: "Need",
-  t: "Timeline",
-};
-
-const CLOSE_STEP_ICONS: Record<string, string> = {
-  setup: "1",
-  bridge: "2",
-  ask: "3",
+  b: "Budget", a: "Authority", n: "Need", t: "Timeline",
 };
 
 function ragClass(rag: string): string {
@@ -62,12 +50,7 @@ function ragLabel(rag: string): string {
 }
 
 function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
 function scoreColor(rag: string): string {
@@ -82,6 +65,18 @@ function phaseBarColor(score: number, max: number): string {
   if (pct >= 0.8) return "var(--green)";
   if (pct >= 0.6) return "var(--yellow)";
   return "var(--red)";
+}
+
+function statusIcon(cls: string): string {
+  if (cls === "g") return "\u2713";
+  if (cls === "y") return "~";
+  return "\u2717";
+}
+
+function statusWord(status: string): string {
+  if (status === "strong") return "Strong";
+  if (status === "partial") return "Partial";
+  return "Missing";
 }
 
 export default async function CallDetailPage({
@@ -100,315 +95,387 @@ export default async function CallDetailPage({
     ? JSON.parse(row.scorecard_json)
     : row.scorecard_json;
 
-  const overallRag = ragClass(sc.rag);
-  const borderClass = overallRag === "g" ? "header-card-green" : overallRag === "y" ? "header-card-yellow" : "header-card-red";
+  const rc = ragClass(sc.rag);
+  const ffBase = row.meeting_id ? `https://app.fireflies.ai/view/${row.meeting_id}` : null;
 
   return (
-    <>
-      {/* NAV */}
-      <div className="nav">
-        <Link href="/">Killer Calls</Link>
-        <span className="nav-sep">&rsaquo;</span>
-        <span>{row.rep_name} &rarr; {row.company_name}</span>
-        <span className="nav-sep">&middot;</span>
-        <span>{row.call_date}</span>
-        <span style={{ marginLeft: "auto" }}>
-          <Link href="/">&larr; Back to library</Link>
-        </span>
-      </div>
+    <div className="report">
+      {/* ── NAV ── */}
+      <nav className="rpt-nav">
+        <Link href="/" className="nav-brand">Killer Calls</Link>
+        <span className="nav-sep">/</span>
+        <span className="nav-crumb">{row.rep_name}</span>
+        <span className="nav-sep">/</span>
+        <span className="nav-crumb">{row.company_name}</span>
+        <Link href="/" className="nav-back">&larr; Library</Link>
+      </nav>
 
-      <div className="layout">
-        <div className="main">
-          {/* HEADER CARD */}
-          <div className={`header-card ${borderClass}`}>
-            <div className="header-top">
-              <div className="header-rep">
-                <div className="avatar-lg">{initials(row.rep_name)}</div>
-                <div>
-                  <Link href={`/reps/${encodeURIComponent(row.rep_name)}`} className="rep-name-link">{row.rep_name}</Link>
-                  <div className="rep-meta-row">
-                    <div className="rep-meta-item">
-                      <span>{row.company_name}</span>
-                    </div>
-                    <div className="rep-meta-item">
-                      <span>{row.call_date}</span>
-                    </div>
-                    {row.duration_minutes && (
-                      <div className="rep-meta-item">
-                        <span>{row.duration_minutes} min</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+      {/* ── HERO ── */}
+      <section className={`hero hero--${rc}`}>
+        <div className="hero-glow" />
+
+        <div className="hero-grid">
+          {/* Left — Rep info */}
+          <div className="hero-info">
+            <div className="hero-avatar">{initials(row.rep_name)}</div>
+            <div className="hero-details">
+              <Link href={`/reps/${encodeURIComponent(row.rep_name)}`} className="hero-name">
+                {row.rep_name}
+              </Link>
+              <div className="hero-prospect">{row.company_name}</div>
+              <div className="hero-meta">
+                <span>{row.call_date}</span>
+                {row.duration_minutes && (
+                  <><span className="meta-dot" /><span>{row.duration_minutes} min</span></>
+                )}
               </div>
               {row.meeting_id && (
                 <a
                   href={`https://app.fireflies.ai/view/${row.meeting_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="fireflies-link"
+                  className="hero-rec-btn"
                 >
-                  ▶ View Recording
+                  <span className="rec-icon">&#9654;</span> Recording
                 </a>
               )}
-              <div className="score-block">
-                <div className="score-label">Overall Score</div>
-                <div className="score-big" style={{ color: scoreColor(sc.rag) }}>
-                  {sc.score}<small>/100</small>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <span className={`score-rag rag-${overallRag}`}>
-                    <span className="rag-dot"></span> {ragLabel(sc.rag)}
-                  </span>
-                </div>
-              </div>
             </div>
-            <div className="verdict-row">
-              <div className="verdict-bar" style={{ background: scoreColor(sc.rag) }}></div>
-              <div>
-                <div className="verdict-label" style={{ color: scoreColor(sc.rag) }}>Verdict</div>
-                <div className="verdict-text">{sc.verdict}</div>
+          </div>
+
+          {/* Center — Score ring */}
+          <div className="hero-score">
+            <div
+              className="score-ring"
+              style={{
+                "--score-pct": sc.score,
+                "--ring-color": scoreColor(sc.rag),
+              } as React.CSSProperties}
+            >
+              <div className="score-ring-track" />
+              <div className="score-ring-center">
+                <div className="score-num">{sc.score}</div>
+                <div className="score-of">/100</div>
+                <div className={`score-badge ${rc}`}>
+                  <span className="badge-dot" />
+                  {ragLabel(sc.rag)}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* BANT BREAKDOWN */}
-          {sc.bant && (
-            <>
-              <div className="section-hd">
-                <div className="section-hd-title">BANT Qualification</div>
-              </div>
-
-              <div className="bant-grid">
-                {(["b", "a", "n", "t"] as const).map((key) => {
-                  const el: BantElement = sc.bant![key];
-                  const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
-                  const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
-                  return (
-                    <div key={key} className={`bant-card ${cls}`}>
-                      <div className="bant-letter">{key.toUpperCase()}</div>
-                      <div className="bant-word">{BANT_WORDS[key]}</div>
-                      <div className="bant-status">
-                        {cls === "g" ? "\u2713" : cls === "y" ? "~" : "\u2717"} {statusLabel}
-                      </div>
-                      <div className="bant-note">{el.feedback}</div>
-                      {el.timestamps && el.timestamps.length > 0 && (
-                        <div className="bant-ts">
-                          {el.timestamps.map((ts, i) => (
-                            <span key={i}>{"\u25B6"} {ts}{i < el.timestamps.length - 1 ? " \u00B7 " : ""}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* SPICED BREAKDOWN */}
-          <div className="section-hd">
-            <div className="section-hd-title">SPICED Breakdown</div>
-          </div>
-
-          <div className="spiced-grid">
-            {(["s", "p", "i", "c", "e"] as const).map((key) => {
-              const el: SpicedElement = sc.spiced[key];
-              const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
-              const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
+          {/* Right — Phase breakdown */}
+          <div className="hero-phases">
+            <div className="phases-hd">Score by Phase</div>
+            {Object.entries(PHASE_META).map(([key, meta], i) => {
+              const phase = sc.phases[key as keyof typeof sc.phases];
+              const s = phase?.score ?? 0;
+              const pct = meta.maxPoints > 0 ? (s / meta.maxPoints) * 100 : 0;
+              const color = phaseBarColor(s, meta.maxPoints);
               return (
-                <div key={key} className={`spiced-card ${cls}`}>
-                  <div className="spiced-letter">{key.toUpperCase()}</div>
-                  <div className="spiced-word">{SPICED_WORDS[key]}</div>
-                  <div className="spiced-status">
-                    {cls === "g" ? "✓" : cls === "y" ? "~" : "✗"} {statusLabel}
+                <div className="ph-row" key={key} style={{ animationDelay: `${0.5 + i * 0.07}s` }}>
+                  <span className="ph-label">{meta.label}</span>
+                  <div className="ph-track">
+                    <div className="ph-fill" style={{ width: `${pct}%`, background: color }} />
                   </div>
-                  <div className="spiced-note">{el.feedback}</div>
-                  {el.timestamps && el.timestamps.length > 0 && (
-                    <div className="spiced-ts">
-                      {el.timestamps.map((ts, i) => (
-                        <span key={i}>▶ {ts}{i < el.timestamps.length - 1 ? " · " : ""}</span>
-                      ))}
+                  <span className="ph-val" style={{ color }}>{s}<span className="ph-max">/{meta.maxPoints}</span></span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Verdict */}
+        <div className="hero-verdict">
+          <div className="verdict-bar" style={{ background: scoreColor(sc.rag) }} />
+          <p className="verdict-text">{sc.verdict}</p>
+        </div>
+      </section>
+
+      {/* ── SPICED ── */}
+      <section className="section">
+        <div className="sec-hd">
+          <span className="sec-tag">Framework</span>
+          <h2 className="sec-title">SPICED Discovery</h2>
+        </div>
+
+        <div className="grid-5">
+          {(["s", "p", "i", "c", "e"] as const).map((key, i) => {
+            const el: SpicedElement = sc.spiced[key];
+            const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
+            return (
+              <div key={key} className={`fw-card fw-card--${cls}`} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
+                <div className="fw-hd">
+                  <span className={`fw-letter fw-letter--${cls}`}>{key.toUpperCase()}</span>
+                  <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
+                </div>
+                <div className="fw-label">{SPICED_WORDS[key]}</div>
+                <p className="fw-feedback">{el.feedback}</p>
+                {el.timestamps?.length > 0 && (
+                  <div className="fw-ts">
+                    {el.timestamps.map((ts, j) =>
+                      ffBase ? (
+                        <a key={j} href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {ts}</a>
+                      ) : (
+                        <span key={j} className="ts-pill">&#9654; {ts}</span>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── BANT ── */}
+      {sc.bant && (
+        <section className="section">
+          <div className="sec-hd">
+            <span className="sec-tag">Qualification</span>
+            <h2 className="sec-title">BANT</h2>
+          </div>
+
+          <div className="grid-4">
+            {(["b", "a", "n", "t"] as const).map((key, i) => {
+              const el: BantElement = sc.bant![key];
+              const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
+              return (
+                <div key={key} className={`fw-card fw-card--${cls}`} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
+                  <div className="fw-hd">
+                    <span className={`fw-letter fw-letter--${cls}`}>{key.toUpperCase()}</span>
+                    <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
+                  </div>
+                  <div className="fw-label">{BANT_WORDS[key]}</div>
+                  <p className="fw-feedback">{el.feedback}</p>
+                  {el.timestamps?.length > 0 && (
+                    <div className="fw-ts">
+                      {el.timestamps.map((ts, j) =>
+                        ffBase ? (
+                          <a key={j} href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {ts}</a>
+                        ) : (
+                          <span key={j} className="ts-pill">&#9654; {ts}</span>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
               );
             })}
           </div>
+        </section>
+      )}
 
-          {/* CLOSING TIPS */}
-          {sc.closingTips && sc.closingTips.length > 0 && (
-            <>
-              <div className="section-hd">
-                <div className="section-hd-title">Closing Tips</div>
-              </div>
+      {/* ── CLOSE EXECUTION ── */}
+      {sc.close && sc.close.style !== "none" && (
+        <section className="section">
+          <div className="sec-hd">
+            <span className="sec-tag">Close</span>
+            <h2 className="sec-title">Close Execution</h2>
+          </div>
 
-              <div className="closing-tips-card">
-                {sc.closingTips.map((tip, i) => (
-                  <div key={i} className="closing-tip-row">
-                    <div className="closing-tip-num">{i + 1}</div>
-                    <div className="closing-tip-text">{tip}</div>
+          <div className="close-style-pill">{sc.close.styleName}</div>
+
+          <div className="grid-3">
+            {(["setup", "bridge", "ask"] as const).map((key, i) => {
+              const el: CloseStepElement = sc.close![key];
+              const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
+              return (
+                <div key={key} className={`fw-card fw-card--${cls}`} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
+                  <div className="fw-hd">
+                    <span className={`fw-letter fw-letter--${cls}`}>{i + 1}</span>
+                    <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
                   </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* CLOSE BREAKDOWN */}
-          {sc.close && sc.close.style !== "none" && (
-            <>
-              <div className="section-hd">
-                <div className="section-hd-title">Close Execution</div>
-              </div>
-
-              <div className="close-style-badge">{sc.close.styleName}</div>
-
-              <div className="close-grid">
-                {(["setup", "bridge", "ask"] as const).map((key) => {
-                  const el: CloseStepElement = sc.close![key];
-                  const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
-                  const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
-                  return (
-                    <div key={key} className={`close-card ${cls}`}>
-                      <div className="close-step-num">{CLOSE_STEP_ICONS[key]}</div>
-                      <div className="close-word">{el.label}</div>
-                      <div className="close-status">
-                        {cls === "g" ? "\u2713" : cls === "y" ? "~" : "\u2717"} {statusLabel}
-                      </div>
-                      <div className="close-note">{el.feedback}</div>
-                      {el.timestamps && el.timestamps.length > 0 && (
-                        <div className="close-ts">
-                          {el.timestamps.map((ts, i) => (
-                            <span key={i}>{"\u25B6"} {ts}{i < el.timestamps.length - 1 ? " \u00B7 " : ""}</span>
-                          ))}
-                        </div>
+                  <div className="fw-label">{el.label}</div>
+                  <p className="fw-feedback">{el.feedback}</p>
+                  {el.timestamps?.length > 0 && (
+                    <div className="fw-ts">
+                      {el.timestamps.map((ts, j) =>
+                        ffBase ? (
+                          <a key={j} href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {ts}</a>
+                        ) : (
+                          <span key={j} className="ts-pill">&#9654; {ts}</span>
+                        )
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* LEGACY SVC BREAKDOWN — for old scorecards */}
-          {!sc.close && sc.svc && (
-            <>
-              <div className="section-hd">
-                <div className="section-hd-title">SVC Close</div>
-              </div>
-
-              <div className="close-grid">
-                {(["summarize", "surface", "commit"] as const).map((key) => {
-                  const el = sc.svc![key];
-                  const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
-                  const statusLabel = el.status === "strong" ? "Strong" : el.status === "partial" ? "Partial" : "Missing";
-                  const letter = key === "summarize" ? "S" : key === "surface" ? "V" : "C";
-                  const label = key === "summarize" ? "Summarize Value" : key === "surface" ? "Surface Concern" : "Commit";
-                  return (
-                    <div key={key} className={`close-card ${cls}`}>
-                      <div className="close-step-num">{letter}</div>
-                      <div className="close-word">{label}</div>
-                      <div className="close-status">
-                        {cls === "g" ? "\u2713" : cls === "y" ? "~" : "\u2717"} {statusLabel}
-                      </div>
-                      <div className="close-note">{el.feedback}</div>
-                      {el.timestamps && el.timestamps.length > 0 && (
-                        <div className="close-ts">
-                          {el.timestamps.map((ts, i) => (
-                            <span key={i}>{"\u25B6"} {ts}{i < el.timestamps.length - 1 ? " \u00B7 " : ""}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* FULL SCORECARD */}
-          <div className="section-hd">
-            <div className="section-hd-title">Full Scorecard</div>
-          </div>
-
-          {Object.entries(PHASE_META).map(([phaseKey, phaseMeta]) => {
-            const phase = sc.phases[phaseKey as keyof typeof sc.phases];
-            if (!phase) return null;
-
-            return (
-              <div key={phaseKey}>
-                <div className="phase-label" style={{ marginTop: phaseKey === "preCall" ? 0 : 20 }}>
-                  Phase {phaseMeta.num} &middot; {phaseMeta.label}
+                  )}
                 </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-                {Object.entries(phase.criteria).map(([critKey, crit]) => {
-                  const criterion = crit as CriterionScore;
-                  const cls = ragClass(criterion.rag);
-                  const icon = cls === "g" ? "✓" : cls === "y" ? "~" : "✗";
-
-                  return (
-                    <div key={critKey} className="criterion-row">
-                      <div className={`cr-rag ${cls}`}>{icon}</div>
-                      <div className="cr-content">
-                        <div className="cr-title">
-                          {CRITERIA_LABELS[critKey] || critKey}
-                        </div>
-                        <div className="cr-feedback">{criterion.feedback}</div>
-                        {criterion.timestamps && criterion.timestamps.length > 0 && (
-                          <div className="cr-timestamps">
-                            {criterion.timestamps.map((ts, i) => (
-                              <span key={i} className="ts-chip">▶ {ts}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="cr-score">
-                        <div className={`cr-score-num ${cls}`}>{criterion.score}</div>
-                        <div className="cr-score-max">/ {criterion.maxPoints}</div>
-                        <div className="cr-score-bar">
-                          <div
-                            className={`cr-score-fill ${cls}`}
-                            style={{ width: `${(criterion.score / criterion.maxPoints) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
+      {/* ── LEGACY SVC ── */}
+      {!sc.close && sc.svc && (
+        <section className="section">
+          <div className="sec-hd">
+            <span className="sec-tag">Close</span>
+            <h2 className="sec-title">SVC Close</h2>
+          </div>
+          <div className="grid-3">
+            {(["summarize", "surface", "commit"] as const).map((key, i) => {
+              const el = sc.svc![key];
+              const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
+              const letter = key === "summarize" ? "S" : key === "surface" ? "V" : "C";
+              const label = key === "summarize" ? "Summarize Value" : key === "surface" ? "Surface Concern" : "Commit";
+              return (
+                <div key={key} className={`fw-card fw-card--${cls}`} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
+                  <div className="fw-hd">
+                    <span className={`fw-letter fw-letter--${cls}`}>{letter}</span>
+                    <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
+                  </div>
+                  <div className="fw-label">{label}</div>
+                  <p className="fw-feedback">{el.feedback}</p>
+                  {el.timestamps?.length > 0 && (
+                    <div className="fw-ts">
+                      {el.timestamps.map((ts, j) =>
+                        ffBase ? (
+                          <a key={j} href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {ts}</a>
+                        ) : (
+                          <span key={j} className="ts-pill">&#9654; {ts}</span>
+                        )
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-          {/* FLAGS */}
-          {sc.flags && (
-            <>
-              <div className="section-hd">
-                <div className="section-hd-title">Flags & Highlights</div>
-              </div>
-              {sc.flags.enthusiasm?.detected && (
-                <div className="flag-row gold-flag">⭐ {sc.flags.enthusiasm.note}</div>
-              )}
-              {sc.flags.unprofessionalLanguage?.detected && (
-                <div className="flag-row">⚠ {sc.flags.unprofessionalLanguage.note}</div>
-              )}
-              {sc.flags.prematureDisqualification?.detected && (
-                <div className="flag-row">⚠ {sc.flags.prematureDisqualification.note}</div>
-              )}
-            </>
-          )}
-
-          {/* COACHING SUMMARY */}
-          <div className="section-hd">
-            <div className="section-hd-title">Coaching Summary</div>
+      {/* ── CLOSING TIPS ── */}
+      {sc.closingTips && sc.closingTips.length > 0 && (
+        <section className="section">
+          <div className="sec-hd">
+            <span className="sec-tag">Coaching</span>
+            <h2 className="sec-title">Closing Tips</h2>
           </div>
 
-          {sc.wins && sc.wins.length > 0 && (
-            <div className="coaching-block">
-              <div className="coaching-block-header wins">✅ What landed</div>
-              <div className="coaching-block-body">
+          <div className="tips-list">
+            {sc.closingTips.map((tip, i) => (
+              <div key={i} className="tip-row" style={{ animationDelay: `${0.1 + i * 0.08}s` }}>
+                <div className="tip-num">{i + 1}</div>
+                <p className="tip-text">{tip}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── FULL SCORECARD ── */}
+      <section className="section">
+        <div className="sec-hd">
+          <span className="sec-tag">Detail</span>
+          <h2 className="sec-title">Full Scorecard</h2>
+        </div>
+
+        {Object.entries(PHASE_META).map(([phaseKey, phaseMeta]) => {
+          const phase = sc.phases[phaseKey as keyof typeof sc.phases];
+          if (!phase) return null;
+
+          return (
+            <div key={phaseKey} className="phase-group">
+              <div className="phase-divider">
+                <span className="phase-num">0{phaseMeta.num}</span>
+                <span className="phase-name">{phaseMeta.label}</span>
+              </div>
+
+              {Object.entries(phase.criteria).map(([critKey, crit]) => {
+                const criterion = crit as CriterionScore;
+                const cls = ragClass(criterion.rag);
+
+                return (
+                  <div key={critKey} className="crit-row">
+                    <div className={`crit-icon crit-icon--${cls}`}>{cls === "g" ? "\u2713" : cls === "y" ? "~" : "\u2717"}</div>
+                    <div className="crit-body">
+                      <div className="crit-title">{CRITERIA_LABELS[critKey] || critKey}</div>
+                      <p className="crit-feedback">{criterion.feedback}</p>
+                      {/* ECIR objections detail */}
+                      {critKey === "ecir" && criterion.objections && criterion.objections.length > 0 && (
+                        <div className="ecir-detail">
+                          {criterion.objections.map((obj, oi) => (
+                            <div key={oi} className="ecir-obj">
+                              <span className="ecir-topic">{obj.topic}</span>
+                              {ffBase ? (
+                                <a href={ffBase} target="_blank" rel="noopener noreferrer" className="ecir-ts">&#9654; {obj.timestamp}</a>
+                              ) : (
+                                <span className="ecir-ts">&#9654; {obj.timestamp}</span>
+                              )}
+                              <span className="ecir-steps">
+                                <span className={obj.empathize ? "ecir-step ecir-step--pass" : "ecir-step ecir-step--fail"}>E</span>
+                                <span className={obj.clarify ? "ecir-step ecir-step--pass" : "ecir-step ecir-step--fail"}>C</span>
+                                <span className={obj.isolate ? "ecir-step ecir-step--pass" : "ecir-step ecir-step--fail"}>I</span>
+                                <span className={obj.respond ? "ecir-step ecir-step--pass" : "ecir-step ecir-step--fail"}>R</span>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {criterion.timestamps?.length > 0 && (
+                        <div className="crit-ts">
+                          {criterion.timestamps.map((ts, j) =>
+                            ffBase ? (
+                              <a key={j} href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {ts}</a>
+                            ) : (
+                              <span key={j} className="ts-pill">&#9654; {ts}</span>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="crit-score">
+                      <span className={`crit-pts crit-pts--${cls}`}>{criterion.score}</span>
+                      <span className="crit-max">/{criterion.maxPoints}</span>
+                      <div className="crit-bar">
+                        <div
+                          className={`crit-fill crit-fill--${cls}`}
+                          style={{ width: `${criterion.maxPoints > 0 ? (criterion.score / criterion.maxPoints) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </section>
+
+      {/* ── FLAGS ── */}
+      {sc.flags && (sc.flags.enthusiasm?.detected || sc.flags.unprofessionalLanguage?.detected || sc.flags.prematureDisqualification?.detected) && (
+        <section className="section">
+          <div className="sec-hd">
+            <span className="sec-tag">Signals</span>
+            <h2 className="sec-title">Flags &amp; Highlights</h2>
+          </div>
+          {sc.flags.enthusiasm?.detected && (
+            <div className="flag flag--gold">&#11088; {sc.flags.enthusiasm.note}</div>
+          )}
+          {sc.flags.unprofessionalLanguage?.detected && (
+            <div className="flag flag--red">&#9888; {sc.flags.unprofessionalLanguage.note}</div>
+          )}
+          {sc.flags.prematureDisqualification?.detected && (
+            <div className="flag flag--red">&#9888; {sc.flags.prematureDisqualification.note}</div>
+          )}
+        </section>
+      )}
+
+      {/* ── COACHING SUMMARY ── */}
+      <section className="section">
+        <div className="sec-hd">
+          <span className="sec-tag">Review</span>
+          <h2 className="sec-title">Coaching Summary</h2>
+        </div>
+
+        <div className="coach-grid">
+          {sc.wins?.length > 0 && (
+            <div className="coach-card">
+              <div className="coach-hd coach-hd--wins">What Landed</div>
+              <div className="coach-body">
                 {sc.wins.map((win, i) => (
-                  <div key={i} className="coaching-item">
-                    <span className="coaching-item-icon">{i + 1}.</span>
+                  <div key={i} className="coach-item">
+                    <span className="coach-bullet coach-bullet--wins">{i + 1}</span>
                     <span>{win}</span>
                   </div>
                 ))}
@@ -416,66 +483,39 @@ export default async function CallDetailPage({
             </div>
           )}
 
-          {sc.fixes && sc.fixes.length > 0 && (
-            <div className="coaching-block">
-              <div className="coaching-block-header fixes">🔧 Priority fixes</div>
-              <div className="coaching-block-body">
+          {sc.fixes?.length > 0 && (
+            <div className="coach-card">
+              <div className="coach-hd coach-hd--fixes">Priority Fixes</div>
+              <div className="coach-body">
                 {sc.fixes.map((fix, i) => (
-                  <div key={i} className="coaching-item">
-                    <span className="coaching-item-icon">&rarr;</span>
+                  <div key={i} className="coach-item">
+                    <span className="coach-bullet coach-bullet--fixes">&rarr;</span>
                     <span>{fix}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
-
-          {sc.quoteOfTheCall?.text && (
-            <div className="coaching-block">
-              <div className="coaching-block-header quote">💬 Quote of the call</div>
-              <div className="coaching-block-body">
-                <div className="coaching-quote">
-                  &ldquo;{sc.quoteOfTheCall.text}&rdquo;
-                  <div className="coaching-quote-ts">
-                    ▶ {sc.quoteOfTheCall.timestamp} — {sc.quoteOfTheCall.context}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
+      </section>
 
-        {/* SIDEBAR */}
-        <div className="sidebar">
-          <div className="sidebar-section">
-            <div className="sidebar-label">Score by phase</div>
-            <div className="score-breakdown">
-              {Object.entries(PHASE_META).map(([phaseKey, phaseMeta]) => {
-                const phase = sc.phases[phaseKey as keyof typeof sc.phases];
-                const phaseScore = phase?.score ?? 0;
-                const max = phaseMeta.maxPoints;
-                const pct = max > 0 ? (phaseScore / max) * 100 : 0;
-                const color = phaseBarColor(phaseScore, max);
-
-                return (
-                  <div key={phaseKey} className="score-phase-row">
-                    <div className="score-phase-name">{phaseMeta.label}</div>
-                    <div className="score-phase-bar-wrap">
-                      <div
-                        className="score-phase-bar"
-                        style={{ width: `${pct}%`, background: color }}
-                      ></div>
-                    </div>
-                    <div className="score-phase-val" style={{ color }}>
-                      {phaseScore}/{max}
-                    </div>
-                  </div>
-                );
-              })}
+      {/* ── QUOTE ── */}
+      {sc.quoteOfTheCall?.text && (
+        <section className="section pullquote-section">
+          <div className="pullquote">
+            <div className="pq-mark">&ldquo;</div>
+            <blockquote className="pq-text">{sc.quoteOfTheCall.text}</blockquote>
+            <div className="pq-attr">
+              {ffBase ? (
+                <a href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {sc.quoteOfTheCall.timestamp}</a>
+              ) : (
+                <span className="ts-pill">&#9654; {sc.quoteOfTheCall.timestamp}</span>
+              )}
+              <span className="pq-context">{sc.quoteOfTheCall.context}</span>
             </div>
           </div>
-        </div>
-      </div>
-    </>
+        </section>
+      )}
+    </div>
   );
 }
