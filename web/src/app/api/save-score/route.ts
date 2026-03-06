@@ -29,6 +29,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  // Ensure close object always exists — external scorers (OpenClaw) may omit it
+  if (!scorecard.close) {
+    scorecard.close = {
+      style: "none",
+      styleName: "No Close Detected",
+      setup: { score: 0, status: "missing", label: "No setup detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      bridge: { score: 0, status: "missing", label: "No bridge detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      ask: { score: 0, status: "missing", label: "No ask detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+    };
+  }
+
   const sql = neon(process.env.DATABASE_URL!);
 
   try {
