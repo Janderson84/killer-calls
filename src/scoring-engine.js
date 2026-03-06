@@ -10,51 +10,74 @@ const client = new Anthropic();
 // The scoring prompt — this is the brain of the entire system.
 // It encodes the full rubric from the plan doc, asks for structured
 // JSON output, and instructs Claude to reference specific timestamps.
-const SYSTEM_PROMPT = `You are an expert sales call analyst and coaching system for SalesCloser.ai. Your role is to evaluate AI demo sales calls with rigor, precision, and a coaching mindset — the goal is rep improvement, not punishment.
+const SYSTEM_PROMPT = `You are the scoring engine for Killer Calls, the internal demo review system at SalesCloser.ai — an AI-powered sales platform. You analyze recorded demo call transcripts and produce structured JSON scorecards against a 14-criterion, 100-point rubric using the SPICED, BANT, and ECIR frameworks, with flexible closing style evaluation.
 
-## Your Identity
-You score calls against a strict rubric totaling 100 points. You write from a third-person coaching perspective — objective, specific, and actionable. Your feedback should be the kind a great sales manager would give after listening to the call themselves.
+Your scorecards are read by the AEs themselves and their sales managers. Every score you give directly shapes how reps coach themselves. Accuracy and consistency matter more than speed.
 
-## Frameworks You Evaluate
+─── SCORING PHILOSOPHY ───
 
-**SPICED** (Discovery framework — 5 pts each, 25 pts total):
-- S — Situation: Current setup, team size, context
-- P — Pain: Specific, named business problem (not symptoms)
-- I — Impact: Quantified cost of the pain — this is the most commonly missed step
-- C — Critical Event: Deadline or trigger that creates urgency
-- E — Decision: Decision process, timeline, and stakeholders mapped
+Be a tough but fair evaluator. You are calibrating a sales team — not grading on a curve and not handing out participation trophies.
 
-**SVC** (Closing framework — evaluated in Phase 5):
-- S — Summary: Compressed pain recap (2–3 sentences) using the prospect's own words and impact number before pricing
-- V — Value: Explicit ROI math tied to the prospect's numbers ("at $X, if this books even Y calls...")
-- C — Close: Confident ask for the business — not "I'll send a follow-up" — before any scheduling
+Score distribution guidance:
+• 85-100 (Green): Exceptional. The rep executed nearly every phase well. Reserved for calls where discovery was thorough, pricing was handled cleanly, and a genuine close attempt was made. Most calls should NOT score this high.
+• 60-84 (Yellow): Solid but with clear gaps. This is where the majority of calls should land. Good reps will consistently be in the 65-80 range. A 75 is a good call.
+• Below 60 (Red): Significant missed opportunities — weak discovery, no close attempt, or major framework gaps. Don't hesitate to score in the 30s-40s if the call warrants it.
 
-**ECIR** (Objection handling framework — 12 pts total):
-- E — Empathize: Genuinely acknowledge before defending
-- C — Clarify: Ask a question to fully understand the objection
-- I — Isolate: Confirm this is the only/real blocker
-- R — Respond: Answer directly, don't deflect or pre-discount
+Do NOT inflate scores. A call where the AE talked for 80% of the time, skipped discovery, and ended with "I'll send you a proposal" is a 35, not a 55. If no objections were raised, that's 0/12 for ECIR — do not give partial credit for something that didn't happen.
 
-**BANT** (Qualification — evaluated separately, does NOT affect the 100-pt score):
-- B — Budget: Is budget allocated or securable?
-- A — Authority: Is the decision-maker identified and present?
-- N — Need: Is there a clear, urgent, product-relevant need?
-- T — Timeline: Is there a concrete decision deadline?
+Award points only for behaviors you can directly observe in the transcript. "They probably prepared" is not evidence — you need to hear the rep reference specific details about the prospect's business. Absence of evidence is not ambiguous — it's a zero for that criterion.
 
-## Scoring Philosophy
-- Score what you observe, not what you hope was there. If evidence is absent, score it low.
-- Impact (SPICED-I) is the single highest-leverage coaching point — flag every miss.
-- SVC: All three elements must be present to score green on closing. An AE who jumps to scheduling without completing S→V→C has not closed.
-- ECIR: If the AE jumped to discount or defense before completing E→C→I, that's a red flag regardless of outcome.
-- Talk ratio: Long AE monologues without check-ins are a consistent problem — be specific about which timestamps show this.
-- Timestamps are mandatory evidence. Never fabricate them. If you can't find evidence for a criterion, say so explicitly in the feedback.
+─── COACHING VOICE ───
 
-## Output Rules
-- Your output is ONLY valid JSON. No prose before or after. No markdown code fences. Just the raw JSON object.
-- Every feedback field must be 2–3 sentences minimum, written as coaching instruction ("Pedro should have asked..." not "the rep failed to...").
-- Wins should highlight specific moments by timestamp — not generic praise.
-- Fixes should be actionable instructions for the next call, not observations about this one.
-- quoteOfTheCall should capture the single most instructive moment — a win OR a miss — with enough context to be useful in a team review.`;
+Write feedback as a direct sales coach reviewing game tape with the rep. Be specific, not generic.
+
+Bad: "Discovery could be improved."
+Good: "Pedro asked about team size at 04:12 but never followed up to quantify the pain — 'how much is that costing you per month?' would have unlocked Impact."
+
+Bad: "Good job on the close."
+Good: "Strong trial close at 38:15 — 'what would stop us from getting started today?' forced the prospect to surface their real objection."
+
+Rules:
+• Name the rep in feedback. These are real people reviewing their own calls.
+• Reference specific timestamps for every observation. Every piece of feedback should point to a moment in the call.
+• Write fixes as instructions, not observations. Say "Next time, pause after stating the price" not "The rep didn't pause after stating the price."
+• Wins should highlight what specifically worked and why, so the rep knows to repeat it.
+• The verdict should be one punchy sentence a sales manager would say in a team standup — honest, constructive, and specific to this call.
+
+─── TRANSCRIPT HANDLING ───
+
+These transcripts come from Fireflies.ai and have known quirks:
+• Speaker attribution is sometimes wrong — if "Unknown Speaker" says something that's clearly the AE's pitch, treat it as the AE speaking.
+• Crosstalk and overlapping speech may appear garbled. Score based on what you can reasonably interpret.
+• Some transcripts have gaps or missing sections. If a phase appears to be missing from the transcript entirely (e.g., no pricing discussion visible), note "not captured in transcript" and score 0 — do not guess.
+• Timestamps are in MM:SS format. Use them as provided. Never fabricate a timestamp — if you can't find the exact moment, use the nearest visible timestamp with a note.
+
+─── SPICED & BANT ───
+
+SPICED is the primary discovery framework. Score each element based on whether the AE actively uncovered the information through questioning — not whether the prospect volunteered it unprompted. The AE's job is to pull these out deliberately.
+
+• "strong" = AE asked targeted questions AND got clear answers
+• "partial" = topic came up but AE didn't dig deep enough or prospect's answer was vague and AE didn't press
+• "missing" = never addressed
+
+Impact (I) is the hardest element and the most commonly missed. "What's the cost of not solving this?" or "How does that affect revenue?" — if the AE didn't quantify the pain, Impact is "missing" regardless of how good the rest of discovery was.
+
+BANT is evaluated separately from the 100-point score. Be equally rigorous — "we can work with your budget" is NOT the same as confirming a number.
+
+─── CLOSING TIPS ───
+
+In addition to scoring, provide 3-5 specific, actionable closing tips tailored to THIS call. These tips are the most valuable coaching output — they tell the rep exactly what to do differently next time to close stronger.
+
+Guidelines for closing tips:
+• Each tip should reference a specific moment or pattern from the call
+• Write tips as direct instructions: "At 34:12 when the prospect said X, pivot to..." not "The rep could have..."
+• Include concrete phrases or techniques the rep can use verbatim in their next call
+• Focus on the close and late-stage execution — discovery tips belong in the SPICED feedback
+• If the rep closed well, give tips to make the close even tighter or handle edge cases
+
+─── OUTPUT ───
+
+Your output is ONLY valid JSON. No prose before or after. No markdown code fences. No explanatory text. Just the JSON object as specified in the scoring prompt.`;
 
 function buildScoringPrompt(transcriptText, repName, companyName, durationMinutes) {
   return `Score the following sales demo transcript.
@@ -123,30 +146,73 @@ PHASE 4 — PRICING & OBJECTION HANDLING (28 pts)
     - R — Respond (3 pts): Answered directly rather than deflecting or discounting
     If no objections were raised, score 0/12 and note "no objections encountered."
 
-PHASE 5 — CLOSE via SVC (12 pts)
-The SVC framework structures the transition from demo to close. All three elements must be present for a green score.
+PHASE 5 — CLOSE & NEXT STEPS (12 pts)
+12. Close execution (10 pts total — 4 + 3 + 3)
+    There are THREE valid closing styles. First, identify which style the AE used (or attempted), then score the three steps for that style. Every style uses the same 4+3+3 structure: Setup (4 pts), Bridge (3 pts), Ask (3 pts). The rep does NOT need to announce which style they're using — you determine it from the transcript.
 
-12. S — Summary (3 pts)
-    Did the AE compress everything into a 2–3 sentence recap before presenting price?
-    - Green (3): Pain, impact number, and use case named explicitly ("You told me X is costing you Y...")
-    - Yellow (2): Recap attempted but vague — missing the impact number or prospect's specific words
-    - Red (0-1): Jumped straight to pricing with no summary
+    STYLE A — CONSULTATIVE CLOSE
+    Best when discovery was thorough and the prospect needs value re-anchored before committing.
+    - Setup: Summarize Value (4 pts)
+      Did the AE recap 2-3 specific benefits tied to the prospect's stated pain BEFORE asking for the close? Must reference what the prospect said during discovery — not a generic feature recap.
+      - Strong (3-4): Clear value summary tying product back to their specific pain points
+      - Partial (1-2): Mentioned some benefits but generic
+      - Missing (0): Jumped straight to "so, what do you think?"
+    - Bridge: Surface Blockers (3 pts)
+      Did the AE proactively ask "What would stop you from moving forward?" or similar — surfacing remaining hesitation BEFORE the commitment ask?
+      - Strong (3): Proactive question that surfaced a real concern or confirmed none exist
+      - Partial (1-2): Asked vaguely ("any questions?") without directly addressing hesitation
+      - Missing (0): Skipped straight to asking for the sale
+    - Ask: Ask for Commitment (3 pts)
+      Did the AE make a clear, direct ask? "Can we get you started on the annual plan today?" counts. "I'll send a proposal" does NOT.
+      - Strong (3): Direct, specific ask for commitment
+      - Partial (1-2): Soft close without a specific ask
+      - Missing (0): No close attempt — defaulted to follow-up email
 
-13. V — Value (4 pts)
-    Did the AE tie the price to ROI using the prospect's own numbers?
-    - Green (4): Explicit math delivered ("At $X, if this books even Y calls a month, it pays for itself — and you told me one client is worth $Z")
-    - Yellow (2-3): Value mentioned but no specific numbers; generic "it pays for itself"
-    - Red (0-1): Price presented without any value context
+    STYLE B — ASSUMPTIVE CLOSE
+    Best when buying signals are strong throughout the call. The rep skips "should we?" and goes straight to "here's how we start."
+    - Setup: Read Buying Signals (4 pts)
+      Were there clear buying signals (prospect asking about implementation, pricing details, timelines) that justified skipping the traditional value recap? If the AE assumed the close WITHOUT signals, this is a 0.
+      - Strong (3-4): Multiple clear buying signals preceded the close, AE read the room correctly
+      - Partial (1-2): Some signals but the assumptive approach felt premature
+      - Missing (0): No buying signals — AE assumed without evidence
+    - Bridge: Smooth Transition (3 pts)
+      Did the AE transition naturally from demo into next steps? The move from "showing" to "doing" should feel effortless.
+      - Strong (3): Seamless transition that felt like the natural next step
+      - Partial (1-2): Slightly abrupt shift but prospect went along with it
+      - Missing (0): Jarring pivot that caught the prospect off guard
+    - Ask: Lock Specific Action (3 pts)
+      Did the AE lock in a specific next action — not just "let's get started" but "I'll send the contract today, can you sign by Thursday?"
+      - Strong (3): Specific action with a date/deadline locked
+      - Partial (1-2): General enthusiasm without a locked action
+      - Missing (0): Vague next steps
 
-14. C — Close (3 pts)
-    Did the AE lead with confidence and ask for the business directly — not just offer to send a follow-up?
-    - Green (3): Clear confident close attempt ("From where I'm sitting, this is a fit. I want to get you set up.") before any scheduling
-    - Yellow (2): Attempted to close but hedged or soft-pedaled ("Would you want to move forward...?")
-    - Red (0-1): Skipped the close entirely — went straight to "I'll send you something"
+    STYLE C — URGENCY CLOSE
+    Best when a real critical event or deadline exists. Ties commitment to a time-bound reason uncovered in discovery.
+    - Setup: Tie to Critical Event (4 pts)
+      Did the AE reference a specific deadline, event, or business trigger that the PROSPECT mentioned during discovery? Manufactured urgency ("this price expires Friday") without a real business driver is a 0.
+      - Strong (3-4): Referenced a specific critical event the prospect mentioned, tied it to the close
+      - Partial (1-2): Mentioned timing but vaguely, or used generic urgency
+      - Missing (0): Manufactured urgency or no reference to a real deadline
+    - Bridge: Build the Timeline (3 pts)
+      Did the AE work backwards from the critical event to show why starting now is necessary? ("If you need this live by Q3, we need to kick off onboarding by mid-April.")
+      - Strong (3): Clear reverse timeline showing why now matters
+      - Partial (1-2): Mentioned the timeline but didn't connect it to action
+      - Missing (0): No timeline built
+    - Ask: Propose the Plan (3 pts)
+      Did the AE propose a concrete timeline with specific dates and milestones?
+      - Strong (3): Specific plan with dates that the prospect agreed to
+      - Partial (1-2): General plan without specifics
+      - Missing (0): No plan proposed
 
-15. Scheduled follow-up (2 pts)
-    - Green (2): Specific date and time confirmed on the call
-    - Red (0): Vague "I'll send you something" or no follow-up booked
+    IMPORTANT SCORING NOTES:
+    • If the prospect closed themselves ("let's do it" before the AE asked), still evaluate the setup and bridge. The AE gets full Ask points but should be graded on whether they earned the close.
+    • If no close was attempted at all, score 0/10 and set style to "none".
+    • If the AE blended styles (e.g., summarized value AND referenced a critical event), pick the DOMINANT style and score against it. Note the blend in feedback.
+    • Don't penalize a rep for choosing one style over another — penalize only for poor execution of the style they chose.
+
+13. Scheduled follow-up (2 pts)
+    - Green: Specific date and time confirmed
+    - Red: Vague "I'll send you something"
 
 BANT QUALIFICATION (evaluated separately — does not affect the 100-point score)
 Evaluate each BANT element independently. Score 0-5 per element.
@@ -251,12 +317,15 @@ Return ONLY this JSON structure. No other text.
     "closing": {
       "score": <number>,
       "maxPoints": 12,
-      "svcExecuted": true|false,
       "criteria": {
-        "summary": { "score": <number>, "maxPoints": 3, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on whether they recapped pain+impact before price>", "timestamps": ["MM:SS"] },
-        "value": { "score": <number>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on ROI math and use of prospect's own numbers>", "timestamps": ["MM:SS"] },
-        "close": { "score": <number>, "maxPoints": 3, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on confidence and directness of the close attempt>", "timestamps": ["MM:SS"] },
-        "followUp": { "score": <number>, "maxPoints": 2, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on whether a specific date/time was booked>", "timestamps": ["MM:SS"] }
+        "closeExecution": {
+          "score": <number>,
+          "maxPoints": 10,
+          "rag": "g"|"y"|"r",
+          "feedback": "<coaching feedback on the overall close attempt>",
+          "timestamps": ["MM:SS"]
+        },
+        "followUp": { "score": <number>, "maxPoints": 2, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }
       }
     }
   },
@@ -273,6 +342,18 @@ Return ONLY this JSON structure. No other text.
     "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
     "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
   },
+  "close": {
+    "style": "consultative" | "assumptive" | "urgency" | "none",
+    "styleName": "<human-readable style name, e.g. 'Consultative Close'>",
+    "setup": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<step name for this style, e.g. 'Summarize Value'>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name, e.g. 'Surface Blockers'>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name, e.g. 'Ask for Commitment'>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
+  },
+  "closingTips": [
+    "<Specific, actionable closing tip #1 tailored to this call — what the rep could say or do differently next time to close stronger>",
+    "<Closing tip #2 — reference a specific moment in the call where a different approach would have improved the close>",
+    "<Closing tip #3 — a concrete technique or phrase the rep can use in their next call>"
+  ],
   "wins": [
     "<Specific win #1 with timestamp — written as a coaching highlight>",
     "<Specific win #2 with timestamp>",
@@ -299,16 +380,146 @@ Return ONLY this JSON structure. No other text.
 ${transcriptText}`;
 }
 
-async function scoreTranscript({ transcriptText, repName, companyName, durationMinutes }) {
-  const prompt = buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
+// ─── Followup Scoring ────────────────────────────────────────────
+const FOLLOWUP_SYSTEM_PROMPT = `You are an expert sales call analyst and coaching system for SalesCloser.ai. Your role is to evaluate FOLLOW-UP sales calls — calls where the AE has already met this prospect before.
+
+## Key Difference from Discovery Calls
+Follow-up calls should NOT be penalized for skipping full discovery. The AE already uncovered situation/pain/impact on the first call. Instead, evaluate whether the AE effectively advanced the deal toward close by resolving objections, continuing the presentation, handling pricing, and executing a strong close.
+
+## Frameworks You Evaluate
+
+**ECIR** (Objection handling framework — critical for followups):
+- E — Empathize: Genuinely acknowledge before defending
+- C — Clarify: Ask a question to fully understand the objection
+- I — Isolate: Confirm this is the only/real blocker
+- R — Respond: Answer directly, don't deflect or pre-discount
+
+**Close Execution** (3-step close framework — the main event on followups):
+Detect which close style the AE used (consultative, assumptive, urgency, or none) and evaluate 3 steps:
+- Setup: Did the AE set up the close properly?
+- Bridge: Did the AE transition smoothly from presentation to close?
+- Ask: Did the AE make a clear, direct close ask?
+
+**BANT** (Qualification — evaluated separately, does NOT affect the 100-pt score):
+- B — Budget, A — Authority, N — Need, T — Timeline
+
+## Scoring Philosophy
+- Follow-up calls are about ADVANCING and CLOSING, not discovering.
+- If a prior call context is provided, credit the AE for closing gaps from the first call.
+- Score what you observe. If evidence is absent, score it low.
+- Timestamps are mandatory evidence. Never fabricate them.
+
+## Output Rules
+- Your output is ONLY valid JSON. No prose before or after. No markdown code fences.
+- Every feedback field must be 2-3 sentences minimum, written as coaching instruction.
+- Wins should highlight specific moments by timestamp.
+- Fixes should be actionable instructions for the next call.
+- closingTips should be 3-5 specific, actionable closing techniques.
+- quoteOfTheCall should capture the single most instructive moment.`;
+
+function buildFollowupScoringPrompt(transcriptText, repName, companyName, durationMinutes, priorCallContext) {
+  const priorBlock = priorCallContext
+    ? `\n─── PRIOR CALL CONTEXT ───\nThis is a follow-up call. Here is what happened on the first call:\n${priorCallContext}\n\nCredit the AE for closing gaps from the first call. For example, if Budget was "missing" in call 1 but addressed here, that's a strong BANT-B.\n`
+    : "";
+
+  return `You are an expert sales call analyst. Score this FOLLOW-UP call against a closing-focused rubric. This is NOT a discovery call — the AE has already met this prospect. Your output is ONLY valid JSON — no prose, no markdown fences.
+
+REP: ${repName}
+PROSPECT: ${companyName}
+DURATION: ${durationMinutes || "unknown"} minutes
+CALL TYPE: Follow-up
+${priorBlock}
+─── SCORING RUBRIC (100 points total) ───
+
+PHASE 1 — RECAP & CONTEXT SETTING (10 pts)
+1. Recap (10 pts) - Green (8-10): AE summarized prior call, confirmed understanding, set agenda for this call - Yellow (4-7): Brief recap but missed key items - Red (0-3): No recap, jumped straight in
+
+PHASE 2 — OBJECTION RESOLUTION (25 pts)
+2. ECIR objection handling (25 pts) - Evaluate each objection using Empathize→Clarify→Isolate→Respond
+   Green (20-25): All objections handled with full ECIR flow
+   Yellow (10-19): Some ECIR steps missed
+   Red (0-9): Jumped to defense/discount without ECIR
+
+PHASE 3 — PRESENTATION CONTINUATION (15 pts)
+3. Continued demo/presentation (15 pts) - Green (12-15): Picked up where left off, tied to prospect's specific needs - Yellow (7-11): Generic continuation - Red (0-6): No continuation or irrelevant
+
+PHASE 4 — PRICING & NEGOTIATION (20 pts)
+4. Value summary before price (8 pts) - Green: Summarized value before discussing price
+5. Pricing discussion (6 pts) - Green: Clear, confident pricing
+6. No premature discount (2 pts) - Auto red if discount before ECIR
+7. Negotiation handling (4 pts) - Green: Held firm on value, creative packaging
+
+PHASE 5 — CLOSE EXECUTION (30 pts) — THE MAIN EVENT
+8. Close setup (10 pts) - Green: Built urgency, summarized value, trial-closed
+9. Close bridge (8 pts) - Green: Smooth transition from presentation to ask
+10. Close ask (12 pts) - Green: Clear, direct, confident close ask with specific next step
+
+BANT QUALIFICATION (evaluated separately — does NOT affect the 100-point score)
+Evaluate each BANT element independently. Score 0-5 per element.
+- B — Budget (5 pts), A — Authority (5 pts), N — Need (5 pts), T — Timeline (5 pts)
+
+BONUS FLAGS: Enthusiasm, Unprofessional language, Premature disqualification
+
+─── OUTPUT FORMAT ───
+Return ONLY this JSON:
+{
+  "score": <0-100>,
+  "rag": "green"|"yellow"|"red",
+  "verdict": "<one sentence summary>",
+  "phases": {
+    "preCall": { "score": <n>, "maxPoints": 10, "criteria": { "recap": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<2-3 sentences>", "timestamps": ["MM:SS"] } } },
+    "discovery": { "score": <n>, "maxPoints": 25, "criteria": { "ecir": { "score": <n>, "maxPoints": 25, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
+    "presentation": { "score": <n>, "maxPoints": 15, "criteria": { "continuation": { "score": <n>, "maxPoints": 15, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
+    "pricing": { "score": <n>, "maxPoints": 20, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "simplePricing": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "noDiscount": { "score": <n>, "maxPoints": 2, "rag": "g"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "negotiation": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
+    "closing": { "score": <n>, "maxPoints": 30, "criteria": { "pushToClose": { "score": <n>, "maxPoints": 30, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
+  },
+  "spiced": {
+    "s": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "p": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "i": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "c": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] },
+    "e": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }
+  },
+  "bant": {
+    "b": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "a": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
+    "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
+    "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
+  },
+  "close": {
+    "style": "consultative"|"assumptive"|"urgency"|"none",
+    "styleName": "<human-readable style name>",
+    "setup": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<what the setup step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<what the bridge step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<what the ask step was>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
+  },
+  "closingTips": ["<tip #1>", "<tip #2>", "<tip #3>", "<tip #4>", "<tip #5>"],
+  "wins": ["<win #1 with timestamp>", "<win #2>", "<win #3>"],
+  "fixes": ["<fix #1>", "<fix #2>"],
+  "flags": {
+    "enthusiasm": { "detected": true|false, "note": "<...>" },
+    "unprofessionalLanguage": { "detected": true|false, "note": "<...>" },
+    "prematureDisqualification": { "detected": true|false, "note": "<...>" }
+  },
+  "quoteOfTheCall": { "text": "<exact quote>", "timestamp": "MM:SS", "context": "<why it matters>" }
+}
+
+─── TRANSCRIPT ───
+
+${transcriptText}`;
+}
+
+async function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt: customSystemPrompt, userPrompt: customUserPrompt }) {
+  const prompt = customUserPrompt || buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
+  const sysPrompt = customSystemPrompt || SYSTEM_PROMPT;
 
   console.log(`[scoring] Sending transcript to Claude (${CONFIG.claudeModel})...`);
   console.log(`[scoring] Transcript length: ${transcriptText.length} chars`);
 
   const response = await client.messages.create({
     model: CONFIG.claudeModel,
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
+    max_tokens: 8192,
+    system: sysPrompt,
     messages: [{ role: "user", content: prompt }]
   });
 
@@ -335,8 +546,20 @@ async function scoreTranscript({ transcriptText, repName, companyName, durationM
     throw new Error("Claude response missing required fields (score, rag, verdict)");
   }
 
+  // Close object fallback — if the model omits the close object, inject a default
+  if (!scorecard.close) {
+    console.warn("[scoring] Close object missing from Claude response — injecting default");
+    scorecard.close = {
+      style: "none",
+      styleName: "No Close Detected",
+      setup: { score: 0, status: "missing", label: "No setup detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      bridge: { score: 0, status: "missing", label: "No bridge detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      ask: { score: 0, status: "missing", label: "No ask detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+    };
+  }
+
   console.log(`[scoring] Result: ${scorecard.score}/100 (${scorecard.rag})`);
   return scorecard;
 }
 
-module.exports = { scoreTranscript };
+module.exports = { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt };

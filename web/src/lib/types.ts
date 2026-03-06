@@ -12,6 +12,14 @@ export interface BantElement {
   timestamps: string[];
 }
 
+export interface CloseStepElement {
+  score: number;
+  status: "strong" | "partial" | "missing";
+  label: string;
+  feedback: string;
+  timestamps: string[];
+}
+
 export interface CriterionScore {
   score: number;
   maxPoints: number;
@@ -64,6 +72,20 @@ export interface Scorecard {
     n: BantElement;
     t: BantElement;
   };
+  close?: {
+    style: "consultative" | "assumptive" | "urgency" | "none";
+    styleName: string;
+    setup: CloseStepElement;
+    bridge: CloseStepElement;
+    ask: CloseStepElement;
+  };
+  // Legacy — old scorecards may still have this
+  svc?: {
+    summarize: { score: number; status: string; feedback: string; timestamps: string[] };
+    surface: { score: number; status: string; feedback: string; timestamps: string[] };
+    commit: { score: number; status: string; feedback: string; timestamps: string[] };
+  };
+  closingTips?: string[];
   wins: string[];
   fixes: string[];
   flags: {
@@ -105,5 +127,7 @@ export interface ScorecardRow {
   bant_n: string;
   bant_t: string;
   scorecard_json: Scorecard;
+  call_type: string;
+  prospect_email: string | null;
   created_at: string;
 }

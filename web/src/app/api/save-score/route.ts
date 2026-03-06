@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { meetingId, repName, companyName, date, durationMinutes, title, scorecard } = body;
+  const { meetingId, repName, companyName, date, durationMinutes, title, scorecard, call_type, prospect_email } = body;
 
   if (!meetingId || !scorecard || typeof scorecard.score !== "number") {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -51,6 +51,8 @@ export async function POST(request: Request) {
         score_pre_call, score_discovery, score_presentation, score_pricing, score_closing,
         spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
         bant_b, bant_a, bant_n, bant_t,
+        close_style, close_setup, close_bridge, close_ask,
+        call_type, prospect_email,
         scorecard_json
       ) VALUES (
         ${repId}, ${meetingId}, ${title || `${repName} → ${companyName}`}, ${companyName}, ${repName},
@@ -70,13 +72,21 @@ export async function POST(request: Request) {
         ${scorecard.bant?.a?.status || null},
         ${scorecard.bant?.n?.status || null},
         ${scorecard.bant?.t?.status || null},
+        ${scorecard.close?.style || null},
+        ${scorecard.close?.setup?.status || null},
+        ${scorecard.close?.bridge?.status || null},
+        ${scorecard.close?.ask?.status || null},
+        ${call_type || "discovery"}, ${prospect_email || null},
         ${JSON.stringify(scorecard)}
       )
       ON CONFLICT (meeting_id) DO UPDATE SET
         score = EXCLUDED.score, rag = EXCLUDED.rag, verdict = EXCLUDED.verdict,
         scorecard_json = EXCLUDED.scorecard_json,
         bant_b = EXCLUDED.bant_b, bant_a = EXCLUDED.bant_a,
-        bant_n = EXCLUDED.bant_n, bant_t = EXCLUDED.bant_t
+        bant_n = EXCLUDED.bant_n, bant_t = EXCLUDED.bant_t,
+        close_style = EXCLUDED.close_style, close_setup = EXCLUDED.close_setup,
+        close_bridge = EXCLUDED.close_bridge, close_ask = EXCLUDED.close_ask,
+        call_type = EXCLUDED.call_type, prospect_email = EXCLUDED.prospect_email
       RETURNING id`;
 
     const scorecardId = inserted[0].id;
@@ -107,6 +117,16 @@ export async function POST(request: Request) {
           })
           .join("   ");
 
+        const closeStyle = scorecard.close?.styleName || "No close";
+        const closeLine = ["setup", "bridge", "ask"]
+          .map((key) => {
+            const d = scorecard.close?.[key];
+            const pip = d?.status === "strong" ? "✅" : d?.status === "partial" ? "🟡" : "🔴";
+            const label = d?.label || key.charAt(0).toUpperCase() + key.slice(1);
+            return `${pip} ${label}`;
+          })
+          .join("\n");
+
         const url = process.env.APP_URL
           ? `${process.env.APP_URL.replace(/\/$/, "")}/calls/${scorecardId}`
           : null;
@@ -118,10 +138,12 @@ export async function POST(request: Request) {
           {
             type: "section",
             fields: [
-              { type: "mrkdwn", text: `*Score*\n${scorecard.score}/100 · ${ragLabel}` },
-              { type: "mrkdwn", text: `*Duration*\n${durationMinutes || "?"} min` },
               { type: "mrkdwn", text: `*Date*\n${date}` },
-              { type: "mrkdwn", text: `*SPICED*\n${spicedLine}\n\n*BANT*\n${bantLine}` },
+              { type: "mrkdwn", text: `*BANT*\n${bantLine}` },
+              { type: "mrkdwn", text: `*Duration*\n${durationMinutes || "?"} min` },
+              { type: "mrkdwn", text: `*SPICED*\n${spicedLine}` },
+              { type: "mrkdwn", text: `*Score*\n${scorecard.score}/100 · ${ragLabel}` },
+              { type: "mrkdwn", text: `*Close · ${closeStyle}*\n${closeLine}` },
             ],
           },
           { type: "section", text: { type: "mrkdwn", text: `> _${scorecard.verdict}_` } },
@@ -189,6 +211,10 @@ export async function POST(request: Request) {
           }
           if (scorecard.fixes?.length > 0) {
             threadBlocks.push({ type: "section", text: { type: "mrkdwn", text: `*🔧 Priority fixes*\n${scorecard.fixes.map((f: string) => `• ${f}`).join("\n")}` } });
+          }
+          if (scorecard.closingTips?.length > 0) {
+            threadBlocks.push({ type: "divider" });
+            threadBlocks.push({ type: "section", text: { type: "mrkdwn", text: `*🎯 Closing tips*\n${scorecard.closingTips.map((t: string, i: number) => `${i + 1}. ${t}`).join("\n")}` } });
           }
           if (scorecard.quoteOfTheCall?.text) {
             threadBlocks.push({ type: "divider" });

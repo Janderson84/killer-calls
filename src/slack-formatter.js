@@ -55,23 +55,25 @@ function formatBantLine(bant) {
     .join("   ");
 }
 
-// ─── SVC Pips ───────────────────────────────────────────────────
-// Converts SVC closing criteria into visual pips for Slack.
+// ─── Close Pips ────────────────────────────────────────────────
+// Shows the 3 close steps (Setup → Bridge → Ask) with the style name.
 
-function ragToPip(label, rag) {
-  if (rag === "g" || rag === "green") return `✅ ${label}`;
-  if (rag === "y" || rag === "yellow") return `🟡 ${label}`;
-  return `🔴 ${label}`;
-}
+function formatCloseLine(close) {
+  if (!close || close.style === "none") return null;
 
-function formatSvcLine(closing) {
-  if (!closing || !closing.criteria) return "🔴 S   🔴 V   🔴 C";
-  const c = closing.criteria;
-  return [
-    ragToPip("S", c.summary?.rag),
-    ragToPip("V", c.value?.rag),
-    ragToPip("C", c.close?.rag)
-  ].join("   ");
+  const steps = ["setup", "bridge", "ask"];
+  const pips = steps
+    .map((step) => {
+      const data = close[step];
+      if (!data) return `🔴 ${step[0].toUpperCase()}`;
+      const label = data.label ? data.label.split(" ")[0][0] : step[0].toUpperCase();
+      if (data.status === "strong") return `✅ ${label}`;
+      if (data.status === "partial") return `🟡 ${label}`;
+      return `🔴 ${label}`;
+    })
+    .join("   ");
+
+  return `${close.styleName || close.style} → ${pips}`;
 }
 
 // ─── RAG Emoji ───────────────────────────────────────────────────
@@ -99,13 +101,16 @@ function buildFrameworkTags(scorecard) {
     tags.push(`🎯 ECIR on ${ecir.objectionsHandled} objection${ecir.objectionsHandled > 1 ? "s" : ""}`);
   }
 
-  // Full SVC executed?
-  const closing = scorecard.phases?.closing;
-  if (closing?.svcExecuted) tags.push("🎯 Full SVC close");
-
-  // Clean close (C element green)?
-  const closeEl = closing?.criteria?.close;
-  if (closeEl && (closeEl.rag === "g" || closeEl.rag === "green")) tags.push("✅ Closed on call");
+  // Close style tag
+  const close = scorecard.close;
+  if (close && close.style !== "none") {
+    const allStrong = ["setup", "bridge", "ask"].every((s) => close[s]?.status === "strong");
+    if (allStrong) {
+      tags.push(`🎯 Perfect ${close.styleName || close.style} Close`);
+    } else if (close.ask && close.ask.status === "strong") {
+      tags.push("✅ Closed on call");
+    }
+  }
 
   // No discount?
   const discountScore = scorecard.phases?.pricing?.criteria?.noDiscount;
@@ -129,12 +134,13 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
   const rag = getRAG(scorecard.score);
   const spicedLine = formatSpicedLine(scorecard.spiced);
   const bantLine = scorecard.bant ? formatBantLine(scorecard.bant) : null;
-  const svcLine = formatSvcLine(scorecard.phases?.closing);
-  const closingScore = scorecard.phases?.closing;
-  const closingText = closingScore
-    ? `*Close (SVC)*\n${svcLine}  ·  ${closingScore.score || 0}/12`
-    : `*Close (SVC)*\n${svcLine}`;
+  const closeLine = scorecard.close ? formatCloseLine(scorecard.close) : null;
   const tags = buildFrameworkTags(scorecard);
+
+  // Build the frameworks field — SPICED always, plus BANT and Close when present
+  let frameworksText = `*SPICED*\n${spicedLine}`;
+  if (bantLine) frameworksText += `\n\n*BANT*\n${bantLine}`;
+  if (closeLine) frameworksText += `\n\n*Close*\n${closeLine}`;
 
   const blocks = [
     // Title
@@ -142,7 +148,7 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `${rag.emoji} *New Demo Scored | ${slackMention(meta.repName)} → ${meta.companyName}*`
+        text: `${rag.emoji} *New Demo Scored | ${slackMention(meta.repName)} → ${meta.companyName}*${meta.callType === "followup" ? "  🔄 Follow-up" : ""}`
       }
     },
     // Score + verdict
@@ -152,14 +158,7 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
         { type: "mrkdwn", text: `*Score*\n${scorecard.score}/100 · ${rag.label}` },
         { type: "mrkdwn", text: `*Duration*\n${meta.durationMinutes || "?"} min` },
         { type: "mrkdwn", text: `*Date*\n${meta.date}` },
-        { type: "mrkdwn", text: bantLine ? `*SPICED*\n${spicedLine}\n\n*BANT*\n${bantLine}` : `*SPICED*\n${spicedLine}` }
-      ]
-    },
-    // Closing row
-    {
-      type: "section",
-      fields: [
-        { type: "mrkdwn", text: closingText }
+        { type: "mrkdwn", text: frameworksText }
       ]
     },
     // Verdict
@@ -180,41 +179,6 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
     });
   }
 
-  // Top coaching notes — wins
-  if (scorecard.wins && scorecard.wins.length > 0) {
-    blocks.push({ type: "divider" });
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*✅ What landed*\n${scorecard.wins.map((w) => `• ${w}`).join("\n")}`
-      }
-    });
-  }
-
-  // Top fixes
-  if (scorecard.fixes && scorecard.fixes.length > 0) {
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*🔧 Priority fixes*\n${scorecard.fixes.map((f) => `• ${f}`).join("\n")}`
-      }
-    });
-  }
-
-  // Quote of the call
-  if (scorecard.quoteOfTheCall && scorecard.quoteOfTheCall.text) {
-    blocks.push({ type: "divider" });
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*💬 Quote of the call* (▶ ${scorecard.quoteOfTheCall.timestamp})\n> _"${scorecard.quoteOfTheCall.text}"_`
-      }
-    });
-  }
-
   // Deep link to full scorecard
   const url = scorecardUrl(scorecardId);
   if (url) {
@@ -229,6 +193,61 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
           style: "primary"
         }
       ]
+    });
+  }
+
+  return blocks;
+}
+
+// ─── Thread: Coaching Detail ─────────────────────────────────────
+// Posted as a reply to the main #demo-reviews message.
+
+function buildThreadBlocks(scorecard, scorecardId) {
+  const blocks = [];
+
+  // Wins
+  if (scorecard.wins && scorecard.wins.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*✅ What landed*\n${scorecard.wins.map((w) => `• ${w}`).join("\n")}`
+      }
+    });
+  }
+
+  // Priority fixes
+  if (scorecard.fixes && scorecard.fixes.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*🔧 Priority fixes*\n${scorecard.fixes.map((f) => `• ${f}`).join("\n")}`
+      }
+    });
+  }
+
+  // Closing tips
+  if (scorecard.closingTips && scorecard.closingTips.length > 0) {
+    blocks.push({ type: "divider" });
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*🎯 Closing tips*\n${scorecard.closingTips.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
+      }
+    });
+  }
+
+  // Quote of the call
+  if (scorecard.quoteOfTheCall && scorecard.quoteOfTheCall.text) {
+    blocks.push({ type: "divider" });
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*💬 Quote of the call* (▶ ${scorecard.quoteOfTheCall.timestamp})\n> _"${scorecard.quoteOfTheCall.text}"_`
+      }
     });
   }
 
@@ -326,6 +345,20 @@ async function postDemoReview(scorecard, meta, scorecardId) {
       unfurl_links: false
     });
     console.log(`[slack] Posted to #demo-reviews: ${result.ts}`);
+
+    // Post coaching detail as a threaded reply
+    const threadBlocks = buildThreadBlocks(scorecard, scorecardId);
+    if (threadBlocks.length > 0) {
+      await getSlack().chat.postMessage({
+        channel: channelId,
+        thread_ts: result.ts,
+        text: "Coaching detail",
+        blocks: threadBlocks,
+        unfurl_links: false
+      });
+      console.log(`[slack] Posted coaching thread under ${result.ts}`);
+    }
+
     return result;
   } catch (err) {
     console.error(`[slack] Failed to post to #demo-reviews: ${err.message}`);

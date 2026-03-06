@@ -26,6 +26,12 @@ const TMP_DIR = path.join(__dirname, ".tmp-transcripts");
 const SKIP_FILE = path.join(__dirname, ".skipped-meetings.json");
 const MIN_DURATION_MINUTES = 20;
 
+const FOLLOWUP_TITLE_PATTERNS = /follow[\s-]?up|2nd\s+call|second\s+call|check[\s-]?in/i;
+const AE_EMAIL_SET = new Set(AE_EMAILS.map((e) => e.toLowerCase()));
+
+// ─── CLI flags ──────────────────────────────────────────────────
+const RESCORE = process.argv.includes("--rescore");
+
 // ─── Skipped meetings tracker ───────────────────────────────────
 // Persists meeting IDs that were skipped (too short, no-show) so
 // they aren't re-fetched and re-evaluated every poll cycle.
@@ -111,7 +117,12 @@ PHASE 4 — PRICING & OBJECTION HANDLING (28 pts)
 11. ECIR objection handling (12 pts): Empathize→Clarify→Isolate→Respond
 
 PHASE 5 — CLOSE & NEXT STEPS (12 pts)
-12. Pushed to close (10 pts) - Green: Genuine close attempt
+12. Close execution (10 pts total — 4 + 3 + 3)
+    There are THREE valid closing styles. Identify which style the AE used, then score Setup (4 pts), Bridge (3 pts), Ask (3 pts):
+    STYLE A — CONSULTATIVE CLOSE: Setup=Summarize Value, Bridge=Surface Blockers, Ask=Ask for Commitment
+    STYLE B — ASSUMPTIVE CLOSE: Setup=Read Buying Signals, Bridge=Smooth Transition, Ask=Lock Specific Action
+    STYLE C — URGENCY CLOSE: Setup=Tie to Critical Event, Bridge=Build the Timeline, Ask=Propose the Plan
+    If no close attempted, score 0/10 and set style to "none".
 13. Scheduled follow-up (2 pts) - Green: Specific date/time confirmed
 
 BANT QUALIFICATION (evaluated separately — does NOT affect the 100-point score)
@@ -146,7 +157,7 @@ Return ONLY this JSON:
     "discovery": { "score": <n>, "maxPoints": 32, "criteria": { "agenda": { "score": <n>, "maxPoints": 7, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "spiced": { "score": <n>, "maxPoints": 25 } } },
     "presentation": { "score": <n>, "maxPoints": 22, "criteria": { "smooth": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "talkRatio": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "personalization": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "tieDowns": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
     "pricing": { "score": <n>, "maxPoints": 28, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "simplePricing": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "noDiscount": { "score": <n>, "maxPoints": 2, "rag": "g"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "ecir": { "score": <n>, "maxPoints": 12, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
-    "closing": { "score": <n>, "maxPoints": 12, "criteria": { "pushToClose": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 2, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
+    "closing": { "score": <n>, "maxPoints": 12, "criteria": { "closeExecution": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on the overall close attempt>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 2, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
   },
   "spiced": {
     "s": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
@@ -161,6 +172,18 @@ Return ONLY this JSON:
     "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
     "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
   },
+  "close": {
+    "style": "consultative"|"assumptive"|"urgency"|"none",
+    "styleName": "<e.g. 'Consultative Close'>",
+    "setup": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
+  },
+  "closingTips": [
+    "<Specific, actionable closing tip #1 tailored to this call>",
+    "<Closing tip #2 referencing a specific moment where a different approach would improve the close>",
+    "<Closing tip #3 with a concrete technique or phrase the rep can use>"
+  ],
   "wins": ["<win #1 with timestamp>", "<win #2>", "<win #3>"],
   "fixes": ["<fix #1>", "<fix #2>"],
   "flags": {
@@ -222,6 +245,18 @@ function scoreViaOpenClaw(promptFilePath, sessionId) {
   if (typeof scorecard.score !== "number" || !scorecard.rag) {
     throw new Error("OpenClaw response missing required fields");
   }
+
+  // Ensure close object always exists — model sometimes omits it
+  if (!scorecard.close) {
+    scorecard.close = {
+      style: "none",
+      styleName: "No Close Detected",
+      setup: { score: 0, status: "missing", label: "No setup detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      bridge: { score: 0, status: "missing", label: "No bridge detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      ask: { score: 0, status: "missing", label: "No ask detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+    };
+  }
+
   return scorecard;
 }
 
@@ -257,12 +292,43 @@ async function processOne(meetingId, label) {
   const scorecard = scoreViaOpenClaw(promptFile, sessionId);
   console.log(`${label} Score: ${scorecard.score}/100 (${scorecard.rag})`);
 
+  // Extract prospect email
+  const prospectEmail = (transcript.participants || [])
+    .map((e) => e.toLowerCase().trim())
+    .find((e) => e.includes("@") && !AE_EMAIL_SET.has(e)) || null;
+
+  // Detect followup
+  let callType = "discovery";
+  if (prospectEmail) {
+    const priorByEmail = await pool.query(
+      "SELECT id FROM scorecards WHERE prospect_email = $1 AND rep_name = $2 LIMIT 1",
+      [prospectEmail, transcript.repName]
+    );
+    if (priorByEmail.rows.length > 0) callType = "followup";
+  }
+  if (callType === "discovery") {
+    const priorByCompany = await pool.query(
+      "SELECT id FROM scorecards WHERE company_name = $1 AND rep_name = $2 LIMIT 1",
+      [transcript.companyName, transcript.repName]
+    );
+    if (priorByCompany.rows.length > 0) callType = "followup";
+  }
+  if (callType === "discovery" && FOLLOWUP_TITLE_PATTERNS.test(transcript.title || "")) {
+    callType = "followup";
+  }
+  if (callType === "followup") {
+    console.log(`${label} Detected as FOLLOW-UP call`);
+  }
+
   const meta = {
     repName: transcript.repName,
     companyName: transcript.companyName,
     date: transcript.date,
     durationMinutes: transcript.durationMinutes,
     meetingId,
+    title: transcript.title,
+    callType,
+    prospectEmail,
   };
   const scorecardId = await saveScorecard(scorecard, meta);
 
@@ -290,9 +356,10 @@ async function poll() {
   console.log(`\n[${ts}] Polling Fireflies for new calls...`);
 
   // 1. Get already-scored meeting IDs + previously skipped
-  const scored = await getScoredMeetingIds();
-  const skipped = loadSkippedIds();
-  console.log(`  ${scored.size} scored in DB, ${skipped.size} previously skipped`);
+  const scored = RESCORE ? new Set() : await getScoredMeetingIds();
+  const skipped = RESCORE ? new Set() : loadSkippedIds();
+  if (RESCORE) console.log(`  --rescore mode: re-scoring ALL recent calls`);
+  else console.log(`  ${scored.size} scored in DB, ${skipped.size} previously skipped`);
 
   // 2. Fetch recent transcripts for each AE
   const newMeetings = [];
