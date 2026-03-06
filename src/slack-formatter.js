@@ -55,6 +55,25 @@ function formatBantLine(bant) {
     .join("   ");
 }
 
+// ─── SVC Pips ───────────────────────────────────────────────────
+// Converts SVC closing criteria into visual pips for Slack.
+
+function ragToPip(label, rag) {
+  if (rag === "g" || rag === "green") return `✅ ${label}`;
+  if (rag === "y" || rag === "yellow") return `🟡 ${label}`;
+  return `🔴 ${label}`;
+}
+
+function formatSvcLine(closing) {
+  if (!closing || !closing.criteria) return "🔴 S   🔴 V   🔴 C";
+  const c = closing.criteria;
+  return [
+    ragToPip("S", c.summary?.rag),
+    ragToPip("V", c.value?.rag),
+    ragToPip("C", c.close?.rag)
+  ].join("   ");
+}
+
 // ─── RAG Emoji ───────────────────────────────────────────────────
 
 function ragEmoji(rag) {
@@ -80,9 +99,13 @@ function buildFrameworkTags(scorecard) {
     tags.push(`🎯 ECIR on ${ecir.objectionsHandled} objection${ecir.objectionsHandled > 1 ? "s" : ""}`);
   }
 
-  // Closed on call?
-  const closeScore = scorecard.phases?.closing?.criteria?.pushToClose;
-  if (closeScore && closeScore.score >= 8) tags.push("✅ Closed on call");
+  // Full SVC executed?
+  const closing = scorecard.phases?.closing;
+  if (closing?.svcExecuted) tags.push("🎯 Full SVC close");
+
+  // Clean close (C element green)?
+  const closeEl = closing?.criteria?.close;
+  if (closeEl && (closeEl.rag === "g" || closeEl.rag === "green")) tags.push("✅ Closed on call");
 
   // No discount?
   const discountScore = scorecard.phases?.pricing?.criteria?.noDiscount;
@@ -106,6 +129,11 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
   const rag = getRAG(scorecard.score);
   const spicedLine = formatSpicedLine(scorecard.spiced);
   const bantLine = scorecard.bant ? formatBantLine(scorecard.bant) : null;
+  const svcLine = formatSvcLine(scorecard.phases?.closing);
+  const closingScore = scorecard.phases?.closing;
+  const closingText = closingScore
+    ? `*Close (SVC)*\n${svcLine}  ·  ${closingScore.score || 0}/12`
+    : `*Close (SVC)*\n${svcLine}`;
   const tags = buildFrameworkTags(scorecard);
 
   const blocks = [
@@ -125,6 +153,13 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
         { type: "mrkdwn", text: `*Duration*\n${meta.durationMinutes || "?"} min` },
         { type: "mrkdwn", text: `*Date*\n${meta.date}` },
         { type: "mrkdwn", text: bantLine ? `*SPICED*\n${spicedLine}\n\n*BANT*\n${bantLine}` : `*SPICED*\n${spicedLine}` }
+      ]
+    },
+    // Closing row
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: closingText }
       ]
     },
     // Verdict
