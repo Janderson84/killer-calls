@@ -202,10 +202,10 @@ ${transcriptText}`;
 // ─── Score via OpenClaw ──────────────────────────────────────────
 function scoreViaOpenClaw(promptFilePath, sessionId) {
   const escapedPath = promptFilePath.replace(/'/g, "'\\''");
-  const cmd = `openclaw agent -m "$(cat '${escapedPath}')" --json --session-id "${sessionId}" --timeout 180 2>/dev/null`;
+  const cmd = `openclaw agent -m "$(cat '${escapedPath}')" --json --session-id "${sessionId}" --timeout 300 2>/dev/null`;
   const rawResult = execSync(cmd, {
     maxBuffer: 10 * 1024 * 1024,
-    timeout: 240000,
+    timeout: 360000,
     env: { ...process.env, NODE_OPTIONS: "" },
   }).toString();
 
