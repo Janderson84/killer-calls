@@ -382,8 +382,15 @@ async function poll() {
     return;
   }
 
-  console.log(`  Found ${newMeetings.length} new call(s) to score:\n`);
-  newMeetings.forEach((m, i) => console.log(`    ${i + 1}. ${m.title} (${m.email})`));
+  // Cap to 2 calls per run to stay within cron time budget (~300s per call)
+  const MAX_PER_RUN = 2;
+  const toScore = newMeetings.slice(0, MAX_PER_RUN);
+  if (newMeetings.length > MAX_PER_RUN) {
+    console.log(`  Found ${newMeetings.length} new call(s) — processing ${MAX_PER_RUN} this run, rest next cycle.`);
+  } else {
+    console.log(`  Found ${toScore.length} new call(s) to score:\n`);
+  }
+  toScore.forEach((m, i) => console.log(`    ${i + 1}. ${m.title} (${m.email})`));
   console.log();
 
   mkdirSync(TMP_DIR, { recursive: true });
@@ -391,17 +398,17 @@ async function poll() {
   // 3. Score each new call
   const results = [];
   let newSkips = 0;
-  for (let i = 0; i < newMeetings.length; i++) {
+  for (let i = 0; i < toScore.length; i++) {
     const label = `[${i + 1}/${newMeetings.length}]`;
     try {
-      const r = await processOne(newMeetings[i].id, label);
+      const r = await processOne(toScore[i].id, label);
       results.push(r);
       if (r.skipped) {
         skipped.add(r.meetingId);
         newSkips++;
       }
     } catch (err) {
-      console.error(`${label} ❌ FAILED ${newMeetings[i].id}: ${err.message}`);
+      console.error(`${label} ❌ FAILED ${toScore[i].id}: ${err.message}`);
     }
   }
 
