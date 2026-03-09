@@ -10,11 +10,11 @@ const pool = new Pool({
 
 // ─── Find or create a rep ───────────────────────────────────────
 
-async function findOrCreateRep(repName) {
-  // Try to find existing rep by name
+async function findOrCreateRep(repName, teamId) {
+  // Try to find existing rep by name and team
   const existing = await pool.query(
-    "SELECT id FROM reps WHERE name = $1 LIMIT 1",
-    [repName]
+    "SELECT id FROM reps WHERE name = $1 AND team_id = $2 LIMIT 1",
+    [repName, teamId]
   );
 
   if (existing.rows.length > 0) {
@@ -23,8 +23,8 @@ async function findOrCreateRep(repName) {
 
   // Create new rep
   const result = await pool.query(
-    "INSERT INTO reps (name) VALUES ($1) RETURNING id",
-    [repName]
+    "INSERT INTO reps (name, team_id) VALUES ($1, $2) RETURNING id",
+    [repName, teamId]
   );
 
   return result.rows[0].id;
@@ -33,7 +33,8 @@ async function findOrCreateRep(repName) {
 // ─── Save a scorecard ───────────────────────────────────────────
 
 async function saveScorecard(scorecard, meta) {
-  const repId = await findOrCreateRep(meta.repName);
+  const teamId = meta.teamId;
+  const repId = await findOrCreateRep(meta.repName, teamId);
 
   const result = await pool.query(
     `INSERT INTO scorecards (
@@ -45,7 +46,8 @@ async function saveScorecard(scorecard, meta) {
       bant_b, bant_a, bant_n, bant_t,
       close_style, close_setup, close_bridge, close_ask,
       call_type, prospect_email,
-      scorecard_json, slack_review_ts, slack_killer_ts
+      scorecard_json, slack_review_ts, slack_killer_ts,
+      team_id
     ) VALUES (
       $1, $2, $3, $4, $5,
       $6, $7,
@@ -55,7 +57,8 @@ async function saveScorecard(scorecard, meta) {
       $21, $22, $23, $24,
       $25, $26, $27, $28,
       $29, $30,
-      $31, $32, $33
+      $31, $32, $33,
+      $34
     )
     ON CONFLICT (meeting_id) DO UPDATE SET
       score = EXCLUDED.score,
@@ -81,7 +84,8 @@ async function saveScorecard(scorecard, meta) {
       close_ask = EXCLUDED.close_ask,
       call_type = EXCLUDED.call_type,
       prospect_email = EXCLUDED.prospect_email,
-      scorecard_json = EXCLUDED.scorecard_json
+      scorecard_json = EXCLUDED.scorecard_json,
+      team_id = EXCLUDED.team_id
     RETURNING id`,
     [
       repId,
@@ -116,7 +120,8 @@ async function saveScorecard(scorecard, meta) {
       meta.prospectEmail || null,
       JSON.stringify(scorecard),
       null,
-      null
+      null,
+      teamId
     ]
   );
 

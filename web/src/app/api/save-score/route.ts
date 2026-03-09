@@ -43,13 +43,20 @@ export async function POST(request: Request) {
   const sql = neon(process.env.DATABASE_URL!);
 
   try {
+    // Resolve team — use first team as default for save-score API
+    const teamRows = await sql`SELECT id FROM teams LIMIT 1`;
+    const teamId = body.teamId || (teamRows.length > 0 ? teamRows[0].id : null);
+    if (!teamId) {
+      return NextResponse.json({ error: "No team found" }, { status: 400 });
+    }
+
     // Find or create rep
-    const repRows = await sql`SELECT id FROM reps WHERE name = ${repName} LIMIT 1`;
+    const repRows = await sql`SELECT id FROM reps WHERE name = ${repName} AND team_id = ${teamId} LIMIT 1`;
     let repId: string;
     if (repRows.length > 0) {
       repId = repRows[0].id;
     } else {
-      const newRep = await sql`INSERT INTO reps (name) VALUES (${repName}) RETURNING id`;
+      const newRep = await sql`INSERT INTO reps (name, team_id) VALUES (${repName}, ${teamId}) RETURNING id`;
       repId = newRep[0].id;
     }
 
@@ -64,7 +71,7 @@ export async function POST(request: Request) {
         bant_b, bant_a, bant_n, bant_t,
         close_style, close_setup, close_bridge, close_ask,
         call_type, prospect_email,
-        scorecard_json
+        scorecard_json, team_id
       ) VALUES (
         ${repId}, ${meetingId}, ${title || `${repName} → ${companyName}`}, ${companyName}, ${repName},
         ${date}, ${durationMinutes},
@@ -88,7 +95,7 @@ export async function POST(request: Request) {
         ${scorecard.close?.bridge?.status || null},
         ${scorecard.close?.ask?.status || null},
         ${call_type || "discovery"}, ${prospect_email || null},
-        ${JSON.stringify(scorecard)}
+        ${JSON.stringify(scorecard)}, ${teamId}
       )
       ON CONFLICT (meeting_id) DO UPDATE SET
         score = EXCLUDED.score, rag = EXCLUDED.rag, verdict = EXCLUDED.verdict,
@@ -97,7 +104,8 @@ export async function POST(request: Request) {
         bant_n = EXCLUDED.bant_n, bant_t = EXCLUDED.bant_t,
         close_style = EXCLUDED.close_style, close_setup = EXCLUDED.close_setup,
         close_bridge = EXCLUDED.close_bridge, close_ask = EXCLUDED.close_ask,
-        call_type = EXCLUDED.call_type, prospect_email = EXCLUDED.prospect_email
+        call_type = EXCLUDED.call_type, prospect_email = EXCLUDED.prospect_email,
+        team_id = EXCLUDED.team_id
       RETURNING id`;
 
     const scorecardId = inserted[0].id;

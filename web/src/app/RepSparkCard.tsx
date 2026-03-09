@@ -13,7 +13,8 @@ function initials(name: string): string {
     .slice(0, 2);
 }
 
-export default function RepSparkCard({ rep, delay = 0 }: { rep: RepSummary; delay?: number }) {
+export default function RepSparkCard({ rep, delay = 0, teamSlug }: { rep: RepSummary; delay?: number; teamSlug?: string }) {
+  const basePath = teamSlug ? `/t/${teamSlug}` : "";
   const trendClass = rep.trend > 0 ? "up" : rep.trend < 0 ? "down" : "flat";
   const trendArrow = rep.trend > 0 ? "\u2191" : rep.trend < 0 ? "\u2193" : "";
   const avgColor = rep.avgScore >= 80 ? "g" : rep.avgScore >= 60 ? "y" : "r";
@@ -23,7 +24,7 @@ export default function RepSparkCard({ rep, delay = 0 }: { rep: RepSummary; dela
 
   return (
     <Link
-      href={`/reps/${encodeURIComponent(rep.name)}`}
+      href={`${basePath}/reps/${encodeURIComponent(rep.name)}`}
       className={`spark-card spark-card--${avgColor}`}
       style={{ animationDelay: `${delay}s` }}
     >

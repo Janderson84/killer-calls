@@ -1,12 +1,10 @@
 import { getDb } from "@/lib/db";
-import { notFound } from "next/navigation";
-import RepProfileClient from "./RepProfileClient";
-import type { CallRow } from "@/app/LibraryClient";
+import { notFound, redirect } from "next/navigation";
 import "./rep-profile.css";
 
 export const dynamic = "force-dynamic";
 
-export default async function RepProfilePage({
+export default async function RepProfileRedirect({
   params,
 }: {
   params: Promise<{ name: string }>;
@@ -15,20 +13,16 @@ export default async function RepProfilePage({
   const decodedName = decodeURIComponent(name);
   const sql = getDb();
 
-  const rows = (await sql`
-    SELECT id, meeting_id, rep_name, company_name, call_date, duration_minutes,
-           score, rag, verdict,
-           spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
-           bant_b, bant_a, bant_n, bant_t,
-           COALESCE(call_type, 'discovery') as call_type,
-           created_at
-    FROM scorecards
-    WHERE rep_name = ${decodedName}
-    ORDER BY created_at DESC
-    LIMIT 100
-  `) as unknown as CallRow[];
+  // Find which team this rep belongs to
+  const rows = await sql`
+    SELECT t.slug
+    FROM scorecards s
+    JOIN teams t ON t.id = s.team_id
+    WHERE s.rep_name = ${decodedName}
+    LIMIT 1
+  `;
 
   if (rows.length === 0) return notFound();
 
-  return <RepProfileClient repName={decodedName} rows={rows} />;
+  redirect(`/t/${rows[0].slug}/reps/${encodeURIComponent(decodedName)}`);
 }

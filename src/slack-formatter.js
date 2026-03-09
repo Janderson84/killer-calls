@@ -3,7 +3,7 @@ const { getRAG } = require("./constants");
 
 // ─── AE Slack User IDs ──────────────────────────────────────────
 // Used to @mention AEs when their call is scored.
-// Add remaining Slack user IDs as you collect them.
+// TODO: Move to team settings in future iteration
 const AE_SLACK_IDS = {
   "Pedro Cavagnari": "U0A7HQWP3GU",
   "Edgar Arana": "U0A6YPUEB7H",
@@ -32,7 +32,6 @@ function getSlack() {
 }
 
 // ─── SPICED Pips ─────────────────────────────────────────────────
-// Converts SPICED scores into visual status pips for Slack.
 
 function spicedPip(element, data) {
   const letter = element.toUpperCase();
@@ -56,7 +55,6 @@ function formatBantLine(bant) {
 }
 
 // ─── Close Pips ────────────────────────────────────────────────
-// Shows the 3 close steps (Setup → Bridge → Ask) with the style name.
 
 function formatCloseLine(close) {
   if (!close || close.style === "none") return null;
@@ -85,23 +83,19 @@ function ragEmoji(rag) {
 }
 
 // ─── Framework Tags ──────────────────────────────────────────────
-// Generates highlight tags based on scorecard data.
 
 function buildFrameworkTags(scorecard) {
   const tags = [];
   const sp = scorecard.spiced;
 
-  // Perfect SPICED?
   const allStrong = ["s", "p", "i", "c", "e"].every((el) => sp[el].status === "strong");
   if (allStrong) tags.push("⭐ Perfect SPICED");
 
-  // ECIR count
   const ecir = scorecard.phases?.pricing?.criteria?.ecir;
   if (ecir && ecir.objectionsHandled > 0) {
     tags.push(`🎯 ECIR on ${ecir.objectionsHandled} objection${ecir.objectionsHandled > 1 ? "s" : ""}`);
   }
 
-  // Close style tag
   const close = scorecard.close;
   if (close && close.style !== "none") {
     const allStrong = ["setup", "bridge", "ask"].every((s) => close[s]?.status === "strong");
@@ -112,7 +106,6 @@ function buildFrameworkTags(scorecard) {
     }
   }
 
-  // No discount?
   const discountScore = scorecard.phases?.pricing?.criteria?.noDiscount;
   if (discountScore && discountScore.score === 2) tags.push("💰 No discount");
 
@@ -121,29 +114,26 @@ function buildFrameworkTags(scorecard) {
 
 // ─── Scorecard URL ──────────────────────────────────────────────
 
-function scorecardUrl(scorecardId) {
-  const base = process.env.APP_URL;
+function scorecardUrl(scorecardId, appUrl) {
+  const base = appUrl || process.env.APP_URL;
   if (!base || !scorecardId) return null;
   return `${base.replace(/\/$/, "")}/calls/${scorecardId}`;
 }
 
 // ─── #demo-reviews Message ───────────────────────────────────────
-// Posts for EVERY scored demo.
 
-function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
+function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl) {
   const rag = getRAG(scorecard.score);
   const spicedLine = formatSpicedLine(scorecard.spiced);
   const bantLine = scorecard.bant ? formatBantLine(scorecard.bant) : null;
   const closeLine = scorecard.close ? formatCloseLine(scorecard.close) : null;
   const tags = buildFrameworkTags(scorecard);
 
-  // Build the frameworks field — SPICED always, plus BANT and Close when present
   let frameworksText = `*SPICED*\n${spicedLine}`;
   if (bantLine) frameworksText += `\n\n*BANT*\n${bantLine}`;
   if (closeLine) frameworksText += `\n\n*Close*\n${closeLine}`;
 
   const blocks = [
-    // Title
     {
       type: "section",
       text: {
@@ -151,7 +141,6 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
         text: `${rag.emoji} *New Demo Scored | ${slackMention(meta.repName)} → ${meta.companyName}*${meta.callType === "followup" ? "  🔄 Follow-up" : ""}`
       }
     },
-    // Score + verdict
     {
       type: "section",
       fields: [
@@ -161,7 +150,6 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
         { type: "mrkdwn", text: frameworksText }
       ]
     },
-    // Verdict
     {
       type: "section",
       text: {
@@ -171,7 +159,6 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
     }
   ];
 
-  // Framework tags (if any)
   if (tags.length > 0) {
     blocks.push({
       type: "context",
@@ -179,8 +166,7 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
     });
   }
 
-  // Deep link to full scorecard
-  const url = scorecardUrl(scorecardId);
+  const url = scorecardUrl(scorecardId, appUrl);
   if (url) {
     blocks.push({ type: "divider" });
     blocks.push({
@@ -200,12 +186,10 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId) {
 }
 
 // ─── Thread: Coaching Detail ─────────────────────────────────────
-// Posted as a reply to the main #demo-reviews message.
 
 function buildThreadBlocks(scorecard, scorecardId) {
   const blocks = [];
 
-  // Wins
   if (scorecard.wins && scorecard.wins.length > 0) {
     blocks.push({
       type: "section",
@@ -216,7 +200,6 @@ function buildThreadBlocks(scorecard, scorecardId) {
     });
   }
 
-  // Priority fixes
   if (scorecard.fixes && scorecard.fixes.length > 0) {
     blocks.push({
       type: "section",
@@ -227,7 +210,6 @@ function buildThreadBlocks(scorecard, scorecardId) {
     });
   }
 
-  // Closing tips
   if (scorecard.closingTips && scorecard.closingTips.length > 0) {
     blocks.push({ type: "divider" });
     blocks.push({
@@ -239,7 +221,6 @@ function buildThreadBlocks(scorecard, scorecardId) {
     });
   }
 
-  // Quote of the call
   if (scorecard.quoteOfTheCall && scorecard.quoteOfTheCall.text) {
     blocks.push({ type: "divider" });
     blocks.push({
@@ -255,14 +236,12 @@ function buildThreadBlocks(scorecard, scorecardId) {
 }
 
 // ─── #killer-calls Message ───────────────────────────────────────
-// Posts ONLY for calls scoring 80+. Celebratory tone.
 
-function buildKillerCallBlocks(scorecard, meta, scorecardId) {
+function buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl) {
   const tags = buildFrameworkTags(scorecard);
   const spicedLine = formatSpicedLine(scorecard.spiced);
 
   const blocks = [
-    // Celebratory header
     {
       type: "section",
       text: {
@@ -270,7 +249,6 @@ function buildKillerCallBlocks(scorecard, meta, scorecardId) {
         text: `🔥 *KILLER CALL | ${slackMention(meta.repName)} — ${scorecard.score}/100*`
       }
     },
-    // Details
     {
       type: "section",
       fields: [
@@ -281,7 +259,6 @@ function buildKillerCallBlocks(scorecard, meta, scorecardId) {
     }
   ];
 
-  // Framework highlight tags
   if (tags.length > 0) {
     blocks.push({
       type: "context",
@@ -289,7 +266,6 @@ function buildKillerCallBlocks(scorecard, meta, scorecardId) {
     });
   }
 
-  // Verdict
   blocks.push({
     type: "section",
     text: {
@@ -298,8 +274,7 @@ function buildKillerCallBlocks(scorecard, meta, scorecardId) {
     }
   });
 
-  // Deep link to full scorecard
-  const url = scorecardUrl(scorecardId);
+  const url = scorecardUrl(scorecardId, appUrl);
   if (url) {
     blocks.push({
       type: "actions",
@@ -314,7 +289,6 @@ function buildKillerCallBlocks(scorecard, meta, scorecardId) {
     });
   }
 
-  // CTA
   blocks.push({
     type: "context",
     elements: [{ type: "mrkdwn", text: "📖 Study this call — drop your takeaways in the thread 👇" }]
@@ -324,16 +298,18 @@ function buildKillerCallBlocks(scorecard, meta, scorecardId) {
 }
 
 // ─── Post to Slack ───────────────────────────────────────────────
+// Now accepts optional teamConfig with channelId and appUrl
 
-async function postDemoReview(scorecard, meta, scorecardId) {
-  const channelId = process.env.SLACK_CHANNEL_REVIEWS;
+async function postDemoReview(scorecard, meta, scorecardId, teamConfig = {}) {
+  const channelId = teamConfig.channelId || process.env.SLACK_CHANNEL_REVIEWS;
   if (!channelId) {
-    console.warn("[slack] SLACK_CHANNEL_REVIEWS not set — skipping #demo-reviews post");
+    console.warn("[slack] No reviews channel configured — skipping #demo-reviews post");
     return null;
   }
 
+  const appUrl = teamConfig.appUrl || process.env.APP_URL;
   const rag = getRAG(scorecard.score);
-  const blocks = buildDemoReviewBlocks(scorecard, meta, scorecardId);
+  const blocks = buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl);
 
   console.log(`[slack] Posting to #demo-reviews (score: ${scorecard.score}, ${rag.label})...`);
 
@@ -346,7 +322,6 @@ async function postDemoReview(scorecard, meta, scorecardId) {
     });
     console.log(`[slack] Posted to #demo-reviews: ${result.ts}`);
 
-    // Post coaching detail as a threaded reply
     const threadBlocks = buildThreadBlocks(scorecard, scorecardId);
     if (threadBlocks.length > 0) {
       await getSlack().chat.postMessage({
@@ -366,16 +341,17 @@ async function postDemoReview(scorecard, meta, scorecardId) {
   }
 }
 
-async function postKillerCall(scorecard, meta, scorecardId) {
+async function postKillerCall(scorecard, meta, scorecardId, teamConfig = {}) {
   if (scorecard.score < 80) return null;
 
-  const channelId = process.env.SLACK_CHANNEL_KILLER;
+  const channelId = teamConfig.channelId || process.env.SLACK_CHANNEL_KILLER;
   if (!channelId) {
-    console.warn("[slack] SLACK_CHANNEL_KILLER not set — skipping #killer-calls post");
+    console.warn("[slack] No killer channel configured — skipping #killer-calls post");
     return null;
   }
 
-  const blocks = buildKillerCallBlocks(scorecard, meta, scorecardId);
+  const appUrl = teamConfig.appUrl || process.env.APP_URL;
+  const blocks = buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl);
 
   console.log(`[slack] Posting to #killer-calls (score: ${scorecard.score})...`);
 

@@ -81,7 +81,8 @@ function daysAgo(days: number): Date {
 
 const PAGE_SIZE = 20;
 
-export default function LibraryClient({ rows }: { rows: CallRow[] }) {
+export default function LibraryClient({ rows, activeReps, teamSlug, teamName }: { rows: CallRow[]; activeReps?: string[] | null; teamSlug?: string; teamName?: string }) {
+  const basePath = teamSlug ? `/t/${teamSlug}` : "";
   const [period, setPeriod] = useState<Period>("all");
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("score");
@@ -131,9 +132,10 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
       byRep[r.rep_name].push(r);
     });
     return Object.entries(byRep)
+      .filter(([name]) => !activeReps || activeReps.includes(name))
       .map(([name, calls]) => buildRepSummary(name, calls))
       .sort((a, b) => b.avgScore - a.avgScore);
-  }, [filtered]);
+  }, [filtered, activeReps]);
 
   // Aggregate stats
   const avgScore = useMemo(() => {
@@ -175,7 +177,8 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
         <div className="lib-hero-grid">
           <div className="lib-hero-info">
             <div className="lib-brand-tag">Killer Calls</div>
-            <h1 className="lib-title">Call Library</h1>
+            <h1 className="lib-title">{teamName || "Call Library"}</h1>
+            <Link href={`${basePath}/settings`} className="lib-settings-link" title="Settings">&#9881; Settings</Link>
             <div className="lib-subtitle">
               {filtered.length} scored call{filtered.length !== 1 ? "s" : ""}
               {period !== "all" && ` in last ${PERIODS.find((p) => p.key === period)?.label?.toLowerCase()}`}
@@ -239,7 +242,7 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
                   const medals = ["🥇", "🥈", "🥉"];
                   return (
                     <Link
-                      href={`/calls/${row.id}`}
+                      href={`${basePath}/calls/${row.id}`}
                       key={row.id}
                       className={`top-card top-card--${rc}`}
                       style={{ animationDelay: `${0.08 * i}s` }}
@@ -287,7 +290,7 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
               </div>
               <div className="rep-grid">
                 {repSummaries.map((rep, i) => (
-                  <RepSparkCard key={rep.name} rep={rep} delay={i * 0.04} />
+                  <RepSparkCard key={rep.name} rep={rep} delay={i * 0.04} teamSlug={teamSlug} />
                 ))}
               </div>
             </div>
@@ -335,7 +338,7 @@ export default function LibraryClient({ rows }: { rows: CallRow[] }) {
                           </span>
                         </td>
                         <td>
-                          <Link href={`/reps/${encodeURIComponent(row.rep_name)}`} className="rep-cell">
+                          <Link href={`${basePath}/reps/${encodeURIComponent(row.rep_name)}`} className="rep-cell">
                             <div className="avatar">{initials(row.rep_name)}</div>
                             <div className="rep-name">{row.rep_name}</div>
                           </Link>

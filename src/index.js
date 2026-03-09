@@ -9,25 +9,13 @@ const { CONFIG } = require("./constants");
 
 // ─── Followup detection ──────────────────────────────────────────
 
-const AE_EMAIL_SET = new Set([
-  "pedro.c@salescloser.ai",
-  "edgar.a@salescloser.ai",
-  "marc.b@salescloser.ai",
-  "zachary.o@salescloser.ai",
-  "alfred.d@salescloser.ai",
-  "vanessa.f@salescloser.ai",
-  "marysol.o@salescloser.ai",
-  "gleidson.r@salescloser.ai",
-  "david.m@salescloser.ai",
-]);
-
 const FOLLOWUP_TITLE_PATTERNS = /follow[\s-]?up|2nd\s*call|second\s*call|check[\s-]?in/i;
 
-function extractProspectEmail(participants) {
+function extractProspectEmail(participants, aeEmails) {
   if (!participants || !Array.isArray(participants)) return null;
   for (const p of participants) {
     const email = (typeof p === "string" ? p : p?.email || "").toLowerCase().trim();
-    if (email && email.includes("@") && !AE_EMAIL_SET.has(email)) {
+    if (email && email.includes("@") && !aeEmails.has(email)) {
       return email;
     }
   }
@@ -105,13 +93,61 @@ function buildPriorContext(row) {
   return lines.join("\n");
 }
 
+// ─── Team routing ────────────────────────────────────────────────
+// Look up which team a call belongs to based on organizer email
+
+async function resolveTeam(organizerEmail) {
+  // Query all team rosters from settings
+  const result = await pool.query(
+    `SELECT s.team_id, s.value as roster
+     FROM settings s
+     WHERE s.key = 'ae_roster'`
+  );
+
+  for (const row of result.rows) {
+    const roster = typeof row.roster === "string" ? JSON.parse(row.roster) : row.roster;
+    if (!Array.isArray(roster)) continue;
+    for (const ae of roster) {
+      if (ae.email && ae.email.toLowerCase() === organizerEmail.toLowerCase()) {
+        return { teamId: row.team_id, aeEntry: ae };
+      }
+    }
+  }
+
+  return null;
+}
+
+// Build a Set of AE emails for a team roster
+function buildAeEmailSet(roster) {
+  const set = new Set();
+  if (Array.isArray(roster)) {
+    for (const ae of roster) {
+      if (ae.email) set.add(ae.email.toLowerCase());
+    }
+  }
+  return set;
+}
+
+// Get team-specific settings
+async function getTeamSettings(teamId) {
+  const result = await pool.query(
+    `SELECT key, value FROM settings WHERE team_id = $1`,
+    [teamId]
+  );
+  const settings = {};
+  for (const row of result.rows) {
+    settings[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+  }
+  return settings;
+}
+
 const app = express();
 app.use(express.json());
 
 // ─── Health check ────────────────────────────────────────────────
 
 app.get("/", (req, res) => {
-  res.json({ status: "ok", service: "killer-calls-mvp", version: "1.0.0" });
+  res.json({ status: "ok", service: "killer-calls-mvp", version: "2.0.0" });
 });
 
 // ─── Fireflies Webhook ──────────────────────────────────────────
@@ -141,20 +177,40 @@ app.post("/webhook/fireflies", (req, res) => {
 });
 
 // ─── Pipeline ────────────────────────────────────────────────────
-// The full flow: fetch → score → post.
+// The full flow: fetch → route team → score → post.
 
 async function processDemo(meetingId) {
   const startTime = Date.now();
 
   // Step 1: Fetch transcript from Fireflies
-  console.log(`\n[1/4] Fetching transcript from Fireflies...`);
+  console.log(`\n[1/5] Fetching transcript from Fireflies...`);
   const transcript = await fetchTranscript(meetingId);
-  console.log(`[1/4] Got transcript: "${transcript.title}" (${transcript.durationMinutes} min, ${transcript.transcriptText.length} chars)`);
+  console.log(`[1/5] Got transcript: "${transcript.title}" (${transcript.durationMinutes} min, ${transcript.transcriptText.length} chars)`);
+
+  // Step 2: Resolve team from organizer email
+  console.log(`\n[2/5] Resolving team...`);
+  const organizerEmail = transcript.participants?.find((p) => {
+    const email = (typeof p === "string" ? p : p?.email || "").toLowerCase();
+    return email.includes("@");
+  }) || "";
+  const orgEmail = (typeof organizerEmail === "string" ? organizerEmail : organizerEmail?.email || "").toLowerCase();
+
+  const teamMatch = await resolveTeam(orgEmail);
+  if (!teamMatch) {
+    console.warn(`[2/5] No team found for organizer email: ${orgEmail} — skipping`);
+    return;
+  }
+
+  const { teamId, aeEntry } = teamMatch;
+  const teamSettings = await getTeamSettings(teamId);
+  const aeEmails = buildAeEmailSet(teamSettings.ae_roster || []);
+
+  console.log(`[2/5] Team: ${teamId}, AE: ${aeEntry.name}`);
 
   // Extract prospect email
-  const prospectEmail = extractProspectEmail(transcript.participants);
+  const prospectEmail = extractProspectEmail(transcript.participants, aeEmails);
   if (prospectEmail) {
-    console.log(`[1/4] Prospect email: ${prospectEmail}`);
+    console.log(`[2/5] Prospect email: ${prospectEmail}`);
   }
 
   // Detect followup
@@ -163,11 +219,11 @@ async function processDemo(meetingId) {
   );
   const callType = isFollowup ? "followup" : "discovery";
   if (isFollowup) {
-    console.log(`[1/4] Detected as FOLLOW-UP call${priorCallContext ? " (prior call found)" : " (title match)"}`);
+    console.log(`[2/5] Detected as FOLLOW-UP call${priorCallContext ? " (prior call found)" : " (title match)"}`);
   }
 
-  // Step 2: Score with Claude
-  console.log(`\n[2/4] Scoring with Claude (${callType})...`);
+  // Step 3: Score with Claude
+  console.log(`\n[3/5] Scoring with Claude (${callType})...`);
   const scoringArgs = {
     transcriptText: transcript.transcriptText,
     repName: transcript.repName,
@@ -184,8 +240,8 @@ async function processDemo(meetingId) {
   }
 
   const scorecard = await scoreTranscript(scoringArgs);
-  console.log(`[2/4] Score: ${scorecard.score}/100 (${scorecard.rag})`);
-  console.log(`[2/4] Verdict: ${scorecard.verdict}`);
+  console.log(`[3/5] Score: ${scorecard.score}/100 (${scorecard.rag})`);
+  console.log(`[3/5] Verdict: ${scorecard.verdict}`);
 
   const meta = {
     repName: transcript.repName,
@@ -194,24 +250,36 @@ async function processDemo(meetingId) {
     durationMinutes: transcript.durationMinutes,
     meetingId,
     callType,
-    prospectEmail
+    prospectEmail,
+    teamId
   };
 
-  // Step 3: Save to database
-  console.log(`\n[3/4] Saving to database...`);
+  // Step 4: Save to database
+  console.log(`\n[4/5] Saving to database...`);
   const scorecardId = await saveScorecard(scorecard, meta);
-  console.log(`[3/4] Saved scorecard: ${scorecardId}`);
+  console.log(`[4/5] Saved scorecard: ${scorecardId}`);
 
-  // Step 4: Post to Slack
-  console.log(`\n[4/4] Posting to Slack...`);
+  // Step 5: Post to Slack (using team-specific channel IDs)
+  console.log(`\n[5/5] Posting to Slack...`);
+
+  const slackReviewsChannel = teamSettings.slack_channel_reviews || process.env.SLACK_CHANNEL_REVIEWS;
+  const slackKillerChannel = teamSettings.slack_channel_killer || process.env.SLACK_CHANNEL_KILLER;
+  const appUrl = teamSettings.app_url || process.env.APP_URL;
 
   // Always post to #demo-reviews
-  const reviewResult = await postDemoReview(scorecard, meta, scorecardId);
+  const reviewResult = await postDemoReview(scorecard, meta, scorecardId, {
+    channelId: slackReviewsChannel,
+    appUrl,
+    teamSlug: null // Will be looked up if needed
+  });
 
   // Post to #killer-calls if score >= 80
   let killerResult = null;
   if (scorecard.score >= 80) {
-    killerResult = await postKillerCall(scorecard, meta, scorecardId);
+    killerResult = await postKillerCall(scorecard, meta, scorecardId, {
+      channelId: slackKillerChannel,
+      appUrl
+    });
   }
 
   // Update scorecard with Slack message timestamps
@@ -247,10 +315,8 @@ function validateEnv() {
 validateEnv();
 
 app.listen(CONFIG.port, () => {
-  console.log(`\n🚀 Killer Calls MVP running on port ${CONFIG.port}`);
+  console.log(`\n🚀 Killer Calls running on port ${CONFIG.port} (multi-team)`);
   console.log(`   Webhook URL: POST http://localhost:${CONFIG.port}/webhook/fireflies`);
   console.log(`   Health check: GET http://localhost:${CONFIG.port}/`);
-  console.log(`   Model: ${CONFIG.claudeModel}`);
-  console.log(`   Slack #demo-reviews: ${process.env.SLACK_CHANNEL_REVIEWS || "(not set)"}`);
-  console.log(`   Slack #killer-calls: ${process.env.SLACK_CHANNEL_KILLER || "(not set)"}\n`);
+  console.log(`   Model: ${CONFIG.claudeModel}\n`);
 });

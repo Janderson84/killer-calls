@@ -697,13 +697,42 @@ async function processOne(
   const scorecard = await scoreCall(prompt, systemPrompt);
   log.push(`  Score: ${scorecard.score}/100 (${scorecard.rag})`);
 
+  // Resolve team — look up organizer email in all team rosters
+  const teamRows = await sql`
+    SELECT s.team_id, s.value as roster
+    FROM settings s
+    WHERE s.key = 'ae_roster'
+  `;
+  let teamId: string | null = null;
+  for (const tr of teamRows) {
+    const roster = (typeof tr.roster === "string" ? JSON.parse(tr.roster as string) : tr.roster) as { email?: string }[];
+    if (Array.isArray(roster)) {
+      for (const ae of roster) {
+        if (ae.email && AE_BY_EMAIL[ae.email.toLowerCase()]) {
+          teamId = tr.team_id as string;
+          break;
+        }
+      }
+    }
+    if (teamId) break;
+  }
+  // Fallback: use the first team if no match
+  if (!teamId) {
+    const fallback = await sql`SELECT id FROM teams LIMIT 1`;
+    teamId = fallback.length > 0 ? (fallback[0].id as string) : null;
+  }
+  if (!teamId) {
+    log.push(`  No team found — skipping`);
+    return { meetingId, skipped: true };
+  }
+
   // Save to DB
-  const repRows = await sql`SELECT id FROM reps WHERE name = ${transcript.repName} LIMIT 1`;
+  const repRows = await sql`SELECT id FROM reps WHERE name = ${transcript.repName} AND team_id = ${teamId} LIMIT 1`;
   let repId: string;
   if (repRows.length > 0) {
     repId = repRows[0].id;
   } else {
-    const newRep = await sql`INSERT INTO reps (name) VALUES (${transcript.repName}) RETURNING id`;
+    const newRep = await sql`INSERT INTO reps (name, team_id) VALUES (${transcript.repName}, ${teamId}) RETURNING id`;
     repId = newRep[0].id;
   }
 
@@ -717,7 +746,7 @@ async function processOne(
       bant_b, bant_a, bant_n, bant_t,
       close_style, close_setup, close_bridge, close_ask,
       call_type, prospect_email,
-      scorecard_json
+      scorecard_json, team_id
     ) VALUES (
       ${repId}, ${meetingId}, ${transcript.title}, ${transcript.companyName}, ${transcript.repName},
       ${transcript.date}, ${transcript.durationMinutes},
@@ -741,7 +770,7 @@ async function processOne(
       ${scorecard.close?.bridge?.status || null},
       ${scorecard.close?.ask?.status || null},
       ${callType}, ${transcript.prospectEmail},
-      ${JSON.stringify(scorecard)}
+      ${JSON.stringify(scorecard)}, ${teamId}
     )
     ON CONFLICT (meeting_id) DO UPDATE SET
       score = EXCLUDED.score, rag = EXCLUDED.rag, verdict = EXCLUDED.verdict,
@@ -750,7 +779,8 @@ async function processOne(
       bant_n = EXCLUDED.bant_n, bant_t = EXCLUDED.bant_t,
       close_style = EXCLUDED.close_style, close_setup = EXCLUDED.close_setup,
       close_bridge = EXCLUDED.close_bridge, close_ask = EXCLUDED.close_ask,
-      call_type = EXCLUDED.call_type, prospect_email = EXCLUDED.prospect_email
+      call_type = EXCLUDED.call_type, prospect_email = EXCLUDED.prospect_email,
+      team_id = EXCLUDED.team_id
     RETURNING id`;
 
   const scorecardId = inserted[0].id;

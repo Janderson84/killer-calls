@@ -121,10 +121,13 @@ function CustomTooltip({
 export default function RepProfileClient({
   repName,
   rows,
+  teamSlug,
 }: {
   repName: string;
   rows: CallRow[];
+  teamSlug?: string;
 }) {
+  const basePath = teamSlug ? `/t/${teamSlug}` : "";
   const router = useRouter();
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -200,7 +203,7 @@ export default function RepProfileClient({
 
   function handleDotClick(data: { id?: string }) {
     if (data?.id) {
-      router.push(`/calls/${data.id}`);
+      router.push(`${basePath}/calls/${data.id}`);
     }
   }
 
@@ -208,11 +211,12 @@ export default function RepProfileClient({
     <>
       {/* NAV */}
       <div className="rep-nav">
-        <Link href="/">Killer Calls</Link>
+        <Link href={`${basePath || "/"}`}>Killer Calls</Link>
         <span className="rep-nav-sep">&rsaquo;</span>
         <span>{repName}</span>
-        <span style={{ marginLeft: "auto" }}>
-          <Link href="/">&larr; Back to library</Link>
+        <span style={{ marginLeft: "auto", display: "flex", gap: "12px" }}>
+          <Link href={`${basePath}/settings`} title="Settings">&#9881;</Link>
+          <Link href={`${basePath || "/"}`}>&larr; Back to library</Link>
         </span>
       </div>
 
@@ -401,7 +405,7 @@ export default function RepProfileClient({
                 return (
                   <tr key={row.id}>
                     <td>
-                      <Link href={`/calls/${row.id}`} className="company-link">
+                      <Link href={`${basePath}/calls/${row.id}`} className="company-link">
                         {row.company_name}
                         {row.call_type === "followup" && (
                           <span className="followup-badge">Follow-up</span>
@@ -409,7 +413,7 @@ export default function RepProfileClient({
                       </Link>
                     </td>
                     <td>
-                      <Link href={`/calls/${row.id}`} className="score-cell">
+                      <Link href={`${basePath}/calls/${row.id}`} className="score-cell">
                         <div className={`score-num ${rc}`}>{row.score}</div>
                         <div className="score-bar-wrap">
                           <div
