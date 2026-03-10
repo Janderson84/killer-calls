@@ -329,6 +329,7 @@ async function processOne(meetingId, label) {
     title: transcript.title,
     callType,
     prospectEmail,
+    teamId: "1f7fb17c-3581-47a0-ba89-d196f96944cd", // SalesCloser AI team
   };
   const scorecardId = await saveScorecard(scorecard, meta);
 
