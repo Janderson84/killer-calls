@@ -384,7 +384,7 @@ async function poll() {
   }
 
   // Cap to 2 calls per run to stay within cron time budget (~300s per call)
-  const MAX_PER_RUN = 2;
+  const MAX_PER_RUN = 5;
   const toScore = newMeetings.slice(0, MAX_PER_RUN);
   if (newMeetings.length > MAX_PER_RUN) {
     console.log(`  Found ${newMeetings.length} new call(s) — processing ${MAX_PER_RUN} this run, rest next cycle.`);
