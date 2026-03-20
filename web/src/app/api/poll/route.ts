@@ -15,39 +15,20 @@ import {
 import { extractPlaybookExamples } from "@/lib/playbook";
 
 // ─── Config ─────────────────────────────────────────────────────
-const AE_EMAILS = [
-  "pedro.c@salescloser.ai",
-  "edgar.a@salescloser.ai",
-  "marc.b@salescloser.ai",
-  "zachary.o@salescloser.ai",
-  "alfred.d@salescloser.ai",
-  "vanessa.f@salescloser.ai",
-  "marysol.o@salescloser.ai",
-  "gleidson.r@salescloser.ai",
-  "david.m@salescloser.ai",
-];
-
-// Slack IDs are now looked up from team roster (ae_roster setting)
-
-const AE_BY_EMAIL: Record<string, string> = {
-  "pedro.c@salescloser.ai": "Pedro Cavagnari",
-  "edgar.a@salescloser.ai": "Edgar Arana",
-  "marc.b@salescloser.ai": "Marc James Beauchamp",
-  "zachary.o@salescloser.ai": "Zachary Obando",
-  "alfred.d@salescloser.ai": "Alfred Du",
-  "vanessa.f@salescloser.ai": "Vanessa Fortune",
-  "marysol.o@salescloser.ai": "Marysol Ortega",
-  "gleidson.r@salescloser.ai": "Gleidson Rocha",
-  "david.m@salescloser.ai": "David Morawietz",
-};
+// AE list is now loaded from the ae_roster setting in the DB.
+// No more hardcoded email lists.
 
 const FIREFLIES_ENDPOINT = "https://api.fireflies.ai/graphql";
 const MIN_DURATION_MINUTES = 20;
 
 const FOLLOWUP_TITLE_PATTERNS = /follow[\s-]?up|2nd\s+call|second\s+call|check[\s-]?in/i;
 
-const AE_EMAIL_SET = new Set(AE_EMAILS.map((e) => e.toLowerCase()));
-
+interface RosterEntry {
+  name: string;
+  email: string;
+  slackId: string;
+  active?: boolean;
+}
 
 // ─── Vercel Cron auth ───────────────────────────────────────────
 export const maxDuration = 300; // 5 minutes max
@@ -65,6 +46,30 @@ export async function GET(request: Request) {
   log.push(`[${ts}] Polling Fireflies for new calls...`);
 
   try {
+    // 0. Load active AEs from all team rosters
+    const rosterRows = await sql`SELECT team_id, value FROM settings WHERE key = 'ae_roster'`;
+    const activeAeEmails: string[] = [];
+    const aeByEmail: Record<string, string> = {};
+    const aeTeamMap: Record<string, string> = {};
+    for (const row of rosterRows) {
+      const roster = (typeof row.value === "string" ? JSON.parse(row.value as string) : row.value) as RosterEntry[];
+      if (!Array.isArray(roster)) continue;
+      for (const ae of roster) {
+        if (ae.active === false) {
+          log.push(`  Skipping inactive AE: ${ae.name}`);
+          continue;
+        }
+        if (ae.email) {
+          const email = ae.email.toLowerCase();
+          activeAeEmails.push(email);
+          aeByEmail[email] = ae.name;
+          aeTeamMap[email] = row.team_id as string;
+        }
+      }
+    }
+    const aeEmailSet = new Set(activeAeEmails);
+    log.push(`  ${activeAeEmails.length} active AEs across ${rosterRows.length} team(s)`);
+
     // 1. Get already-scored + skipped meeting IDs
     const scoredRows = await sql`SELECT meeting_id FROM scorecards`;
     const skippedRows = await sql`SELECT meeting_id FROM skipped_meetings`;
@@ -74,9 +79,9 @@ export async function GET(request: Request) {
     ]);
     log.push(`  ${scoredRows.length} scored, ${skippedRows.length} skipped`);
 
-    // 2. Fetch recent transcripts for each AE
+    // 2. Fetch recent transcripts for each active AE
     const newMeetings: { id: string; title: string; email: string }[] = [];
-    for (const email of AE_EMAILS) {
+    for (const email of activeAeEmails) {
       try {
         const transcripts = await fetchRecentByOrganizer(email);
         for (const t of transcripts) {
@@ -106,7 +111,7 @@ export async function GET(request: Request) {
     for (const meeting of newMeetings) {
       if (scoredCount >= MAX_SCORED_PER_RUN) break;
       try {
-        const result = await processOne(meeting.id, sql, log);
+        const result = await processOne(meeting.id, meeting.email, sql, log, aeByEmail, aeEmailSet, aeTeamMap);
         results.push(result);
         if (!result.skipped) scoredCount++;
       } catch (err: unknown) {
@@ -157,7 +162,7 @@ async function fetchRecentByOrganizer(email: string, apiKey?: string) {
 }
 
 // ─── Fetch full transcript ──────────────────────────────────────
-async function fetchTranscript(meetingId: string, apiKey?: string) {
+async function fetchTranscript(meetingId: string, aeByEmail: Record<string, string>, aeEmailSet: Set<string>, apiKey?: string) {
   const key = apiKey || process.env.FIREFLIES_API_KEY;
   const resp = await fetch(FIREFLIES_ENDPOINT, {
     method: "POST",
@@ -195,7 +200,7 @@ async function fetchTranscript(meetingId: string, apiKey?: string) {
     .join("\n");
 
   const organizerEmail = (t.organizer_email || "").toLowerCase();
-  const knownRep = AE_BY_EMAIL[organizerEmail];
+  const knownRep = aeByEmail[organizerEmail];
   let repName = knownRep || "Unknown Rep";
   let companyName = "Unknown Company";
 
@@ -229,7 +234,7 @@ async function fetchTranscript(meetingId: string, apiKey?: string) {
   const participants: string[] = Array.isArray(t.participants) ? t.participants : [];
   const prospectEmail = participants
     .map((e: string) => e.toLowerCase().trim())
-    .find((e: string) => e.includes("@") && !AE_EMAIL_SET.has(e)) || null;
+    .find((e: string) => e.includes("@") && !aeEmailSet.has(e)) || null;
 
   return {
     meetingId: t.id,
@@ -278,23 +283,38 @@ async function scoreCall(prompt: string, systemPrompt: string = SCORING_SYSTEM_P
     throw new Error("Anthropic response missing required fields");
   }
 
-  // Ensure close object always exists — model sometimes omits it
-  if (!scorecard.close) {
-    const closePhase = scorecard.phases?.closing?.criteria?.closeExecution;
+  // Ensure close object always exists — model sometimes omits it.
+  // Claude returns close data under "pushToClose" (not "closeExecution").
+  if (!scorecard.close || scorecard.close.style === "none") {
+    const closePhase = scorecard.phases?.closing?.criteria?.closeExecution
+      || scorecard.phases?.closing?.criteria?.pushToClose;
     if (closePhase && closePhase.score > 0) {
-      // Model scored closing in phases but forgot the close object — infer it
       const score = closePhase.score;
       const maxPts = closePhase.maxPoints || 10;
       const ratio = score / maxPts;
-      const status = ratio >= 0.7 ? "strong" : ratio >= 0.4 ? "partial" : "missing";
+      const feedback = closePhase.feedback || "";
+      const timestamps = closePhase.timestamps || [];
+
+      // Detect close style from feedback text
+      const fbLower = feedback.toLowerCase();
+      let style = "consultative";
+      let styleName = "Consultative Close";
+      if (/assumptive|assumed|let.?s get started|here.?s how we start/i.test(fbLower)) {
+        style = "assumptive"; styleName = "Assumptive Close";
+      } else if (/urgency|deadline|critical event|time.?bound|end of (quarter|month|week)/i.test(fbLower)) {
+        style = "urgency"; styleName = "Urgency Close";
+      }
+
+      const setupStatus = ratio >= 0.7 ? "strong" : ratio >= 0.4 ? "partial" : "missing";
+      const askStatus = ratio >= 0.7 ? "strong" : ratio >= 0.2 ? "partial" : "missing";
       scorecard.close = {
-        style: "consultative",
-        styleName: "Consultative Close",
-        setup: { score: Math.round(ratio * 4), status, label: "Summarize Value", feedback: closePhase.feedback || "", timestamps: closePhase.timestamps || [] },
-        bridge: { score: Math.round(ratio * 3), status, label: "Surface Blockers", feedback: "", timestamps: [] },
-        ask: { score: Math.round(ratio * 3), status, label: "Ask for Commitment", feedback: "", timestamps: [] },
+        style,
+        styleName,
+        setup: { score: Math.round(ratio * 4), status: setupStatus, label: style === "assumptive" ? "Read Buying Signals" : style === "urgency" ? "Tie to Critical Event" : "Summarize Value", feedback, timestamps },
+        bridge: { score: Math.round(ratio * 3), status: setupStatus, label: style === "assumptive" ? "Smooth Transition" : style === "urgency" ? "Build the Timeline" : "Surface Blockers", feedback: "", timestamps: [] },
+        ask: { score: Math.round(ratio * 3), status: askStatus, label: style === "assumptive" ? "Lock Specific Action" : style === "urgency" ? "Propose the Plan" : "Ask for Commitment", feedback: "", timestamps: [] },
       };
-    } else {
+    } else if (!scorecard.close) {
       scorecard.close = {
         style: "none",
         styleName: "No Close Detected",
@@ -389,8 +409,12 @@ function buildPriorContext(row: any): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processOne(
   meetingId: string,
+  organizerEmail: string,
   sql: any,
-  log: string[]
+  log: string[],
+  aeByEmail: Record<string, string>,
+  aeEmailSet: Set<string>,
+  aeTeamMap: Record<string, string>,
 ) {
   // Claim this meeting so no other pipeline processes it concurrently
   const claim = await sql`INSERT INTO skipped_meetings (meeting_id, reason) VALUES (${meetingId}, ${"processing"}) ON CONFLICT DO NOTHING RETURNING meeting_id`;
@@ -400,7 +424,7 @@ async function processOne(
   }
 
   log.push(`  Fetching transcript ${meetingId}...`);
-  const transcript = await fetchTranscript(meetingId);
+  const transcript = await fetchTranscript(meetingId, aeByEmail, aeEmailSet);
   log.push(`  Got: "${transcript.title}" (${transcript.repName}, ${transcript.durationMinutes}m)`);
 
   // Skip short calls
@@ -450,27 +474,10 @@ async function processOne(
   const scorecard = await scoreCall(prompt, systemPrompt);
   log.push(`  Score: ${scorecard.score}/100 (${scorecard.rag})`);
 
-  // Resolve team — look up organizer email in all team rosters
-  const teamRows = await sql`
-    SELECT s.team_id, s.value as roster
-    FROM settings s
-    WHERE s.key = 'ae_roster'
-  `;
-  let teamId: string | null = null;
-  for (const tr of teamRows) {
-    const roster = (typeof tr.roster === "string" ? JSON.parse(tr.roster as string) : tr.roster) as { email?: string }[];
-    if (Array.isArray(roster)) {
-      for (const ae of roster) {
-        if (ae.email && AE_BY_EMAIL[ae.email.toLowerCase()]) {
-          teamId = tr.team_id as string;
-          break;
-        }
-      }
-    }
-    if (teamId) break;
-  }
-  // Fallback: use the first team if no match
+  // Resolve team from the organizer email → team mapping built from rosters
+  let teamId: string | null = aeTeamMap[organizerEmail.toLowerCase()] || null;
   if (!teamId) {
+    // Fallback: use the first team if no match
     const fallback = await sql`SELECT id FROM teams LIMIT 1`;
     teamId = fallback.length > 0 ? (fallback[0].id as string) : null;
   }
