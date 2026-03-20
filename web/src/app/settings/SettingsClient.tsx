@@ -9,6 +9,7 @@ interface AeEntry {
   name: string;
   email: string;
   slackId: string;
+  active?: boolean;
 }
 
 interface RagThresholds {
@@ -64,7 +65,7 @@ export default function SettingsClient({
   );
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<AeEntry>({ name: "", email: "", slackId: "" });
-  const [newAe, setNewAe] = useState<AeEntry>({ name: "", email: "", slackId: "" });
+  const [newAe, setNewAe] = useState<AeEntry>({ name: "", email: "", slackId: "", active: true });
 
   // Scoring state
   const [ragThresholds, setRagThresholds] = useState<RagThresholds>(
@@ -76,6 +77,24 @@ export default function SettingsClient({
   const [claudeModel, setClaudeModel] = useState<string>(
     (initialSettings.claude_model as string) || "claude-sonnet-4-6"
   );
+  const [killerThreshold, setKillerThreshold] = useState<number>(
+    (initialSettings.killer_threshold as number) || 80
+  );
+  const [excludedPatterns, setExcludedPatterns] = useState<string>(
+    ((initialSettings.excluded_patterns as string[]) || []).join("\n")
+  );
+
+  // Scoring weights state
+  const defaultWeights = { preCall: 6, discovery: 32, presentation: 22, pricing: 28, closing: 12 };
+  const [scoringWeights, setScoringWeights] = useState(
+    (initialSettings.scoring_weights as typeof defaultWeights) || defaultWeights
+  );
+  const weightsTotal = scoringWeights.preCall + scoringWeights.discovery + scoringWeights.presentation + scoringWeights.pricing + scoringWeights.closing;
+
+  // Team goals state
+  const [teamGoals, setTeamGoals] = useState<{ targetAvgScore: number; targetGreenPct: number }>(
+    (initialSettings.team_goals as { targetAvgScore: number; targetGreenPct: number }) || { targetAvgScore: 0, targetGreenPct: 0 }
+  );
 
   // Integrations state
   const [appUrl, setAppUrl] = useState<string>(
@@ -86,6 +105,12 @@ export default function SettingsClient({
   );
   const [slackKiller, setSlackKiller] = useState<string>(
     (initialSettings.slack_channel_killer as string) || ""
+  );
+  const [firefliesApiKey, setFirefliesApiKey] = useState<string>(
+    (initialSettings.fireflies_api_key as string) || ""
+  );
+  const [slackBotToken, setSlackBotToken] = useState<string>(
+    (initialSettings.slack_bot_token as string) || ""
   );
 
   function showToast(msg: string, error?: boolean) {
@@ -144,6 +169,13 @@ export default function SettingsClient({
     }
   }
 
+  async function toggleActive(idx: number) {
+    const next = [...roster];
+    next[idx] = { ...next[idx], active: next[idx].active === false ? true : false };
+    const ok = await saveSetting("ae_roster", next);
+    if (ok) setRoster(next);
+  }
+
   function startEdit(idx: number) {
     setEditIdx(idx);
     setEditValues({ ...roster[idx] });
@@ -166,18 +198,41 @@ export default function SettingsClient({
 
   // Scoring save
   async function saveScoring() {
-    const r1 = await saveSetting("rag_thresholds", ragThresholds);
-    const r2 = await saveSetting("min_call_duration", minDuration);
-    const r3 = await saveSetting("claude_model", claudeModel);
-    if (r1 && r2 && r3) showToast("All scoring settings saved");
+    const patternsArray = excludedPatterns.split("\n").map((p) => p.trim()).filter(Boolean);
+    const results = await Promise.all([
+      saveSetting("rag_thresholds", ragThresholds),
+      saveSetting("min_call_duration", minDuration),
+      saveSetting("claude_model", claudeModel),
+      saveSetting("killer_threshold", killerThreshold),
+      saveSetting("excluded_patterns", patternsArray),
+      saveSetting("scoring_weights", scoringWeights),
+      saveSetting("team_goals", teamGoals.targetAvgScore ? teamGoals : null),
+    ]);
+    if (results.every(Boolean)) showToast("All scoring settings saved");
   }
 
   // Integrations save
   async function saveIntegrations() {
-    const r1 = await saveSetting("app_url", appUrl);
-    const r2 = await saveSetting("slack_channel_reviews", slackReviews);
-    const r3 = await saveSetting("slack_channel_killer", slackKiller);
-    if (r1 && r2 && r3) showToast("All integration settings saved");
+    const promises = [
+      saveSetting("app_url", appUrl),
+      saveSetting("slack_channel_reviews", slackReviews),
+      saveSetting("slack_channel_killer", slackKiller),
+    ];
+    // Only save secret fields if they were changed (not masked placeholder)
+    if (firefliesApiKey && !firefliesApiKey.startsWith("••••")) {
+      promises.push(saveSetting("fireflies_api_key", firefliesApiKey));
+    }
+    if (slackBotToken && !slackBotToken.startsWith("••••")) {
+      promises.push(saveSetting("slack_bot_token", slackBotToken));
+    }
+    const results = await Promise.all(promises);
+    if (results.every(Boolean)) showToast("All integration settings saved");
+  }
+
+  function maskSecret(val: string): string {
+    if (!val) return "";
+    if (val.length <= 4) return "••••";
+    return "••••" + val.slice(-4);
   }
 
   // Auth gate
@@ -270,6 +325,7 @@ export default function SettingsClient({
                   <th>Name</th>
                   <th>Email</th>
                   <th>Slack ID</th>
+                  <th className="center">Scoring</th>
                   <th className="center">Actions</th>
                 </tr>
               </thead>
@@ -299,6 +355,7 @@ export default function SettingsClient({
                             onChange={(e) => setEditValues({ ...editValues, slackId: e.target.value })}
                           />
                         </td>
+                        <td className="center">—</td>
                         <td className="center">
                           <div className="settings-actions">
                             <button className="settings-btn settings-btn--save" onClick={saveEdit} disabled={saving}>Save</button>
@@ -308,9 +365,19 @@ export default function SettingsClient({
                       </>
                     ) : (
                       <>
-                        <td>{ae.name}</td>
-                        <td><span className="settings-mono">{ae.email}</span></td>
-                        <td><span className="settings-mono">{ae.slackId}</span></td>
+                        <td style={ae.active === false ? { opacity: 0.5 } : undefined}>{ae.name}</td>
+                        <td style={ae.active === false ? { opacity: 0.5 } : undefined}><span className="settings-mono">{ae.email}</span></td>
+                        <td style={ae.active === false ? { opacity: 0.5 } : undefined}><span className="settings-mono">{ae.slackId}</span></td>
+                        <td className="center">
+                          <button
+                            className={`settings-btn ${ae.active === false ? "settings-btn--inactive" : "settings-btn--active"}`}
+                            onClick={() => toggleActive(i)}
+                            disabled={saving}
+                            title={ae.active === false ? "Calls are NOT being scored" : "Calls are being scored"}
+                          >
+                            {ae.active === false ? "Paused" : "Active"}
+                          </button>
+                        </td>
                         <td className="center">
                           <div className="settings-actions">
                             <button className="settings-btn settings-btn--edit" onClick={() => startEdit(i)} disabled={saving}>Edit</button>
@@ -410,10 +477,96 @@ export default function SettingsClient({
             </div>
           </div>
 
+          <div className="settings-card">
+            <div className="settings-card-header">Killer Call Threshold</div>
+            <div className="settings-form-grid">
+              <label className="settings-label">
+                <span>Minimum score for #killer-calls</span>
+                <input
+                  type="number"
+                  className="settings-input settings-input--num"
+                  value={killerThreshold}
+                  onChange={(e) => setKillerThreshold(Number(e.target.value))}
+                  min={0}
+                  max={100}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-card">
+            <div className="settings-card-header">Excluded Meeting Patterns</div>
+            <div style={{ padding: 20 }}>
+              <label className="settings-label">
+                <span>Skip calls whose title matches any pattern (one regex per line)</span>
+                <textarea
+                  className="settings-textarea"
+                  value={excludedPatterns}
+                  onChange={(e) => setExcludedPatterns(e.target.value)}
+                  placeholder={"internal\\s+meeting\nstandup\n1:1"}
+                  rows={4}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-card">
+            <div className="settings-card-header">Scoring Weights</div>
+            <p className="settings-hint">Adjust how many of the 100 points each phase is worth.</p>
+            <div className="settings-weights-grid">
+              {(["preCall", "discovery", "presentation", "pricing", "closing"] as const).map((key) => (
+                <div className="settings-weight-item" key={key}>
+                  <span>{key === "preCall" ? "Pre-Call" : key.charAt(0).toUpperCase() + key.slice(1)}</span>
+                  <input
+                    type="number"
+                    className="settings-input settings-input--num"
+                    value={scoringWeights[key]}
+                    onChange={(e) => setScoringWeights({ ...scoringWeights, [key]: Number(e.target.value) })}
+                    min={0}
+                    max={100}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className={`settings-weights-total ${weightsTotal === 100 ? "settings-weights-total--ok" : "settings-weights-total--bad"}`}>
+              Total: {weightsTotal}/100 {weightsTotal === 100 ? "✓" : "— must equal 100"}
+            </div>
+          </div>
+
+          <div className="settings-card">
+            <div className="settings-card-header">Team Goals</div>
+            <div className="settings-form-grid">
+              <label className="settings-label">
+                <span>Target avg score (0-100)</span>
+                <input
+                  type="number"
+                  className="settings-input settings-input--num"
+                  value={teamGoals.targetAvgScore || ""}
+                  onChange={(e) => setTeamGoals({ ...teamGoals, targetAvgScore: Number(e.target.value) })}
+                  min={0}
+                  max={100}
+                  placeholder="e.g. 70"
+                />
+              </label>
+              <label className="settings-label">
+                <span>Target green % (0-100)</span>
+                <input
+                  type="number"
+                  className="settings-input settings-input--num"
+                  value={teamGoals.targetGreenPct || ""}
+                  onChange={(e) => setTeamGoals({ ...teamGoals, targetGreenPct: Number(e.target.value) })}
+                  min={0}
+                  max={100}
+                  placeholder="e.g. 40"
+                />
+              </label>
+            </div>
+          </div>
+
           <button
             className="settings-btn settings-btn--primary"
             onClick={saveScoring}
-            disabled={saving}
+            disabled={saving || weightsTotal !== 100}
           >
             {saving ? "Saving..." : "Save Scoring Settings"}
           </button>
@@ -455,6 +608,31 @@ export default function SettingsClient({
                   value={slackKiller}
                   onChange={(e) => setSlackKiller(e.target.value)}
                   placeholder="C0XXXXXX"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="settings-card">
+            <div className="settings-card-header">API Keys</div>
+            <p className="settings-hint">Override the global keys with team-specific credentials. Leave blank to use the default.</p>
+            <div className="settings-form-grid">
+              <label className="settings-label">
+                <span>Fireflies API key</span>
+                <input
+                  className="settings-input"
+                  value={firefliesApiKey}
+                  onChange={(e) => setFirefliesApiKey(e.target.value)}
+                  placeholder={initialSettings.fireflies_api_key ? maskSecret(initialSettings.fireflies_api_key as string) : "Uses global key"}
+                />
+              </label>
+              <label className="settings-label">
+                <span>Slack Bot token</span>
+                <input
+                  className="settings-input"
+                  value={slackBotToken}
+                  onChange={(e) => setSlackBotToken(e.target.value)}
+                  placeholder={initialSettings.slack_bot_token ? maskSecret(initialSettings.slack_bot_token as string) : "Uses global token"}
                 />
               </label>
             </div>

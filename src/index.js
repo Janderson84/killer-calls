@@ -2,9 +2,9 @@ require("dotenv").config();
 
 const express = require("express");
 const { fetchTranscript } = require("./fireflies-client");
-const { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt } = require("./scoring-engine");
+const { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt, buildScoringPromptWithWeights } = require("./scoring-engine");
 const { postDemoReview, postKillerCall } = require("./slack-formatter");
-const { saveScorecard, updateSlackTs, pool } = require("./db");
+const { saveScorecard, updateSlackTs, extractPlaybookExamples, pool } = require("./db");
 const { CONFIG } = require("./constants");
 
 // ─── Followup detection ──────────────────────────────────────────
@@ -109,6 +109,10 @@ async function resolveTeam(organizerEmail) {
     if (!Array.isArray(roster)) continue;
     for (const ae of roster) {
       if (ae.email && ae.email.toLowerCase() === organizerEmail.toLowerCase()) {
+        if (ae.active === false) {
+          console.log(`[team] AE ${ae.name} is inactive — skipping scoring`);
+          return null;
+        }
         return { teamId: row.team_id, aeEntry: ae };
       }
     }
@@ -140,6 +144,10 @@ async function getTeamSettings(teamId) {
   }
   return settings;
 }
+
+// ─── Dedup guard ─────────────────────────────────────────────
+// Prevent double-processing when Fireflies sends duplicate webhooks
+const inFlightMeetings = new Set();
 
 const app = express();
 app.use(express.json());
@@ -180,7 +188,43 @@ app.post("/webhook/fireflies", (req, res) => {
 // The full flow: fetch → route team → score → post.
 
 async function processDemo(meetingId) {
+  // Dedup: skip if already processing or already scored
+  if (inFlightMeetings.has(meetingId)) {
+    console.log(`[dedup] Already processing meetingId=${meetingId} — skipping duplicate webhook`);
+    return;
+  }
+  inFlightMeetings.add(meetingId);
+
+  try {
+    // Check if already scored in DB (survives restarts)
+    const existing = await pool.query(
+      `SELECT id FROM scorecards WHERE meeting_id = $1`,
+      [meetingId]
+    );
+    if (existing.rows.length > 0) {
+      console.log(`[dedup] meetingId=${meetingId} already scored (${existing.rows[0].id}) — skipping`);
+      return;
+    }
+
+    await _processDemo(meetingId);
+  } finally {
+    inFlightMeetings.delete(meetingId);
+  }
+}
+
+async function _processDemo(meetingId) {
   const startTime = Date.now();
+
+  // Claim this meeting so no other pipeline processes it concurrently
+  const claim = await pool.query(
+    `INSERT INTO skipped_meetings (meeting_id, reason) VALUES ($1, 'processing')
+     ON CONFLICT DO NOTHING RETURNING meeting_id`,
+    [meetingId]
+  );
+  if (claim.rows.length === 0) {
+    console.log(`[dedup] meetingId=${meetingId} already claimed by another pipeline — skipping`);
+    return;
+  }
 
   // Step 1: Fetch transcript from Fireflies
   console.log(`\n[1/5] Fetching transcript from Fireflies...`);
@@ -213,6 +257,19 @@ async function processDemo(meetingId) {
     console.log(`[2/5] Prospect email: ${prospectEmail}`);
   }
 
+  // Check excluded patterns
+  const excludedPatterns = teamSettings.excluded_patterns || [];
+  if (Array.isArray(excludedPatterns) && excludedPatterns.length > 0) {
+    for (const pattern of excludedPatterns) {
+      try {
+        if (new RegExp(pattern, "i").test(transcript.title || "")) {
+          console.log(`[2/5] Skipping — title "${transcript.title}" matches excluded pattern "${pattern}"`);
+          return;
+        }
+      } catch {}
+    }
+  }
+
   // Detect followup
   const { isFollowup, priorCallContext } = await detectFollowup(
     transcript.repName, transcript.companyName, prospectEmail, transcript.title
@@ -237,6 +294,11 @@ async function processDemo(meetingId) {
       transcript.transcriptText, transcript.repName, transcript.companyName,
       transcript.durationMinutes, priorCallContext
     );
+  } else if (teamSettings.scoring_weights) {
+    scoringArgs.userPrompt = buildScoringPromptWithWeights(
+      transcript.transcriptText, transcript.repName, transcript.companyName,
+      transcript.durationMinutes, teamSettings.scoring_weights
+    );
   }
 
   const scorecard = await scoreTranscript(scoringArgs);
@@ -254,10 +316,18 @@ async function processDemo(meetingId) {
     teamId
   };
 
-  // Step 4: Save to database
+  // Step 4: Save to database (and release the processing claim)
   console.log(`\n[4/5] Saving to database...`);
   const scorecardId = await saveScorecard(scorecard, meta);
+  await pool.query(`DELETE FROM skipped_meetings WHERE meeting_id = $1`, [meetingId]);
   console.log(`[4/5] Saved scorecard: ${scorecardId}`);
+
+  // Extract playbook examples
+  try {
+    await extractPlaybookExamples(scorecard, meta, scorecardId, teamId);
+  } catch (err) {
+    console.error(`[playbook] Extraction failed: ${err.message}`);
+  }
 
   // Step 5: Post to Slack (using team-specific channel IDs)
   console.log(`\n[5/5] Posting to Slack...`);
@@ -265,20 +335,27 @@ async function processDemo(meetingId) {
   const slackReviewsChannel = teamSettings.slack_channel_reviews || process.env.SLACK_CHANNEL_REVIEWS;
   const slackKillerChannel = teamSettings.slack_channel_killer || process.env.SLACK_CHANNEL_KILLER;
   const appUrl = teamSettings.app_url || process.env.APP_URL;
+  const roster = teamSettings.ae_roster || [];
+  const slackBotToken = teamSettings.slack_bot_token || undefined;
+  const killerThreshold = teamSettings.killer_threshold || 80;
 
   // Always post to #demo-reviews
   const reviewResult = await postDemoReview(scorecard, meta, scorecardId, {
     channelId: slackReviewsChannel,
     appUrl,
-    teamSlug: null // Will be looked up if needed
+    roster,
+    slackBotToken,
   });
 
-  // Post to #killer-calls if score >= 80
+  // Post to #killer-calls if score >= threshold
   let killerResult = null;
-  if (scorecard.score >= 80) {
+  if (scorecard.score >= killerThreshold) {
     killerResult = await postKillerCall(scorecard, meta, scorecardId, {
       channelId: slackKillerChannel,
-      appUrl
+      appUrl,
+      roster,
+      slackBotToken,
+      killerThreshold,
     });
   }
 

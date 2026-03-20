@@ -1,34 +1,23 @@
 const { WebClient } = require("@slack/web-api");
 const { getRAG } = require("./constants");
 
-// ─── AE Slack User IDs ──────────────────────────────────────────
-// Used to @mention AEs when their call is scored.
-// TODO: Move to team settings in future iteration
-const AE_SLACK_IDS = {
-  "Pedro Cavagnari": "U0A7HQWP3GU",
-  "Edgar Arana": "U0A6YPUEB7H",
-  "Marc James Beauchamp": "U0A7T59MFCZ",
-  "Zachary Obando": "U0A7C69UHK8",
-  "Alfred Du": "U0A7T58JVHP",
-  "Vanessa Fortune": "U0A7T58H2MP",
-  "Marysol Ortega": "U0A6YPVA53R",
-  "Gleidson Rocha": "U0A88GBQQQ0",
-  "David Morawietz": "U0A89DVTWQ1",
-};
-
-function slackMention(repName) {
-  const id = AE_SLACK_IDS[repName];
-  return id ? `<@${id}>` : repName;
+function slackMention(repName, roster) {
+  if (Array.isArray(roster)) {
+    const ae = roster.find((r) => r.name === repName);
+    if (ae && ae.slackId) return `<@${ae.slackId}>`;
+  }
+  return repName;
 }
 
 // ─── Slack Client ────────────────────────────────────────────────
 
-let slackClient;
-function getSlack() {
-  if (!slackClient) {
-    slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
+const slackClients = {};
+function getSlack(token) {
+  const t = token || process.env.SLACK_BOT_TOKEN;
+  if (!slackClients[t]) {
+    slackClients[t] = new WebClient(t);
   }
-  return slackClient;
+  return slackClients[t];
 }
 
 // ─── SPICED Pips ─────────────────────────────────────────────────
@@ -57,7 +46,11 @@ function formatBantLine(bant) {
 // ─── Close Pips ────────────────────────────────────────────────
 
 function formatCloseLine(close) {
-  if (!close || close.style === "none") return null;
+  if (!close) return null;
+
+  if (close.style === "none") {
+    return "No close attempted → 🔴 S   🔴 B   🔴 A";
+  }
 
   const steps = ["setup", "bridge", "ask"];
   const pips = steps
@@ -122,7 +115,7 @@ function scorecardUrl(scorecardId, appUrl) {
 
 // ─── #demo-reviews Message ───────────────────────────────────────
 
-function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl) {
+function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster) {
   const rag = getRAG(scorecard.score);
   const spicedLine = formatSpicedLine(scorecard.spiced);
   const bantLine = scorecard.bant ? formatBantLine(scorecard.bant) : null;
@@ -138,7 +131,7 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `${rag.emoji} *New Demo Scored | ${slackMention(meta.repName)} → ${meta.companyName}*${meta.callType === "followup" ? "  🔄 Follow-up" : ""}`
+        text: `${rag.emoji} *New Demo Scored | ${slackMention(meta.repName, roster)} → ${meta.companyName}*${meta.callType === "followup" ? "  🔄 Follow-up" : ""}`
       }
     },
     {
@@ -237,7 +230,7 @@ function buildThreadBlocks(scorecard, scorecardId) {
 
 // ─── #killer-calls Message ───────────────────────────────────────
 
-function buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl) {
+function buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl, roster) {
   const tags = buildFrameworkTags(scorecard);
   const spicedLine = formatSpicedLine(scorecard.spiced);
 
@@ -246,7 +239,7 @@ function buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `🔥 *KILLER CALL | ${slackMention(meta.repName)} — ${scorecard.score}/100*`
+        text: `🔥 *KILLER CALL | ${slackMention(meta.repName, roster)} — ${scorecard.score}/100*`
       }
     },
     {
@@ -308,15 +301,17 @@ async function postDemoReview(scorecard, meta, scorecardId, teamConfig = {}) {
   }
 
   const appUrl = teamConfig.appUrl || process.env.APP_URL;
+  const roster = teamConfig.roster || [];
+  const slack = getSlack(teamConfig.slackBotToken);
   const rag = getRAG(scorecard.score);
-  const blocks = buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl);
+  const blocks = buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster);
 
   console.log(`[slack] Posting to #demo-reviews (score: ${scorecard.score}, ${rag.label})...`);
 
   try {
-    const result = await getSlack().chat.postMessage({
+    const result = await slack.chat.postMessage({
       channel: channelId,
-      text: `${rag.emoji} New Demo Scored | ${slackMention(meta.repName)} → ${meta.companyName} — ${scorecard.score}/100`,
+      text: `${rag.emoji} New Demo Scored | ${slackMention(meta.repName, roster)} → ${meta.companyName} — ${scorecard.score}/100`,
       blocks,
       unfurl_links: false
     });
@@ -324,7 +319,7 @@ async function postDemoReview(scorecard, meta, scorecardId, teamConfig = {}) {
 
     const threadBlocks = buildThreadBlocks(scorecard, scorecardId);
     if (threadBlocks.length > 0) {
-      await getSlack().chat.postMessage({
+      await slack.chat.postMessage({
         channel: channelId,
         thread_ts: result.ts,
         text: "Coaching detail",
@@ -342,7 +337,8 @@ async function postDemoReview(scorecard, meta, scorecardId, teamConfig = {}) {
 }
 
 async function postKillerCall(scorecard, meta, scorecardId, teamConfig = {}) {
-  if (scorecard.score < 80) return null;
+  const threshold = teamConfig.killerThreshold || 80;
+  if (scorecard.score < threshold) return null;
 
   const channelId = teamConfig.channelId || process.env.SLACK_CHANNEL_KILLER;
   if (!channelId) {
@@ -351,14 +347,16 @@ async function postKillerCall(scorecard, meta, scorecardId, teamConfig = {}) {
   }
 
   const appUrl = teamConfig.appUrl || process.env.APP_URL;
-  const blocks = buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl);
+  const roster = teamConfig.roster || [];
+  const slack = getSlack(teamConfig.slackBotToken);
+  const blocks = buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl, roster);
 
-  console.log(`[slack] Posting to #killer-calls (score: ${scorecard.score})...`);
+  console.log(`[slack] Posting to #killer-calls (score: ${scorecard.score}, threshold: ${threshold})...`);
 
   try {
-    const result = await getSlack().chat.postMessage({
+    const result = await slack.chat.postMessage({
       channel: channelId,
-      text: `🔥 KILLER CALL | ${slackMention(meta.repName)} — ${scorecard.score}/100`,
+      text: `🔥 KILLER CALL | ${slackMention(meta.repName, roster)} — ${scorecard.score}/100`,
       blocks,
       unfurl_links: false
     });

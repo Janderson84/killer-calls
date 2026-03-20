@@ -1,0 +1,493 @@
+/* ══════════════════════════════════════════════
+   KILLER CALLS — PLAYBOOK
+   Searchable reference library of real sales examples
+   ══════════════════════════════════════════════ */
+
+/* ── LAYOUT ── */
+.playbook-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ── HEADER ── */
+.playbook-header {
+  margin: 24px 0 28px;
+  animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.playbook-back {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: color 0.15s;
+}
+.playbook-back:hover {
+  color: var(--blue-bright);
+}
+.playbook-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.playbook-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.playbook-subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+/* ── ADD BUTTON ── */
+.playbook-add-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--blue-bright);
+  font-size: 24px;
+  font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.playbook-add-btn:hover {
+  background: var(--blue-glow);
+  border-color: rgba(96, 165, 250, 0.25);
+  transform: translateY(-1px);
+}
+
+/* ── SEARCH ── */
+.playbook-search-wrap {
+  position: relative;
+  margin-bottom: 16px;
+  animation: slideUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.05s;
+}
+.playbook-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.playbook-search {
+  width: 100%;
+  padding: 14px 16px 14px 44px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.playbook-search::placeholder {
+  color: var(--muted);
+}
+.playbook-search:focus {
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+/* ── CATEGORY TABS ── */
+.playbook-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 28px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.1s;
+}
+.playbook-tab {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.playbook-tab:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+.playbook-tab.active {
+  color: var(--blue-bright);
+  background: var(--blue-glow);
+  border-color: rgba(96, 165, 250, 0.15);
+}
+.playbook-tab-count {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* ── RESULTS GRID ── */
+.playbook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+/* ── CARD ── */
+.playbook-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  animation: slideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.playbook-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.playbook-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ── BADGE ── */
+.playbook-card-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+
+/* ── PIN ── */
+.playbook-pin {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+}
+.playbook-pin:hover {
+  color: var(--yellow);
+}
+.playbook-pin.pinned {
+  color: var(--yellow);
+}
+.playbook-pin:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── CARD CONTENT ── */
+.playbook-card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.playbook-card-body {
+  font-size: 13.5px;
+  color: rgba(232, 237, 245, 0.7);
+  line-height: 1.65;
+  cursor: pointer;
+  white-space: pre-wrap;
+}
+.playbook-card-body.clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── CARD FOOTER ── */
+.playbook-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.playbook-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.playbook-card-rep {
+  font-weight: 500;
+  color: var(--text);
+}
+.playbook-card-company {
+  opacity: 0.7;
+}
+.playbook-card-date {
+  opacity: 0.6;
+}
+.playbook-card-timestamp {
+  opacity: 0.5;
+}
+.playbook-card-link {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--blue-bright);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.playbook-card-link:hover {
+  opacity: 0.8;
+}
+
+/* ── EXPANDED ── */
+.playbook-card-expanded .playbook-card-body {
+  -webkit-line-clamp: unset;
+}
+
+/* ── EMPTY STATE ── */
+.playbook-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  animation: slideUp 0.4s ease both;
+}
+.playbook-empty-icon {
+  color: var(--muted);
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+.playbook-empty-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.playbook-empty-text {
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 400px;
+}
+
+/* ── PAGINATION ── */
+.playbook-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.playbook-page-info {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ── MODAL ── */
+.playbook-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.15s ease;
+}
+.playbook-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.playbook-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.playbook-modal-header h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+.playbook-modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.playbook-modal-close:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+/* ── FORM ── */
+.playbook-form-field {
+  margin-bottom: 16px;
+}
+.playbook-form-field label {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+.playbook-form-field .optional {
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0.6;
+}
+.playbook-form-field input,
+.playbook-form-field select,
+.playbook-form-field textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.playbook-form-field input:focus,
+.playbook-form-field select:focus,
+.playbook-form-field textarea:focus {
+  border-color: rgba(96, 165, 250, 0.3);
+}
+.playbook-form-field select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A6A85' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+.playbook-form-field textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+.playbook-form-submit {
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--blue);
+  color: white;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+.playbook-form-submit:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.playbook-form-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── TABLET ── */
+@media (max-width: 960px) {
+  .playbook-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+/* ── PHONE ── */
+@media (max-width: 640px) {
+  .playbook-container {
+    padding: 0 14px 60px;
+  }
+  .playbook-title {
+    font-size: 26px;
+  }
+  .playbook-grid {
+    grid-template-columns: 1fr;
+  }
+  .playbook-card {
+    padding: 16px;
+  }
+  .playbook-modal {
+    padding: 20px;
+    border-radius: 12px;
+  }
+  .playbook-tabs {
+    gap: 4px;
+  }
+  .playbook-tab {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+}

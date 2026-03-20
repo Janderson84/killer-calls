@@ -30,15 +30,15 @@ const TRANSCRIPT_QUERY = `
   }
 `;
 
-async function fetchTranscript(meetingId) {
-  const apiKey = process.env.FIREFLIES_API_KEY;
-  if (!apiKey) throw new Error("FIREFLIES_API_KEY is not set");
+async function fetchTranscript(meetingId, apiKey) {
+  const key = apiKey || process.env.FIREFLIES_API_KEY;
+  if (!key) throw new Error("FIREFLIES_API_KEY is not set");
 
   const response = await fetch(CONFIG.firefliesEndpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
+      Authorization: `Bearer ${key}`
     },
     body: JSON.stringify({
       query: TRANSCRIPT_QUERY,

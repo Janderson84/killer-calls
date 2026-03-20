@@ -79,6 +79,32 @@
   color: var(--muted);
   margin-top: 8px;
 }
+.lib-nav-links {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  display: flex;
+  gap: 16px;
+}
+.lib-nav-link {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.lib-nav-link:hover { color: var(--blue-bright); }
+.lib-settings-link {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.lib-settings-link:hover { color: var(--blue-bright); }
 
 /* Stats cluster */
 .lib-hero-stats {
@@ -111,6 +137,41 @@
   height: 36px;
   background: var(--border);
 }
+
+/* Team Goals */
+.lib-hero-goals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 4px;
+}
+.lib-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lib-goal-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+}
+.lib-goal-label strong {
+  color: rgba(255,255,255,0.9);
+}
+.lib-goal-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.lib-goal-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.lib-goal-fill--g { background: var(--green); }
+.lib-goal-fill--y { background: var(--yellow); }
+.lib-goal-fill--r { background: var(--red); }
 
 /* Period filter */
 .lib-hero-filter {

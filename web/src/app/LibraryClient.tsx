@@ -26,6 +26,15 @@ export interface CallRow {
   bant_t: string;
   call_type: string;
   created_at: string;
+  score_pre_call: number | null;
+  score_discovery: number | null;
+  score_presentation: number | null;
+  score_pricing: number | null;
+  score_closing: number | null;
+  close_style: string | null;
+  close_setup: string | null;
+  close_bridge: string | null;
+  close_ask: string | null;
 }
 
 type Period = "7d" | "30d" | "90d" | "all";
@@ -81,7 +90,12 @@ function daysAgo(days: number): Date {
 
 const PAGE_SIZE = 20;
 
-export default function LibraryClient({ rows, activeReps, teamSlug, teamName }: { rows: CallRow[]; activeReps?: string[] | null; teamSlug?: string; teamName?: string }) {
+interface TeamGoals {
+  targetAvgScore: number;
+  targetGreenPct: number;
+}
+
+export default function LibraryClient({ rows, activeReps, teamSlug, teamName, teamGoals }: { rows: CallRow[]; activeReps?: string[] | null; teamSlug?: string; teamName?: string; teamGoals?: TeamGoals | null }) {
   const basePath = teamSlug ? `/t/${teamSlug}` : "";
   const [period, setPeriod] = useState<Period>("all");
   const [page, setPage] = useState(0);
@@ -178,7 +192,10 @@ export default function LibraryClient({ rows, activeReps, teamSlug, teamName }: 
           <div className="lib-hero-info">
             <div className="lib-brand-tag">Killer Calls</div>
             <h1 className="lib-title">{teamName || "Call Library"}</h1>
-            <Link href={`${basePath}/settings`} className="lib-settings-link" title="Settings">&#9881; Settings</Link>
+            <div className="lib-nav-links">
+              <Link href={`${basePath}/playbook`} className="lib-nav-link" title="Playbook">&#128214; Playbook</Link>
+              <Link href={`${basePath}/settings`} className="lib-nav-link" title="Settings">&#9881; Settings</Link>
+            </div>
             <div className="lib-subtitle">
               {filtered.length} scored call{filtered.length !== 1 ? "s" : ""}
               {period !== "all" && ` in last ${PERIODS.find((p) => p.key === period)?.label?.toLowerCase()}`}
@@ -204,6 +221,37 @@ export default function LibraryClient({ rows, activeReps, teamSlug, teamName }: 
               <div className="lib-stat-label">Red</div>
             </div>
           </div>
+
+          {teamGoals && (teamGoals.targetAvgScore > 0 || teamGoals.targetGreenPct > 0) && (
+            <div className="lib-hero-goals">
+              {teamGoals.targetAvgScore > 0 && (
+                <div className="lib-goal">
+                  <div className="lib-goal-label">
+                    Avg Score: <strong>{avgScore}</strong> / Target: <strong>{teamGoals.targetAvgScore}</strong>
+                  </div>
+                  <div className="lib-goal-bar">
+                    <div
+                      className={`lib-goal-fill lib-goal-fill--${avgScore >= teamGoals.targetAvgScore ? "g" : avgScore >= teamGoals.targetAvgScore * 0.8 ? "y" : "r"}`}
+                      style={{ width: `${Math.min(100, (avgScore / teamGoals.targetAvgScore) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {teamGoals.targetGreenPct > 0 && filtered.length > 0 && (
+                <div className="lib-goal">
+                  <div className="lib-goal-label">
+                    Green Rate: <strong>{Math.round((greenCount / filtered.length) * 100)}%</strong> / Target: <strong>{teamGoals.targetGreenPct}%</strong>
+                  </div>
+                  <div className="lib-goal-bar">
+                    <div
+                      className={`lib-goal-fill lib-goal-fill--${(greenCount / filtered.length) * 100 >= teamGoals.targetGreenPct ? "g" : (greenCount / filtered.length) * 100 >= teamGoals.targetGreenPct * 0.8 ? "y" : "r"}`}
+                      style={{ width: `${Math.min(100, ((greenCount / filtered.length) * 100 / teamGoals.targetGreenPct) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="lib-hero-filter">
             <div className="period-filter">

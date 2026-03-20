@@ -25,7 +25,9 @@ export default async function TeamRepProfilePage({
            spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
            bant_b, bant_a, bant_n, bant_t,
            COALESCE(call_type, 'discovery') as call_type,
-           created_at
+           created_at,
+           score_pre_call, score_discovery, score_presentation, score_pricing, score_closing,
+           close_style, close_setup, close_bridge, close_ask
     FROM scorecards
     WHERE rep_name = ${decodedName} AND team_id = ${team.id}
     ORDER BY created_at DESC

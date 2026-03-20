@@ -197,6 +197,88 @@ export default function RepProfileClient({
     return dist;
   }, [rows]);
 
+  // Phase averages for report card
+  const phaseAvgs = useMemo(() => {
+    const phases = [
+      { key: "preCall", label: "Pre-Call", field: "score_pre_call" as const, max: 6 },
+      { key: "discovery", label: "Discovery", field: "score_discovery" as const, max: 32 },
+      { key: "presentation", label: "Presentation", field: "score_presentation" as const, max: 22 },
+      { key: "pricing", label: "Pricing & Objections", field: "score_pricing" as const, max: 28 },
+      { key: "closing", label: "Close & Next Steps", field: "score_closing" as const, max: 12 },
+    ];
+
+    return phases.map((phase) => {
+      const validRows = rows.filter((r) => r[phase.field] != null);
+      if (validRows.length === 0) return { ...phase, avg: null, pct: 0, count: 0 };
+      const sum = validRows.reduce((s, r) => s + (r[phase.field] as number), 0);
+      const avg = Math.round((sum / validRows.length) * 10) / 10;
+      const pct = Math.round((avg / phase.max) * 100);
+      return { ...phase, avg, pct, count: validRows.length };
+    });
+  }, [rows]);
+
+  // SPICED averages for report card
+  const spicedAvgs = useMemo(() => {
+    const elements = [
+      { key: "s", label: "Situation", field: "spiced_s" as const },
+      { key: "p", label: "Pain", field: "spiced_p" as const },
+      { key: "i", label: "Impact", field: "spiced_i" as const },
+      { key: "c", label: "Critical Event", field: "spiced_c" as const },
+      { key: "e", label: "Decision", field: "spiced_e" as const },
+    ];
+
+    return elements.map((el) => {
+      const statusCounts = { strong: 0, partial: 0, missing: 0 };
+      rows.forEach((r) => {
+        const val = r[el.field] as string;
+        if (val === "strong") statusCounts.strong++;
+        else if (val === "partial") statusCounts.partial++;
+        else if (val === "missing") statusCounts.missing++;
+      });
+      const total = statusCounts.strong + statusCounts.partial + statusCounts.missing;
+      const strongPct = total > 0 ? Math.round((statusCounts.strong / total) * 100) : 0;
+      return { ...el, ...statusCounts, total, strongPct };
+    });
+  }, [rows]);
+
+  // Close execution averages for report card
+  const closeStats = useMemo(() => {
+    const withClose = rows.filter((r) => r.close_style && r.close_style !== "none");
+    const noClose = rows.filter((r) => r.close_style === "none").length;
+    const unknown = rows.filter((r) => !r.close_style).length;
+
+    // Style distribution
+    const styleCounts: Record<string, number> = {};
+    withClose.forEach((r) => {
+      const style = r.close_style!;
+      styleCounts[style] = (styleCounts[style] || 0) + 1;
+    });
+    const styles = Object.entries(styleCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([style, count]) => ({ style, count }));
+
+    // Step execution (Setup / Bridge / Ask)
+    const steps = [
+      { key: "setup", label: "Setup", field: "close_setup" as const },
+      { key: "bridge", label: "Bridge", field: "close_bridge" as const },
+      { key: "ask", label: "Ask", field: "close_ask" as const },
+    ];
+
+    const stepStats = steps.map((step) => {
+      const counts = { strong: 0, partial: 0, missing: 0 };
+      withClose.forEach((r) => {
+        const val = r[step.field] as string | null;
+        if (val === "strong") counts.strong++;
+        else if (val === "partial") counts.partial++;
+        else counts.missing++;
+      });
+      const total = counts.strong + counts.partial + counts.missing;
+      return { ...step, ...counts, total };
+    });
+
+    return { withClose: withClose.length, noClose, unknown, styles, stepStats };
+  }, [rows]);
+
   const avgColor = summary.avgScore >= 80 ? "green" : summary.avgScore >= 60 ? "yellow" : "red";
   const trendClass = summary.trend > 0 ? "up" : summary.trend < 0 ? "down" : "flat";
   const trendArrow = summary.trend > 0 ? "\u2191" : summary.trend < 0 ? "\u2193" : "\u2192";
@@ -247,6 +329,120 @@ export default function RepProfileClient({
             </div>
           </div>
         </div>
+
+        {/* REPORT CARD */}
+        {phaseAvgs.some((p) => p.avg !== null) && (
+          <>
+            <div className="rep-section-label">Report Card</div>
+            <div className="rep-report-card">
+              <div className="rep-rc-phases">
+                <div className="rep-rc-header">Phase Performance</div>
+                {phaseAvgs.map((phase) => {
+                  if (phase.avg === null) return null;
+                  const rc = phase.pct >= 75 ? "g" : phase.pct >= 50 ? "y" : "r";
+                  return (
+                    <div className="rep-rc-row" key={phase.key}>
+                      <div className="rep-rc-label">{phase.label}</div>
+                      <div className="rep-rc-bar-wrap">
+                        <div className={`rep-rc-bar rep-rc-bar--${rc}`} style={{ width: `${phase.pct}%` }} />
+                      </div>
+                      <div className={`rep-rc-score rep-rc-score--${rc}`}>
+                        {phase.avg}/{phase.max}
+                      </div>
+                      <div className={`rep-rc-pct rep-rc-pct--${rc}`}>{phase.pct}%</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="rep-rc-spiced">
+                <div className="rep-rc-header">SPICED Breakdown</div>
+                {spicedAvgs.map((el) => {
+                  if (el.total === 0) return null;
+                  return (
+                    <div className="rep-rc-spiced-row" key={el.key}>
+                      <div className="rep-rc-spiced-label">
+                        <span className="rep-rc-spiced-key">{el.key.toUpperCase()}</span>
+                        {el.label}
+                      </div>
+                      <div className="rep-rc-spiced-bar-wrap">
+                        <div className="rep-rc-spiced-seg rep-rc-spiced-seg--strong" style={{ width: `${(el.strong / el.total) * 100}%` }} />
+                        <div className="rep-rc-spiced-seg rep-rc-spiced-seg--partial" style={{ width: `${(el.partial / el.total) * 100}%` }} />
+                        <div className="rep-rc-spiced-seg rep-rc-spiced-seg--missing" style={{ width: `${(el.missing / el.total) * 100}%` }} />
+                      </div>
+                      <div className="rep-rc-spiced-stats">
+                        <span className="rep-rc-spiced-stat rep-rc-spiced-stat--strong">{el.strong}</span>
+                        <span className="rep-rc-spiced-stat rep-rc-spiced-stat--partial">{el.partial}</span>
+                        <span className="rep-rc-spiced-stat rep-rc-spiced-stat--missing">{el.missing}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="rep-rc-spiced-legend">
+                  <span className="rep-rc-spiced-legend-item"><span className="rep-rc-spiced-dot rep-rc-spiced-dot--strong" />Strong</span>
+                  <span className="rep-rc-spiced-legend-item"><span className="rep-rc-spiced-dot rep-rc-spiced-dot--partial" />Partial</span>
+                  <span className="rep-rc-spiced-legend-item"><span className="rep-rc-spiced-dot rep-rc-spiced-dot--missing" />Missing</span>
+                </div>
+              </div>
+
+              {/* Close Execution */}
+              {(closeStats.withClose > 0 || closeStats.noClose > 0) && (
+                <div className="rep-rc-close">
+                  <div className="rep-rc-header">Close Execution</div>
+
+                  {/* Close attempt rate */}
+                  <div className="rep-rc-close-rate">
+                    <div className="rep-rc-close-rate-bar">
+                      <div
+                        className="rep-rc-close-rate-fill"
+                        style={{ width: `${rows.length > 0 ? (closeStats.withClose / (closeStats.withClose + closeStats.noClose)) * 100 : 0}%` }}
+                      />
+                    </div>
+                    <div className="rep-rc-close-rate-label">
+                      {closeStats.withClose}/{closeStats.withClose + closeStats.noClose} calls closed
+                    </div>
+                  </div>
+
+                  {/* Step breakdown (S/B/A) */}
+                  {closeStats.withClose > 0 && (
+                    <>
+                      {closeStats.stepStats.map((step) => (
+                        <div className="rep-rc-spiced-row" key={step.key}>
+                          <div className="rep-rc-close-step-label">{step.label}</div>
+                          <div className="rep-rc-spiced-bar-wrap">
+                            {step.total > 0 && (
+                              <>
+                                <div className="rep-rc-spiced-seg rep-rc-spiced-seg--strong" style={{ width: `${(step.strong / step.total) * 100}%` }} />
+                                <div className="rep-rc-spiced-seg rep-rc-spiced-seg--partial" style={{ width: `${(step.partial / step.total) * 100}%` }} />
+                                <div className="rep-rc-spiced-seg rep-rc-spiced-seg--missing" style={{ width: `${(step.missing / step.total) * 100}%` }} />
+                              </>
+                            )}
+                          </div>
+                          <div className="rep-rc-spiced-stats">
+                            <span className="rep-rc-spiced-stat rep-rc-spiced-stat--strong">{step.strong}</span>
+                            <span className="rep-rc-spiced-stat rep-rc-spiced-stat--partial">{step.partial}</span>
+                            <span className="rep-rc-spiced-stat rep-rc-spiced-stat--missing">{step.missing}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Close styles used */}
+                  {closeStats.styles.length > 0 && (
+                    <div className="rep-rc-close-styles">
+                      {closeStats.styles.map(({ style, count }) => (
+                        <span className="rep-rc-close-style-tag" key={style}>
+                          {style.charAt(0).toUpperCase() + style.slice(1)} <span className="rep-rc-close-style-count">{count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* COACHING TIPS */}
         {coachingLoading ? (

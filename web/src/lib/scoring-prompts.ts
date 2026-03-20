@@ -1,16 +1,9 @@
-const Anthropic = require("@anthropic-ai/sdk");
-const { CONFIG } = require("./constants");
+// ─── Scoring Prompts ────────────────────────────────────────────
+// Shared scoring prompts for the poller pipeline.
+// These are exact copies of the prompts in src/scoring-engine.js,
+// ported to TypeScript.
 
-// ─── Scoring Engine ──────────────────────────────────────────────
-// Sends a transcript to Claude with the full 14-criterion rubric.
-// Returns a structured JSON scorecard.
-
-const client = new Anthropic();
-
-// The scoring prompt — this is the brain of the entire system.
-// It encodes the full rubric from the plan doc, asks for structured
-// JSON output, and instructs Claude to reference specific timestamps.
-const SYSTEM_PROMPT = `You are the scoring engine for Killer Calls, the internal demo review system at SalesCloser.ai — an AI-powered sales platform. You analyze recorded demo call transcripts and produce structured JSON scorecards against a 14-criterion, 100-point rubric using the SPICED, BANT, and ECIR frameworks, with flexible closing style evaluation.
+export const SCORING_SYSTEM_PROMPT = `You are the scoring engine for Killer Calls, the internal demo review system at SalesCloser.ai — an AI-powered sales platform. You analyze recorded demo call transcripts and produce structured JSON scorecards against a 14-criterion, 100-point rubric using the SPICED, BANT, and ECIR frameworks, with flexible closing style evaluation.
 
 Your scorecards are read by the AEs themselves and their sales managers. Every score you give directly shapes how reps coach themselves. Accuracy and consistency matter more than speed.
 
@@ -81,7 +74,48 @@ Your output is ONLY valid JSON. No prose before or after. No markdown code fence
 
 MANDATORY: You MUST include ALL top-level keys in the JSON output: score, rag, verdict, phases, spiced, bant, close, closingTips, wins, fixes, flags, quoteOfTheCall. The "close" object is REQUIRED — never omit it. If no close was attempted, use style: "none". If any close attempt was made (trial close, asking for next steps, proposing a plan), identify the style and score the 3 steps.`;
 
-function buildScoringPrompt(transcriptText, repName, companyName, durationMinutes) {
+export const FOLLOWUP_SYSTEM_PROMPT = `You are an expert sales call analyst and coaching system for SalesCloser.ai. Your role is to evaluate FOLLOW-UP sales calls — calls where the AE has already met this prospect before.
+
+## Key Difference from Discovery Calls
+Follow-up calls should NOT be penalized for skipping full discovery. The AE already uncovered situation/pain/impact on the first call. Instead, evaluate whether the AE effectively advanced the deal toward close by resolving objections, continuing the presentation, handling pricing, and executing a strong close.
+
+## Frameworks You Evaluate
+
+**ECIR** (Objection handling framework — critical for followups):
+- E — Empathize: Genuinely acknowledge before defending
+- C — Clarify: Ask a question to fully understand the objection
+- I — Isolate: Confirm this is the only/real blocker
+- R — Respond: Answer directly, don't deflect or pre-discount
+
+**Close Execution** (3-step close framework — the main event on followups):
+Detect which close style the AE used (consultative, assumptive, urgency, or none) and evaluate 3 steps:
+- Setup: Did the AE set up the close properly?
+- Bridge: Did the AE transition smoothly from presentation to close?
+- Ask: Did the AE make a clear, direct close ask?
+
+**BANT** (Qualification — evaluated separately, does NOT affect the 100-pt score):
+- B — Budget, A — Authority, N — Need, T — Timeline
+
+## Scoring Philosophy
+- Follow-up calls are about ADVANCING and CLOSING, not discovering.
+- If a prior call context is provided, credit the AE for closing gaps from the first call.
+- Score what you observe. If evidence is absent, score it low.
+- Timestamps are mandatory evidence. Never fabricate them.
+
+## Output Rules
+- Your output is ONLY valid JSON. No prose before or after. No markdown code fences.
+- Every feedback field must be 2-3 sentences minimum, written as coaching instruction.
+- Wins should highlight specific moments by timestamp.
+- Fixes should be actionable instructions for the next call.
+- closingTips should be 3-5 specific, actionable closing techniques.
+- quoteOfTheCall should capture the single most instructive moment.`;
+
+export function buildScoringPrompt(
+  transcriptText: string,
+  repName: string,
+  companyName: string,
+  durationMinutes: number | null
+): string {
   return `Score the following sales demo transcript.
 
 REP: ${repName}
@@ -382,44 +416,13 @@ Return ONLY this JSON structure. No other text.
 ${transcriptText}`;
 }
 
-// ─── Followup Scoring ────────────────────────────────────────────
-const FOLLOWUP_SYSTEM_PROMPT = `You are an expert sales call analyst and coaching system for SalesCloser.ai. Your role is to evaluate FOLLOW-UP sales calls — calls where the AE has already met this prospect before.
-
-## Key Difference from Discovery Calls
-Follow-up calls should NOT be penalized for skipping full discovery. The AE already uncovered situation/pain/impact on the first call. Instead, evaluate whether the AE effectively advanced the deal toward close by resolving objections, continuing the presentation, handling pricing, and executing a strong close.
-
-## Frameworks You Evaluate
-
-**ECIR** (Objection handling framework — critical for followups):
-- E — Empathize: Genuinely acknowledge before defending
-- C — Clarify: Ask a question to fully understand the objection
-- I — Isolate: Confirm this is the only/real blocker
-- R — Respond: Answer directly, don't deflect or pre-discount
-
-**Close Execution** (3-step close framework — the main event on followups):
-Detect which close style the AE used (consultative, assumptive, urgency, or none) and evaluate 3 steps:
-- Setup: Did the AE set up the close properly?
-- Bridge: Did the AE transition smoothly from presentation to close?
-- Ask: Did the AE make a clear, direct close ask?
-
-**BANT** (Qualification — evaluated separately, does NOT affect the 100-pt score):
-- B — Budget, A — Authority, N — Need, T — Timeline
-
-## Scoring Philosophy
-- Follow-up calls are about ADVANCING and CLOSING, not discovering.
-- If a prior call context is provided, credit the AE for closing gaps from the first call.
-- Score what you observe. If evidence is absent, score it low.
-- Timestamps are mandatory evidence. Never fabricate them.
-
-## Output Rules
-- Your output is ONLY valid JSON. No prose before or after. No markdown code fences.
-- Every feedback field must be 2-3 sentences minimum, written as coaching instruction.
-- Wins should highlight specific moments by timestamp.
-- Fixes should be actionable instructions for the next call.
-- closingTips should be 3-5 specific, actionable closing techniques.
-- quoteOfTheCall should capture the single most instructive moment.`;
-
-function buildFollowupScoringPrompt(transcriptText, repName, companyName, durationMinutes, priorCallContext) {
+export function buildFollowupScoringPrompt(
+  transcriptText: string,
+  repName: string,
+  companyName: string,
+  durationMinutes: number | null,
+  priorCallContext: string | null
+): string {
   const priorBlock = priorCallContext
     ? `\n─── PRIOR CALL CONTEXT ───\nThis is a follow-up call. Here is what happened on the first call:\n${priorCallContext}\n\nCredit the AE for closing gaps from the first call. For example, if Budget was "missing" in call 1 but addressed here, that's a strong BANT-B.\n`
     : "";
@@ -511,98 +514,23 @@ Return ONLY this JSON:
 ${transcriptText}`;
 }
 
-async function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt: customSystemPrompt, userPrompt: customUserPrompt }) {
-  const prompt = customUserPrompt || buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
-  const sysPrompt = customSystemPrompt || SYSTEM_PROMPT;
+export const DEFAULT_WEIGHTS = { preCall: 6, discovery: 32, presentation: 22, pricing: 28, closing: 12 };
 
-  console.log(`[scoring] Sending transcript to Claude (${CONFIG.claudeModel})...`);
-  console.log(`[scoring] Transcript length: ${transcriptText.length} chars`);
-
-  const response = await client.messages.create({
-    model: CONFIG.claudeModel,
-    max_tokens: 8192,
-    system: sysPrompt,
-    messages: [{ role: "user", content: prompt }]
-  });
-
-  const rawText = response.content[0].text;
-  console.log(`[scoring] Claude responded (${response.usage.input_tokens} in, ${response.usage.output_tokens} out)`);
-
-  // Parse JSON — Claude should return pure JSON, but strip any accidental markdown fences
-  let cleaned = rawText.trim();
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-  }
-
-  let scorecard;
-  try {
-    scorecard = JSON.parse(cleaned);
-  } catch (err) {
-    console.error("[scoring] Failed to parse Claude response as JSON:");
-    console.error(rawText.substring(0, 500));
-    throw new Error(`Claude returned invalid JSON: ${err.message}`);
-  }
-
-  // Basic validation
-  if (typeof scorecard.score !== "number" || !scorecard.rag || !scorecard.verdict) {
-    throw new Error("Claude response missing required fields (score, rag, verdict)");
-  }
-
-  // Close object fallback — if the model omits the close object, infer from phases.
-  // Claude often returns the close data under "pushToClose" (not "closeExecution").
-  if (!scorecard.close || scorecard.close.style === "none") {
-    const closePhase = scorecard.phases?.closing?.criteria?.closeExecution
-      || scorecard.phases?.closing?.criteria?.pushToClose;
-    if (closePhase && closePhase.score > 0) {
-      console.warn("[scoring] Close object missing/none but phases.closing has score — inferring close object");
-      const score = closePhase.score;
-      const maxPts = closePhase.maxPoints || 10;
-      const ratio = score / maxPts;
-      const feedback = closePhase.feedback || "";
-      const timestamps = closePhase.timestamps || [];
-
-      // Detect close style from feedback text
-      const fbLower = feedback.toLowerCase();
-      let style = "consultative";
-      let styleName = "Consultative Close";
-      if (/assumptive|assumed|let.?s get started|here.?s how we start/i.test(fbLower)) {
-        style = "assumptive"; styleName = "Assumptive Close";
-      } else if (/urgency|deadline|critical event|time.?bound|end of (quarter|month|week)/i.test(fbLower)) {
-        style = "urgency"; styleName = "Urgency Close";
-      }
-
-      const setupStatus = ratio >= 0.7 ? "strong" : ratio >= 0.4 ? "partial" : "missing";
-      // For ask: any close attempt with score > 0 is at least partial
-      const askStatus = ratio >= 0.7 ? "strong" : ratio >= 0.2 ? "partial" : "missing";
-      scorecard.close = {
-        style,
-        styleName,
-        setup: { score: Math.round(ratio * 4), status: setupStatus, label: style === "assumptive" ? "Read Buying Signals" : style === "urgency" ? "Tie to Critical Event" : "Summarize Value", feedback, timestamps },
-        bridge: { score: Math.round(ratio * 3), status: setupStatus, label: style === "assumptive" ? "Smooth Transition" : style === "urgency" ? "Build the Timeline" : "Surface Blockers", feedback: "", timestamps: [] },
-        ask: { score: Math.round(ratio * 3), status: askStatus, label: style === "assumptive" ? "Lock Specific Action" : style === "urgency" ? "Propose the Plan" : "Ask for Commitment", feedback: "", timestamps: [] },
-      };
-    } else if (!scorecard.close) {
-      console.warn("[scoring] Close object missing from Claude response — injecting default");
-      scorecard.close = {
-        style: "none",
-        styleName: "No Close Detected",
-        setup: { score: 0, status: "missing", label: "No setup detected", feedback: "No close execution was detected in this call.", timestamps: [] },
-        bridge: { score: 0, status: "missing", label: "No bridge detected", feedback: "No close execution was detected in this call.", timestamps: [] },
-        ask: { score: 0, status: "missing", label: "No ask detected", feedback: "No close execution was detected in this call.", timestamps: [] },
-      };
-    }
-  }
-
-  console.log(`[scoring] Result: ${scorecard.score}/100 (${scorecard.rag})`);
-  return scorecard;
+interface Weights {
+  preCall: number;
+  discovery: number;
+  presentation: number;
+  pricing: number;
+  closing: number;
 }
 
-// ─── Custom Weights Support ─────────────────────────────────────
-// Generates a scoring prompt with custom phase weights.
-// Individual criteria within each phase scale proportionally.
-const DEFAULT_WEIGHTS = { preCall: 6, discovery: 32, presentation: 22, pricing: 28, closing: 12 };
-
-function buildScoringPromptWithWeights(transcriptText, repName, companyName, durationMinutes, weights) {
+export function buildScoringPromptWithWeights(
+  transcriptText: string,
+  repName: string,
+  companyName: string,
+  durationMinutes: number | null,
+  weights?: Weights
+): string {
   const w = weights || DEFAULT_WEIGHTS;
 
   // Discovery sub-criteria: agenda = 7/32, spiced = 25/32
@@ -725,5 +653,3 @@ Return ONLY this JSON structure with the same schema as a standard scoring call.
 
 ${transcriptText}`;
 }
-
-module.exports = { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt, buildScoringPromptWithWeights, DEFAULT_WEIGHTS };

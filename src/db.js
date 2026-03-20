@@ -153,4 +153,89 @@ async function updateSlackTs(scorecardId, { reviewTs, killerTs }) {
   );
 }
 
-module.exports = { saveScorecard, updateSlackTs, pool };
+// ─── Playbook extraction ─────────────────────────────────────
+
+async function extractPlaybookExamples(scorecard, meta, scorecardId, teamId) {
+  const examples = [];
+
+  // 1. Objection Handling — 3+ ECIR steps
+  const objections = scorecard.phases?.pricing?.criteria?.ecir?.objections || [];
+  const ecirFeedback = scorecard.phases?.pricing?.criteria?.ecir?.feedback || "";
+  for (const obj of objections) {
+    const steps = [obj.empathize, obj.clarify, obj.isolate, obj.respond];
+    const hitCount = steps.filter(Boolean).length;
+    if (hitCount >= 3) {
+      const stepNames = [];
+      if (obj.empathize) stepNames.push("Empathize");
+      if (obj.clarify) stepNames.push("Clarify");
+      if (obj.isolate) stepNames.push("Isolate");
+      if (obj.respond) stepNames.push("Respond");
+      examples.push({
+        category: "objection_handling",
+        title: obj.topic || "Objection handled",
+        body: `${meta.repName} handled this objection using ${stepNames.join(" → ")} (${hitCount}/4 ECIR steps).\n\n${ecirFeedback}`,
+        timestamp: obj.timestamp || null,
+        metadata: JSON.stringify(obj),
+      });
+    }
+  }
+
+  // 2. Close Execution — strong ask
+  if (scorecard.close?.ask?.status === "strong" && scorecard.close?.style !== "none") {
+    const parts = [];
+    if (scorecard.close.setup?.feedback) parts.push(`**${scorecard.close.setup.label || "Setup"}**: ${scorecard.close.setup.feedback}`);
+    if (scorecard.close.bridge?.feedback) parts.push(`**${scorecard.close.bridge.label || "Bridge"}**: ${scorecard.close.bridge.feedback}`);
+    if (scorecard.close.ask?.feedback) parts.push(`**${scorecard.close.ask.label || "Ask"}**: ${scorecard.close.ask.feedback}`);
+    examples.push({
+      category: "close_execution",
+      title: `${scorecard.close.styleName || scorecard.close.style} Close`,
+      body: parts.join("\n\n"),
+      timestamp: scorecard.close.ask?.timestamps?.[0] || null,
+      metadata: JSON.stringify(scorecard.close),
+    });
+  }
+
+  // 3. Discovery Wins — green calls only
+  if (scorecard.rag === "green" && Array.isArray(scorecard.wins)) {
+    for (const win of scorecard.wins) {
+      if (!win) continue;
+      examples.push({
+        category: "discovery_win",
+        title: win.length > 80 ? win.substring(0, 77) + "..." : win,
+        body: win,
+        timestamp: null,
+        metadata: null,
+      });
+    }
+  }
+
+  // 4. Quotes — green calls only
+  if (scorecard.rag === "green" && scorecard.quoteOfTheCall?.text) {
+    const q = scorecard.quoteOfTheCall;
+    examples.push({
+      category: "quote",
+      title: q.text.length > 80 ? q.text.substring(0, 77) + "..." : q.text,
+      body: `"${q.text}"\n\n${q.context || ""}`,
+      timestamp: q.timestamp || null,
+      metadata: JSON.stringify(q),
+    });
+  }
+
+  if (examples.length === 0) return;
+
+  // Clear previous auto-extracted examples for this scorecard
+  await pool.query(`DELETE FROM playbook_examples WHERE scorecard_id = $1 AND source = 'auto'`, [scorecardId]);
+
+  // Insert new examples
+  for (const ex of examples) {
+    await pool.query(
+      `INSERT INTO playbook_examples (team_id, scorecard_id, category, title, body, rep_name, company_name, call_date, timestamp, metadata, source)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'auto')`,
+      [teamId, scorecardId, ex.category, ex.title, ex.body, meta.repName, meta.companyName, meta.date, ex.timestamp, ex.metadata]
+    );
+  }
+
+  console.log(`[playbook] Extracted ${examples.length} examples from ${meta.repName} → ${meta.companyName}`);
+}
+
+module.exports = { saveScorecard, updateSlackTs, extractPlaybookExamples, pool };

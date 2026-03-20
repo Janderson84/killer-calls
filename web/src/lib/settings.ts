@@ -11,6 +11,19 @@ export interface RagThresholds {
   yellow: number;
 }
 
+export interface ScoringWeights {
+  preCall: number;
+  discovery: number;
+  presentation: number;
+  pricing: number;
+  closing: number;
+}
+
+export interface TeamGoals {
+  targetAvgScore: number;
+  targetGreenPct: number;
+}
+
 export interface SettingsMap {
   ae_roster: AeRosterEntry[];
   rag_thresholds: RagThresholds;
@@ -19,6 +32,12 @@ export interface SettingsMap {
   slack_channel_reviews: string;
   slack_channel_killer: string;
   app_url: string;
+  fireflies_api_key: string;
+  slack_bot_token: string;
+  killer_threshold: number;
+  excluded_patterns: string[];
+  scoring_weights: ScoringWeights;
+  team_goals: TeamGoals;
 }
 
 export type SettingsKey = keyof SettingsMap;
