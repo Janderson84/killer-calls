@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
-import Anthropic from "@anthropic-ai/sdk";
+// Scoring now delegates to Railway API (OpenClaw/Anthropic configured there)
 
 const FIREFLIES_ENDPOINT = "https://api.fireflies.ai/graphql";
 
@@ -331,59 +331,7 @@ export async function POST(request: Request) {
   }
 
   const sql = neon(process.env.DATABASE_URL!);
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const log: string[] = [];
-
-  const body = await request.json().catch(() => ({}));
-  const offset = (body as { offset?: number }).offset || 0;
-  const batchSize = 2;
-
-  const rows = await sql`
-    SELECT id, meeting_id, rep_name, company_name, duration_minutes,
-           COALESCE(call_type, 'discovery') as call_type
-    FROM scorecards
-    ORDER BY created_at DESC
-    LIMIT ${batchSize} OFFSET ${offset}
-  `;
-
-  log.push(`Found ${rows.length} calls to re-score`);
-
-  for (const row of rows) {
-    try {
-      log.push(`Scoring ${row.rep_name} → ${row.company_name}...`);
-
-      const { transcriptText, companyName } = await fetchTranscript(row.meeting_id);
-      const isFollowup = row.call_type === "followup";
-      const prompt = isFollowup
-        ? buildFollowupPrompt(transcriptText, row.rep_name, companyName || row.company_name, row.duration_minutes)
-        : buildPrompt(transcriptText, row.rep_name, companyName || row.company_name, row.duration_minutes);
-      const systemPrompt = isFollowup ? FOLLOWUP_SCORING_SYSTEM_PROMPT : SCORING_SYSTEM_PROMPT;
-
-      const message = await anthropic.messages.create({
-        model: process.env.CLAUDE_MODEL || "claude-sonnet-4-6",
-        max_tokens: 8192,
-        system: systemPrompt,
-        messages: [{ role: "user", content: prompt }],
-      });
-
-      const text = message.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("");
-
-      let cleaned = text.trim();
-      if (cleaned.includes("```")) {
-        const match = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-        if (match) cleaned = match[1];
-      }
-      const jsonStart = cleaned.indexOf("{");
-      const jsonEnd = cleaned.lastIndexOf("}");
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
-      }
-
-      const scorecard = JSON.parse(cleaned);
-
+  const railwayUrl = process.env.RAILWAY_API_URL || "https://killer-calls-api-production.up.railway.app";
       await sql`
         UPDATE scorecards SET
           score = ${scorecard.score},

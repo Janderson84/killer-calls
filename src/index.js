@@ -162,6 +162,50 @@ app.get("/", (req, res) => {
 // Receives a POST when a new transcript is ready.
 // Immediately returns 200, then processes async.
 
+
+// ─── Score Endpoint ──────────────────────────────────────────────
+// Called by Vercel routes (or any client) to score a transcript.
+// This delegates to the configured scoring backend (OpenClaw or Anthropic).
+
+app.post("/score", async (req, res) => {
+  const { meetingId, transcriptText, repName, companyName, durationMinutes, systemPrompt, userPrompt, callType, priorCallContext } = req.body;
+
+  if (!meetingId || !transcriptText || !repName) {
+    return res.status(400).json({ error: "meetingId, transcriptText, and repName are required" });
+  }
+
+  console.log(`[/score] Scoring meetingId=${meetingId} (${repName} -> ${companyName})`);
+
+  try {
+    const { scoreTranscript, buildFollowupScoringPrompt, buildScoringPromptWithWeights, FOLLOWUP_SYSTEM_PROMPT } = require("./scoring-engine");
+
+    const scoringArgs = {
+      transcriptText,
+      repName,
+      companyName,
+      durationMinutes,
+      meetingId,
+      pool,
+    };
+
+    if (callType === "followup" && priorCallContext) {
+      scoringArgs.systemPrompt = FOLLOWUP_SYSTEM_PROMPT;
+      scoringArgs.userPrompt = buildFollowupScoringPrompt(transcriptText, repName, companyName, durationMinutes, priorCallContext);
+    }
+
+    const scorecard = await scoreTranscript(scoringArgs);
+
+    if (scorecard._deferred) {
+      return res.json({ status: "deferred", message: "Scoring deferred - will be processed by local poller" });
+    }
+
+    return res.json({ status: "ok", scorecard });
+  } catch (err) {
+    console.error(`[/score] Error: ${err.message}`);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/webhook/fireflies", (req, res) => {
   const meetingId = req.body.meetingId || req.body.meeting_id || req.body.data?.meetingId;
 
@@ -301,7 +345,18 @@ async function _processDemo(meetingId) {
     );
   }
 
+  scoringArgs.meetingId = meetingId;
+  scoringArgs.pool = pool;
   const scorecard = await scoreTranscript(scoringArgs);
+
+  // If scoring was deferred, exit early
+  if (scorecard._deferred) {
+    console.log("[3/5] Score: DEFERRED - will be processed by local poller");
+    await pool.query("DELETE FROM skipped_meetings WHERE meeting_id = $1", [meetingId]);
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log("Pipeline complete in " + elapsed + "s - scoring deferred");
+    return;
+  }
   console.log(`[3/5] Score: ${scorecard.score}/100 (${scorecard.rag})`);
   console.log(`[3/5] Verdict: ${scorecard.verdict}`);
 
@@ -373,7 +428,9 @@ async function _processDemo(meetingId) {
 // ─── Start Server ────────────────────────────────────────────────
 
 function validateEnv() {
-  const required = ["ANTHROPIC_API_KEY", "FIREFLIES_API_KEY", "DATABASE_URL"];
+  const scoringBackend = process.env.SCORING_BACKEND || "openclaw";
+  const required = ["FIREFLIES_API_KEY", "DATABASE_URL"];
+  if (scoringBackend === "anthropic") { required.push("ANTHROPIC_API_KEY"); }
   const optional = ["SLACK_BOT_TOKEN", "SLACK_CHANNEL_REVIEWS", "SLACK_CHANNEL_KILLER"];
   const missing = required.filter((key) => !process.env[key]);
 
@@ -395,5 +452,6 @@ app.listen(CONFIG.port, () => {
   console.log(`\n🚀 Killer Calls running on port ${CONFIG.port} (multi-team)`);
   console.log(`   Webhook URL: POST http://localhost:${CONFIG.port}/webhook/fireflies`);
   console.log(`   Health check: GET http://localhost:${CONFIG.port}/`);
-  console.log(`   Model: ${CONFIG.claudeModel}\n`);
+  const backend = process.env.SCORING_BACKEND || "openclaw";
+  console.log(`   Scoring backend: ${backend}${backend === "anthropic" ? " (model: " + CONFIG.claudeModel + ")" : " (via OpenClaw Gateway)"}`);
 });

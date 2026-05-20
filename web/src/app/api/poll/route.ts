@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
-import Anthropic from "@anthropic-ai/sdk";
+// Scoring now delegates to the Railway API (which uses OpenClaw or Anthropic as configured)
 import {
   SCORING_SYSTEM_PROMPT,
   FOLLOWUP_SYSTEM_PROMPT,
@@ -251,78 +251,59 @@ async function fetchTranscript(meetingId: string, aeByEmail: Record<string, stri
   };
 }
 
-// ─── Score via Anthropic API ────────────────────────────────────
-async function scoreCall(prompt: string, systemPrompt: string = SCORING_SYSTEM_PROMPT) {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ─── Score via Railway API ────────────────────────────────────
+// Delegates scoring to the Railway API, which uses the configured
+// scoring backend (OpenClaw Gateway or Anthropic).
+const RAILWAY_API_URL = process.env.RAILWAY_API_URL || "https://killer-calls-api-production.up.railway.app";
 
-  const message = await client.messages.create({
-    model: process.env.CLAUDE_MODEL || "claude-sonnet-4-6",
-    max_tokens: 8192,
-    system: systemPrompt,
-    messages: [{ role: "user", content: prompt }],
-  });
+async function scoreCall(prompt: string, systemPrompt: string = SCORING_SYSTEM_PROMPT, meta?: { meetingId: string; repName: string; companyName: string; durationMinutes: number | null; callType?: string; priorCallContext?: string | null }) {
+  // Try the Railway API first
+  try {
+    const response = await fetch(RAILWAY_API_URL + "/score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        meetingId: meta?.meetingId || "unknown",
+        transcriptText: meta ? "" : prompt,  // If no meta, send the prompt
+        repName: meta?.repName || "Unknown",
+        companyName: meta?.companyName || "Unknown",
+        durationMinutes: meta?.durationMinutes || null,
+        systemPrompt,
+        userPrompt: prompt,
+        callType: meta?.callType || "discovery",
+        priorCallContext: meta?.priorCallContext || null,
+      }),
+    });
 
-  const text = message.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-
-  let cleaned = text.trim();
-  if (cleaned.includes("```")) {
-    const match = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-    if (match) cleaned = match[1];
-  }
-  const jsonStart = cleaned.indexOf("{");
-  const jsonEnd = cleaned.lastIndexOf("}");
-  if (jsonStart !== -1 && jsonEnd !== -1) {
-    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
-  }
-
-  const scorecard = JSON.parse(cleaned);
-  if (typeof scorecard.score !== "number" || !scorecard.rag) {
-    throw new Error("Anthropic response missing required fields");
-  }
-
-  // Ensure close object always exists — model sometimes omits it.
-  // Claude returns close data under "pushToClose" (not "closeExecution").
-  if (!scorecard.close || scorecard.close.style === "none") {
-    const closePhase = scorecard.phases?.closing?.criteria?.closeExecution
-      || scorecard.phases?.closing?.criteria?.pushToClose;
-    if (closePhase && closePhase.score > 0) {
-      const score = closePhase.score;
-      const maxPts = closePhase.maxPoints || 10;
-      const ratio = score / maxPts;
-      const feedback = closePhase.feedback || "";
-      const timestamps = closePhase.timestamps || [];
-
-      // Detect close style from feedback text
-      const fbLower = feedback.toLowerCase();
-      let style = "consultative";
-      let styleName = "Consultative Close";
-      if (/assumptive|assumed|let.?s get started|here.?s how we start/i.test(fbLower)) {
-        style = "assumptive"; styleName = "Assumptive Close";
-      } else if (/urgency|deadline|critical event|time.?bound|end of (quarter|month|week)/i.test(fbLower)) {
-        style = "urgency"; styleName = "Urgency Close";
-      }
-
-      const setupStatus = ratio >= 0.7 ? "strong" : ratio >= 0.4 ? "partial" : "missing";
-      const askStatus = ratio >= 0.7 ? "strong" : ratio >= 0.2 ? "partial" : "missing";
-      scorecard.close = {
-        style,
-        styleName,
-        setup: { score: Math.round(ratio * 4), status: setupStatus, label: style === "assumptive" ? "Read Buying Signals" : style === "urgency" ? "Tie to Critical Event" : "Summarize Value", feedback, timestamps },
-        bridge: { score: Math.round(ratio * 3), status: setupStatus, label: style === "assumptive" ? "Smooth Transition" : style === "urgency" ? "Build the Timeline" : "Surface Blockers", feedback: "", timestamps: [] },
-        ask: { score: Math.round(ratio * 3), status: askStatus, label: style === "assumptive" ? "Lock Specific Action" : style === "urgency" ? "Propose the Plan" : "Ask for Commitment", feedback: "", timestamps: [] },
-      };
-    } else if (!scorecard.close) {
-      scorecard.close = {
-        style: "none",
-        styleName: "No Close Detected",
-        setup: { score: 0, status: "missing", label: "No setup detected", feedback: "No close execution was detected in this call.", timestamps: [] },
-        bridge: { score: 0, status: "missing", label: "No bridge detected", feedback: "No close execution was detected in this call.", timestamps: [] },
-        ask: { score: 0, status: "missing", label: "No ask detected", feedback: "No close execution was detected in this call.", timestamps: [] },
-      };
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error("Railway API /score returned " + response.status + ": " + errText);
     }
+
+    const result = await response.json();
+    if (result.status === "deferred") {
+      throw new Error("Scoring deferred - local poller will handle it");
+    }
+    if (!result.scorecard || typeof result.scorecard.score !== "number" || !result.scorecard.rag) {
+      throw new Error("Railway API returned invalid scorecard");
+    }
+    return ensureCloseObject(result.scorecard);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error("Railway API scoring failed: " + msg);
+  }
+}
+
+// ─── Ensure close object exists ──────────────────────────────────
+function ensureCloseObject(scorecard: Record<string, unknown>) {
+  if (!scorecard.close) {
+    scorecard.close = {
+      style: "none",
+      styleName: "No Close Detected",
+      setup: { score: 0, status: "missing", label: "No setup detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      bridge: { score: 0, status: "missing", label: "No bridge detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+      ask: { score: 0, status: "missing", label: "No ask detected", feedback: "No close execution was detected in this call.", timestamps: [] },
+    };
   }
   return scorecard;
 }
@@ -465,13 +446,13 @@ async function processOne(
     log.push(`  Detected as FOLLOW-UP call${priorCallContext ? " (prior call found)" : " (title match)"}`);
   }
 
-  // Score via Anthropic API
-  log.push(`  Scoring via Claude (${callType})...`);
+  // Score via Railway API
+  log.push(`  Scoring via Railway API (${callType})...`);
   const prompt = isFollowup
     ? buildFollowupScoringPrompt(transcript.transcriptText, transcript.repName, transcript.companyName, transcript.durationMinutes, priorCallContext)
     : buildScoringPrompt(transcript.transcriptText, transcript.repName, transcript.companyName, transcript.durationMinutes);
   const systemPrompt = isFollowup ? FOLLOWUP_SYSTEM_PROMPT : SCORING_SYSTEM_PROMPT;
-  const scorecard = await scoreCall(prompt, systemPrompt);
+  const scorecard = await scoreCall(prompt, systemPrompt, { meetingId, repName: transcript.repName, companyName: transcript.companyName, durationMinutes: transcript.durationMinutes, callType, priorCallContext });
   log.push(`  Score: ${scorecard.score}/100 (${scorecard.rag})`);
 
   // Resolve team from the organizer email → team mapping built from rosters

@@ -352,7 +352,91 @@ async function processOne(meetingId, label) {
 }
 
 // ─── Main poll ───────────────────────────────────────────────────
+// ─── Process pending scores from DB ──────────────────────────────
+// Picks up calls that were enqueued by cloud deployments (Railway/Vercel)
+// using SCORING_BACKEND=deferred and scores them via OpenClaw.
+
+async function processPendingScores() {
+  const pending = await pool.query(
+    "SELECT * FROM pending_scores WHERE status = 'pending' ORDER BY created_at ASC LIMIT 5"
+  );
+
+  if (pending.rows.length === 0) return 0;
+
+  console.log(`  Found ${pending.rows.length} pending score(s) from cloud pipeline`);
+
+  for (const row of pending.rows) {
+    try {
+      await pool.query(
+        "UPDATE pending_scores SET status = 'processing', updated_at = NOW() WHERE id = $1",
+        [row.id]
+      );
+
+      const prompt = row.user_prompt;
+      const systemPrompt = row.system_prompt;
+      const fullPrompt = systemPrompt
+        ? systemPrompt + "  Now score the following transcript as instructed:  " + prompt
+        : prompt;
+
+      const fs = require("fs");
+      const os = require("os");
+      const tmpFile = `${os.tmpdir()}/killer-calls-pending-${row.meeting_id}.txt`;
+      fs.writeFileSync(tmpFile, fullPrompt);
+      const sessionId = `killer-calls-pending-${row.meeting_id}`;
+
+      console.log(`  Scoring pending: ${row.meeting_id} (${row.rep_name})`);
+      const scorecard = scoreViaOpenClaw(tmpFile, sessionId);
+      console.log(`  Score: ${scorecard.score}/100 (${scorecard.rag})`);
+
+      // Save the scorecard
+      const meta = {
+        repName: row.rep_name,
+        companyName: row.company_name,
+        date: new Date().toISOString(),
+        durationMinutes: row.duration_minutes,
+        meetingId: row.meeting_id,
+        callType: "discovery",
+        teamId: "1f7fb17c-3581-47a0-ba89-d196f96944cd", // SalesCloser AI team
+      };
+      const scorecardId = await saveScorecard(scorecard, meta);
+
+      // Post to Slack
+      try {
+        const reviewResult = await postDemoReview(scorecard, meta, scorecardId);
+        const killerResult = scorecard.score >= 80 ? await postKillerCall(scorecard, meta, scorecardId) : null;
+        await updateSlackTs(scorecardId, {
+          reviewTs: reviewResult?.ts || null,
+          killerTs: killerResult?.ts || null,
+        });
+      } catch (err) {
+        console.error(`  Slack error for pending ${row.meeting_id}: ${err.message}`);
+      }
+
+      // Mark as completed
+      await pool.query(
+        "UPDATE pending_scores SET status = 'completed', updated_at = NOW() WHERE id = $1",
+        [row.id]
+      );
+
+      try { fs.unlinkSync(tmpFile); } catch (e) {}
+      console.log(`  Saved pending score ${scorecardId}`);
+    } catch (err) {
+      console.error(`  FAILED pending ${row.meeting_id}: ${err.message}`);
+      await pool.query(
+        "UPDATE pending_scores SET status = 'failed', updated_at = NOW() WHERE id = $1",
+        [row.id]
+      );
+    }
+  }
+
+  return pending.rows.length;
+}
+
 async function poll() {
+  // Process any pending scores from cloud pipeline first
+  const pendingCount = await processPendingScores();
+  if (pendingCount > 0) console.log(`  Processed ${pendingCount} pending score(s)`);
+
   const ts = new Date().toLocaleString();
   console.log(`\n[${ts}] Polling Fireflies for new calls...`);
 
