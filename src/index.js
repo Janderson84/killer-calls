@@ -384,6 +384,34 @@ async function _processDemo(meetingId) {
     console.error(`[playbook] Extraction failed: ${err.message}`);
   }
 
+  // Step 4b: Look up matching Pipedrive deal
+  console.log(`[4b/5] Looking up Pipedrive deal...`);
+  const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY;
+  if (PIPEDRIVE_API_KEY && meta.prospectEmail) {
+    try {
+      const pdResp = await fetch(
+        `https://api.pipedrive.com/v1/items/search?term=${encodeURIComponent(meta.prospectEmail)}&item_types=deal&limit=1&api_token=${PIPEDRIVE_API_KEY}`
+      );
+      const pdData = await pdResp.json();
+      if (pdData.data?.items?.[0]?.item) {
+        const deal = pdData.data.items[0].item;
+        console.log(`[4b/5] Found Pipedrive deal #${deal.id} (${deal.title})`);
+        await pool.query(
+          `UPDATE scorecards SET pipedrive_deal_id = $1, pipedrive_deal_stage = $2, pipedrive_deal_value = $3 WHERE id = $4`,
+          [String(deal.id), String(deal.stage_id || ""), deal.value || null, scorecardId]
+        );
+      } else {
+        console.log(`[4b/5] No matching Pipedrive deal found for ${meta.prospectEmail}`);
+      }
+    } catch (err) {
+      console.error(`[4b/5] Pipedrive lookup error: ${err.message}`);
+    }
+  } else if (!PIPEDRIVE_API_KEY) {
+    console.log(`[4b/5] PIPEDRIVE_API_KEY not set, skipping deal lookup`);
+  } else {
+    console.log(`[4b/5] No prospect email, skipping Pipedrive lookup`);
+  }
+
   // Step 5: Post to Slack (using team-specific channel IDs)
   console.log(`\n[5/5] Posting to Slack...`);
 

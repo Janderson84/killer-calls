@@ -45,14 +45,19 @@ function loadSkippedIds() {
   return new Set();
 }
 
-function saveSkippedIds(skippedSet) {
-  writeFileSync(SKIP_FILE, JSON.stringify([...skippedSet], null, 2));
+async function syncSkipFileFromDb() {
+  const result = await pool.query(
+    "SELECT meeting_id FROM skipped_meetings WHERE reason IN ('no-show', 'too short', 'rep_inactive')"
+  );
+  const ids = result.rows.map((r) => r.meeting_id);
+  writeFileSync(SKIP_FILE, JSON.stringify(ids, null, 2));
+  console.log(`  Synced skip file from DB: ${ids.length} entries`);
 }
 
 // ─── Fetch recent transcripts from Fireflies ────────────────────
 const RECENT_TRANSCRIPTS_QUERY = `
   query RecentTranscripts($organizerEmail: String) {
-    transcripts(organizer_email: $organizerEmail, limit: 10) {
+    transcripts(organizer_email: $organizerEmail, limit: 50) {
       id
       title
       date
@@ -497,11 +502,8 @@ async function poll() {
     }
   }
 
-  // Persist skipped IDs so they're excluded next cycle
-  if (newSkips > 0) {
-    saveSkippedIds(skipped);
-    console.log(`  Saved ${newSkips} newly skipped meeting(s) to skip list`);
-  }
+  // Sync skip file with DB as source of truth
+  await syncSkipFileFromDb();
 
   // 4. Summary
   const scored_results = results.filter((r) => !r.skipped);

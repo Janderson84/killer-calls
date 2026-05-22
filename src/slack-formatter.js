@@ -198,7 +198,7 @@ function buildThreadBlocks(scorecard, scorecardId) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*🔧 Priority fixes*\n${scorecard.fixes.map((f) => `• ${f}`).join("\n")}`
+        text: `*📈 Growth areas*\n${scorecard.fixes.map((f) => `• ${f}`).join("\n")}`
       }
     });
   }

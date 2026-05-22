@@ -47,7 +47,8 @@ async function saveScorecard(scorecard, meta) {
       close_style, close_setup, close_bridge, close_ask,
       call_type, prospect_email,
       scorecard_json, slack_review_ts, slack_killer_ts,
-      team_id
+      team_id,
+      pipedrive_deal_id, pipedrive_deal_stage, pipedrive_deal_value
     ) VALUES (
       $1, $2, $3, $4, $5,
       $6, $7,
@@ -58,7 +59,8 @@ async function saveScorecard(scorecard, meta) {
       $25, $26, $27, $28,
       $29, $30,
       $31, $32, $33,
-      $34
+      $34,
+      $35, $36, $37
     )
     ON CONFLICT (meeting_id) DO UPDATE SET
       score = EXCLUDED.score,
@@ -85,7 +87,10 @@ async function saveScorecard(scorecard, meta) {
       call_type = EXCLUDED.call_type,
       prospect_email = EXCLUDED.prospect_email,
       scorecard_json = EXCLUDED.scorecard_json,
-      team_id = EXCLUDED.team_id
+      team_id = EXCLUDED.team_id,
+      pipedrive_deal_id = EXCLUDED.pipedrive_deal_id,
+      pipedrive_deal_stage = EXCLUDED.pipedrive_deal_stage,
+      pipedrive_deal_value = EXCLUDED.pipedrive_deal_value
     RETURNING id`,
     [
       repId,
@@ -121,7 +126,10 @@ async function saveScorecard(scorecard, meta) {
       JSON.stringify(scorecard),
       null,
       null,
-      teamId
+      teamId,
+      meta.pipedriveDealId || null,
+      meta.pipedriveDealStage || null,
+      meta.pipedriveDealValue || null
     ]
   );
 
