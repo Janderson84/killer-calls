@@ -359,19 +359,42 @@ async function processOne(meetingId, label) {
   const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY;
   if (PIPEDRIVE_API_KEY && prospectEmail) {
     try {
-      const pdResp = await fetch(
-        `https://api.pipedrive.com/v1/items/search?term=${encodeURIComponent(prospectEmail)}&item_types=deal&limit=1&api_token=${PIPEDRIVE_API_KEY}`
+      // Search for person by prospect email, then get their deals
+      const pdPersonResp = await fetch(
+        `https://api.pipedrive.com/v1/persons/search?term=${encodeURIComponent(prospectEmail)}&limit=3&api_token=${PIPEDRIVE_API_KEY}`
       );
-      const pdData = await pdResp.json();
-      if (pdData.data?.items?.[0]?.item) {
-        const deal = pdData.data.items[0].item;
-        console.log(`${label} Found Pipedrive deal #${deal.id} (${deal.title})`);
-        await pool.query(
-          `UPDATE scorecards SET pipedrive_deal_id = $1, pipedrive_deal_stage = $2, pipedrive_deal_value = $3 WHERE id = $4`,
-          [String(deal.id), String(deal.stage_id || ""), deal.value || null, scorecardId]
+      const pdPersonData = await pdPersonResp.json();
+      if (pdPersonData.success && pdPersonData.data?.items?.[0]?.item) {
+        const personId = pdPersonData.data.items[0].item.id;
+        const pdDealsResp = await fetch(
+          `https://api.pipedrive.com/v1/persons/${personId}/deals?api_token=${PIPEDRIVE_API_KEY}`
         );
+        const pdDealsData = await pdDealsResp.json();
+        if (pdDealsData.success && pdDealsData.data?.length > 0) {
+          const deals = pdDealsData.data.sort((a, b) => {
+            if (a.status === 'open' && b.status !== 'open') return -1;
+            if (a.status !== 'open' && b.status === 'open') return 1;
+            return 0;
+          });
+          const deal = deals[0];
+          let stageName = String(deal.stage_id);
+          try {
+            const stageResp = await fetch(
+              `https://api.pipedrive.com/v1/stages/${deal.stage_id}?api_token=${PIPEDRIVE_API_KEY}`
+            );
+            const stageData = await stageResp.json();
+            if (stageData.success && stageData.data) stageName = stageData.data.name;
+          } catch (e) {}
+          console.log(`${label} Found Pipedrive deal #${deal.id} (${deal.title}) [${stageName}]`);
+          await pool.query(
+            `UPDATE scorecards SET pipedrive_deal_id = $1, pipedrive_deal_stage = $2, pipedrive_deal_value = $3 WHERE id = $4`,
+            [String(deal.id), stageName, deal.value || null, scorecardId]
+          );
+        } else {
+          console.log(`${label} No Pipedrive deals for person #${personId}`);
+        }
       } else {
-        console.log(`${label} No matching Pipedrive deal found for ${prospectEmail}`);
+        console.log(`${label} No matching Pipedrive person for ${prospectEmail}`);
       }
     } catch (err) {
       console.error(`${label} Pipedrive lookup error: ${err.message}`);
