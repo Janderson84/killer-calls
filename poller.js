@@ -314,10 +314,14 @@ async function processOne(meetingId, label) {
   const scorecard = scoreViaOpenClaw(promptFile, sessionId);
   console.log(`${label} Score: ${scorecard.score}/100 (${scorecard.rag})`);
 
-  // Extract prospect email
-  const prospectEmail = (transcript.participants || [])
-    .map((e) => e.toLowerCase().trim())
-    .find((e) => e.includes("@") && !AE_EMAIL_SET.has(e)) || null;
+  // Extract prospect email from participants
+  // Fireflies returns participants as an array, but the first element is often
+  // a comma-concatenated string of ALL participant emails.
+  // We need to split each element by comma, flatten, then filter.
+  const allParticipantEmails = (transcript.participants || [])
+    .flatMap((e) => e.split(",").map((s) => s.trim().toLowerCase()))
+    .filter((e) => e.includes("@"));
+  const prospectEmail = allParticipantEmails.find((e) => !AE_EMAIL_SET.has(e)) || null;
 
   // Detect followup
   let callType = "discovery";
