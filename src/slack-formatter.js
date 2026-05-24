@@ -152,6 +152,14 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster) {
     }
   ];
 
+  // Stall risk block goes right after verdict
+  const stallRisk = calculateStallRisk(scorecard.spiced);
+  const stallBlock = stallRiskBlock(stallRisk);
+  if (stallBlock) {
+    // Insert after the verdict block (after index 2)
+    blocks.splice(3, 0, stallBlock);
+  }
+
   if (tags.length > 0) {
     blocks.push({
       type: "context",
@@ -368,4 +376,51 @@ async function postKillerCall(scorecard, meta, scorecardId, teamConfig = {}) {
   }
 }
 
-module.exports = { postDemoReview, postKillerCall };
+// ─── Stall Risk Calculation ──────────────────────────────────
+// Based on data analysis: SPICED-I (Impact), SPICED-C (Critical Event),
+// and SPICED-E (Decision) are the strongest predictors of deal progression.
+// Calls weak on all three have HIGH stall risk.
+
+function calculateStallRisk(spiced) {
+  if (!spiced) return { level: "LOW", factors: [] };
+
+  const predictive = ["i", "c", "e"];
+  const weakFactors = [];
+
+  for (const el of predictive) {
+    const status = spiced[el]?.status;
+    if (!status || status === "partial" || status === "missing") {
+      const names = { i: "Impact Quantified", c: "Critical Event", e: "Decision Mapped" };
+      weakFactors.push(names[el]);
+    }
+  }
+
+  let level;
+  if (weakFactors.length >= 3) level = "HIGH";
+  else if (weakFactors.length >= 2) level = "MEDIUM";
+  else level = "LOW";
+
+  return { level, factors: weakFactors };
+}
+
+function stallRiskEmoji(level) {
+  if (level === "HIGH") return "⚠️";
+  if (level === "MEDIUM") return "🟡";
+  return "✅";
+}
+
+function stallRiskBlock(stallRisk) {
+  if (!stallRisk || stallRisk.level === "LOW") return null;
+
+  const emoji = stallRiskEmoji(stallRisk.level);
+  const text = stallRisk.level === "HIGH"
+    ? `${emoji} *Stall Risk: HIGH* — Coach on: quantify impact, create urgency, map decision process before next touch`
+    : `${emoji} *Stall Risk: MEDIUM* — Strengthen ${stallRisk.factors.join(" and ")} to reduce risk`;
+
+  return {
+    type: "context",
+    elements: [{ type: "mrkdwn", text }]
+  };
+}
+
+module.exports = { postDemoReview, postKillerCall, calculateStallRisk, stallRiskBlock };

@@ -4,7 +4,7 @@ require("dotenv").config();
 const { execSync } = require("child_process");
 const { saveScorecard, updateSlackTs, pool } = require("./src/db");
 const { fetchTranscript } = require("./src/fireflies-client");
-const { postDemoReview, postKillerCall } = require("./src/slack-formatter");
+const { postDemoReview, postKillerCall, calculateStallRisk } = require("./src/slack-formatter");
 const { readFileSync, writeFileSync, mkdirSync, existsSync } = require("fs");
 const path = require("path");
 const { CONFIG } = require("./src/constants");

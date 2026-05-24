@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deal Progression Dashboard | Killer Calls</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 0; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
+    h2 { font-size: 18px; font-weight: 600; margin: 32px 0 16px; color: var(--text); }
+    h3 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+    .stat { flex: 1; min-width: 140px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .green { color: var(--green); }
+    .yellow { color: var(--yellow); }
+    .red { color: var(--red); }
+    .blue { color: var(--blue); }
+
+    /* Bar chart */
+    .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+    .bar-label { min-width: 200px; text-align: right; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 24px; position: relative; display: flex; }
+    .bar-fill-prog { height: 100%; border-radius: 4px 0 0 4px; background: var(--green); opacity: 0.8; transition: width 0.6s ease; position: relative; }
+    .bar-fill-stuck { height: 100%; border-radius: 0 4px 4px 0; background: var(--red); opacity: 0.6; transition: width 0.6s ease; }
+    .bar-gap { position: absolute; top: -2px; bottom: -2px; background: var(--yellow); opacity: 0.3; border-radius: 2px; }
+    .bar-value { min-width: 60px; font-size: 12px; color: var(--text-muted); }
+    .bar-legend { display: flex; gap: 24px; margin-bottom: 12px; font-size: 13px; color: var(--text-muted); }
+    .bar-legend span::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+    .bar-legend .prog::before { background: var(--green); }
+    .bar-legend .stuck::before { background: var(--red); }
+    .bar-legend .gap-legend::before { background: var(--yellow); opacity: 0.4; }
+
+    /* Predictors ranked */
+    .predictor-list { list-style: none; }
+    .predictor-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .predictor-item:last-child { border-bottom: none; }
+    .predictor-rank { width: 24px; height: 24px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+    .predictor-name { flex: 1; }
+    .predictor-gap { font-weight: 600; min-width: 80px; text-align: right; }
+    .predictor-relative { color: var(--text-muted); min-width: 60px; text-align: right; font-size: 12px; }
+
+    /* Rep table */
+    .rep-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+    .rep-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .rep-card-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+    .rep-name { font-size: 16px; font-weight: 600; }
+    .rep-rate { font-size: 14px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+    .rep-rate.green { color: var(--green); background: rgba(63,185,80,0.1); }
+    .rep-rate.yellow { color: var(--yellow); background: rgba(210,153,34,0.1); }
+    .rep-rate.red { color: var(--red); background: rgba(248,81,73,0.1); }
+    .rep-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+    .rep-metric { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .rep-metric-label { color: var(--text-muted); }
+    .rep-metric-value { font-weight: 500; }
+    .rep-coaching { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; }
+    .rep-coaching-label { color: var(--purple); font-weight: 600; margin-bottom: 4px; }
+    .rep-gaps { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+    .rep-gap-item { display: flex; justify-content: space-between; padding: 2px 0; }
+    .rep-gap-bar { height: 4px; border-radius: 2px; margin-top: 2px; background: var(--border); position: relative; }
+    .rep-gap-fill { height: 100%; border-radius: 2px; position: absolute; }
+    .rep-gap-fill.positive { background: var(--green); left: 0; }
+    .rep-gap-fill.negative { background: var(--red); right: 0; }
+
+    /* Closed examples */
+    .example-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .example-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; position: relative; }
+    .example-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 8px 8px 0 0; background: var(--green); }
+    .example-score { font-size: 24px; font-weight: 700; color: var(--green); }
+    .example-rep { font-size: 14px; font-weight: 600; margin-top: 8px; }
+    .example-company { font-size: 13px; color: var(--text-muted); }
+    .example-verdict { font-size: 13px; color: var(--text-muted); margin-top: 8px; font-style: italic; }
+    .example-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .example-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--blue); }
+    .example-tag.close { background: rgba(188,140,255,0.1); color: var(--purple); }
+    .example-link { display: inline-block; margin-top: 12px; font-size: 13px; color: var(--blue); text-decoration: none; }
+    .example-link:hover { text-decoration: underline; }
+
+    /* Close style effectiveness */
+    .close-style-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .close-style-table th, .close-style-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    .close-style-table th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .progression-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; min-width: 80px; }
+    .progression-bar-fill { height: 100%; border-radius: 4px; }
+
+    .loading { text-align: center; padding: 60px; color: var(--text-muted); }
+    .error { text-align: center; padding: 60px; color: var(--red); }
+    .refresh-btn { background: var(--border); border: none; color: var(--text); padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .refresh-btn:hover { background: var(--text-muted); }
+    .header-row { display: flex; justify-content: space-between; align-items: baseline; }
+    .timestamp { font-size: 12px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-row">
+      <div>
+        <h1>Deal Progression Dashboard</h1>
+        <p class="subtitle">What actually predicts whether deals progress or stall</p>
+      </div>
+      <div>
+        <button class="refresh-btn" onclick="loadData()">Refresh</button>
+        <span class="timestamp" id="timestamp"></span>
+      </div>
+    </div>
+
+    <div id="loading" class="loading">Loading live data...</div>
+    <div id="error" class="error" style="display:none;"></div>
+
+    <div id="content" style="display:none;">
+      <!-- Team summary stats -->
+      <div class="stats-row" id="summary-stats"></div>
+
+      <!-- Criteria gap chart -->
+      <h2>Score Gap: Progressed vs Stuck Deals</h2>
+      <div class="bar-legend">
+        <span class="prog">Progressed (won/advanced)</span>
+        <span class="stuck">Stuck (lost/stalled/early)</span>
+        <span class="gap-legend">Gap</span>
+      </div>
+      <div class="card" id="criteria-chart"></div>
+
+      <!-- Ranked predictors -->
+      <h2>Ranked Predictors</h2>
+      <h3>Sorted by relative gap (biggest predictors of deal outcome)</h3>
+      <div class="card" id="predictors"></div>
+
+      <!-- Close style effectiveness -->
+      <h2>Close Style Effectiveness</h2>
+      <div class="card" id="close-styles"></div>
+
+      <!-- Per-rep section -->
+      <h2>Rep Progression Rates</h2>
+      <div class="rep-grid" id="rep-grid"></div>
+
+      <!-- Closed call examples -->
+      <h2>What Closed Looks Like</h2>
+      <h3>Top-scoring calls where the deal was won. Study these.</h3>
+      <div class="example-cards" id="examples"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://killer-calls-api-production.up.railway.app';
+
+    async function loadData() {
+      document.getElementById('loading').style.display = '';
+      document.getElementById('content').style.display = 'none';
+      document.getElementById('error').style.display = 'none';
+
+      try {
+        const [statsResp, examplesResp] = await Promise.all([
+          fetch(`${API_BASE}/api/progression-stats`),
+          fetch(`${API_BASE}/api/closed-call-examples`),
+        ]);
+
+        if (!statsResp.ok) throw new Error(`Stats API: ${statsResp.status}`);
+        if (!examplesResp.ok) throw new Error(`Examples API: ${examplesResp.status}`);
+
+        const stats = await statsResp.json();
+        const examples = await examplesResp.json();
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = '';
+        document.getElementById('timestamp').textContent = new Date(stats.generatedAt).toLocaleString();
+
+        renderSummary(stats);
+        renderCriteriaChart(stats);
+        renderPredictors(stats);
+        renderCloseStyles(stats);
+        renderReps(stats);
+        renderExamples(examples);
+      } catch (err) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = '';
+        document.getElementById('error').textContent = 'Failed to load data: ' + err.message;
+      }
+    }
+
+    function colorClass(val, thresholds) {
+      if (val >= thresholds[0]) return 'green';
+      if (val >= thresholds[1]) return 'yellow';
+      return 'red';
+    }
+
+    function renderSummary(stats) {
+      const el = document.getElementById('summary-stats');
+      const progRate = stats.activeCalls ? ((stats.progressedCount / stats.activeCalls) * 100).toFixed(1) : 0;
+      el.innerHTML = `
+        <div class="stat"><div class="stat-value blue">${stats.activeCalls}</div><div class="stat-label">Scored Calls with Pipedrive</div></div>
+        <div class="stat"><div class="stat-value green">${stats.progressedCount}</div><div class="stat-label">Deals Progressed</div></div>
+        <div class="stat"><div class="stat-value red">${stats.stuckCount}</div><div class="stat-label">Deals Stuck</div></div>
+        <div class="stat"><div class="stat-value ${colorClass(+progRate, [40, 25])}">${progRate}%</div><div class="stat-label">Progression Rate</div></div>
+      `;
+    }
+
+    function renderCriteriaChart(stats) {
+      const el = document.getElementById('criteria-chart');
+      const maxVal = Math.max(...stats.teamAverages.map(c => Math.max(c.progressed || 0, c.stuck || 0)));
+      const rows = stats.teamAverages.map(c => {
+        const pW = c.progressed != null ? (c.progressed / maxVal * 100) : 0;
+        const sW = c.stuck != null ? (c.stuck / maxVal * 100) : 0;
+        const gapPct = c.stuck > 0 && c.gap != null ? ((c.gap / Math.abs(c.stuck)) * 100).toFixed(0) : 'N/A';
+        const gapColor = c.gap > 0 ? 'green' : c.gap < 0 ? 'red' : '';
+        return `<div class="bar-row">
+          <div class="bar-label">${c.label}</div>
+          <div class="bar-track">
+            <div class="bar-fill-prog" style="width:${pW}%"></div>
+            <div class="bar-fill-stuck" style="width:${sW}%"></div>
+          </div>
+          <div class="bar-value"><span style="color:var(--green)">${c.progressed != null ? c.progressed.toFixed(1) : 'N/A'}</span> / <span style="color:var(--red)">${c.stuck != null ? c.stuck.toFixed(1) : 'N/A'}</span></div>
+          <div class="bar-value" style="color:var(--${gapColor || 'text-muted'})">${c.gap != null ? (c.gap > 0 ? '+' : '') + c.gap.toFixed(2) : ''}</div>
+        </div>`;
+      });
+      el.innerHTML = `<div class="bar-chart">${rows.join('')}</div>`;
+    }
+
+    function renderPredictors(stats) {
+      const el = document.getElementById('predictors');
+      const items = stats.rankedPredictors.map((p, i) => {
+        const gapColor = p.gap > 0 ? 'green' : 'red';
+        return `<li class="predictor-item">
+          <div class="predictor-rank">${i + 1}</div>
+          <div class="predictor-name">${p.label}</div>
+          <div class="predictor-gap ${gapColor}">${p.gap > 0 ? '+' : ''}${p.gap.toFixed(2)}</div>
+          <div class="predictor-relative">${p.relativeGap > 0 ? '+' : ''}${p.relativeGap}%</div>
+        </li>`;
+      });
+      el.innerHTML = `<ul class="predictor-list">${items.join('')}</ul>`;
+    }
+
+    function renderCloseStyles(stats) {
+      const el = document.getElementById('close-styles');
+      const maxTotal = Math.max(...stats.closeStyleEffectiveness.map(s => s.total));
+      const styleNames = {
+        consultative: 'Consultative Close',
+        assumptive: 'Assumptive Close',
+        urgency: 'Urgency Close',
+        none: 'No Close Detected',
+      };
+      const rows = stats.closeStyleEffectiveness.map(s => {
+        const rateClass = colorClass(s.rate, [40, 25]);
+        const barW = (s.total / maxTotal * 100).toFixed(1);
+        const fillW = s.total ? (s.progressed / s.total * 100).toFixed(1) : 0;
+        return `<tr>
+          <td>${styleNames[s.style] || s.style}</td>
+          <td>${s.total}</td>
+          <td><div class="progression-bar"><div class="progression-bar-fill" style="width:${fillW}%;background:var(--${rateClass})"></div></div></td>
+          <td class="${rateClass}">${s.rate}%</td>
+        </tr>`;
+      });
+      el.innerHTML = `<table class="close-style-table">
+        <thead><tr><th>Close Style</th><th>Calls</th><th>Progression</th><th>Rate</th></tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>`;
+    }
+
+    function renderReps(stats) {
+      const el = document.getElementById('rep-grid');
+      const keyLabels = {
+        spiced_i: 'Impact (I)',
+        spiced_c: 'Critical Event (C)',
+        spiced_e: 'Decision (E)',
+        score_closing: 'Close',
+        score_pricing: 'Pricing',
+        score_discovery: 'Discovery',
+        score: 'Score',
+      };
+      const teamAverages = {};
+      stats.teamAverages.forEach(c => { teamAverages[c.key] = c.progressed != null ? ((c.progressed + (c.stuck || 0)) / 2) : null; });
+
+      const cards = stats.perRep.map(rep => {
+        const rateClass = colorClass(rep.progressionRate, [40, 25]);
+        const metrics = ['spiced_i', 'spiced_c', 'spiced_e', 'score_closing', 'score_pricing', 'score']
+          .filter(k => rep.averages[k] != null)
+          .map(k => {
+            const repV = rep.averages[k];
+            const teamV = teamAverages[k];
+            let vsIcon = '';
+            if (teamV != null) {
+              const diff = repV - teamV;
+              vsIcon = diff > 0.15 ? ' G' : diff < -0.15 ? ' R' : ' Y';
+            }
+            return `<div class="rep-metric">
+              <span class="rep-metric-label">${keyLabels[k] || k}</span>
+              <span class="rep-metric-value${vsIcon ? ' ' + vsIcon.trim().toLowerCase() : ''}">${repV.toFixed(1)}${vsIcon}</span>
+            </div>`;
+          });
+
+        const gaps = rep.topGaps.slice(0, 3).map(g => {
+          const label = keyLabels[g.key] || g.label;
+          const color = g.gap > 0 ? 'positive' : 'negative';
+          const absW = Math.min(Math.abs(g.gap) * 20, 100);
+          return `<div class="rep-gap-item">
+            <span>${label}</span>
+            <span style="color:var(--${g.gap > 0 ? 'green' : 'red'})">${g.gap > 0 ? '+' : ''}${g.gap.toFixed(2)}</span>
+          </div>
+          <div class="rep-gap-bar"><div class="rep-gap-fill ${color}" style="width:${absW}%"></div></div>`;
+        });
+
+        const coachingMap = {
+          spiced_i: 'Quantify the dollar impact of the pain. Ask: what does this cost you per month?',
+          spiced_c: 'Create urgency with a real deadline. Ask: when does this need to be solved by?',
+          spiced_e: 'Map the full buying process. Ask: who else weighs in, and what does approval look like?',
+          score_closing: 'Close with a clear, direct ask. Your progressed deals had stronger closes.',
+          score_pricing: 'Anchor value before price. Summarize what they get before showing the number.',
+          score_discovery: 'Deepen discovery before demoing. Stronger discovery leads to progression.',
+          score: 'Overall call quality correlates strongly with deal outcome.',
+        };
+        const topGapKey = rep.topGaps[0]?.key;
+        const coaching = topGapKey ? coachingMap[topGapKey] || `Focus on ${rep.topGaps[0]?.label} to improve progression.` : '';
+
+        return `<div class="rep-card">
+          <div class="rep-card-header">
+            <span class="rep-name">${rep.name}</span>
+            <span class="rep-rate ${rateClass}">${rep.progressionRate}% prog (${rep.totalCalls} calls)</span>
+          </div>
+          <div class="rep-metrics">${metrics.join('')}</div>
+          ${gaps.length ? `<div class="rep-gaps"><strong>Biggest prog vs stuck gaps:</strong>${gaps.join('')}</div>` : ''}
+          ${coaching ? `<div class="rep-coaching"><div class="rep-coaching-label">Coaching focus</div>${coaching}</div>` : ''}
+        </div>`;
+      });
+      el.innerHTML = cards.join('');
+    }
+
+    function renderExamples(data) {
+      const el = document.getElementById('examples');
+      if (!data.examples || data.examples.length === 0) {
+        el.innerHTML = '<div class="card" style="text-align:center;color:var(--text-muted);padding:40px;">No won deals with scored calls yet</div>';
+        return;
+      }
+      const cards = data.examples.map(ex => {
+        const spicedTags = (ex.spicedStrengths || []).map(s => `<span class="example-tag">${s}</span>`).join('');
+        const closeTags = (ex.closeSteps || []).map(s => `<span class="example-tag close">${s}</span>`).join('');
+        const closeStyleTag = ex.closeStyle && ex.closeStyle !== 'none' ? `<span class="example-tag close">${ex.closeStyle} close</span>` : '';
+        const link = ex.scorecardUrl ? `<a class="example-link" href="${ex.scorecardUrl}" target="_blank">View full scorecard</a>` : '';
+        return `<div class="example-card">
+          <div class="example-score">${ex.score}/100</div>
+          <div class="example-rep">${ex.repName}</div>
+          <div class="example-company">${ex.company}</div>
+          <div class="example-verdict">${ex.verdict}</div>
+          <div class="example-tags">${spicedTags}${closeStyleTag}${closeTags}</div>
+          ${link}
+        </div>`;
+      });
+      el.innerHTML = cards.join('');
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

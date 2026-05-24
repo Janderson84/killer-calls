@@ -3,7 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const { fetchTranscript } = require("./fireflies-client");
 const { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt, buildScoringPromptWithWeights } = require("./scoring-engine");
-const { postDemoReview, postKillerCall } = require("./slack-formatter");
+const { postDemoReview, postKillerCall, calculateStallRisk, stallRiskBlock } = require("./slack-formatter");
 const { saveScorecard, updateSlackTs, extractPlaybookExamples, pool } = require("./db");
 const { CONFIG } = require("./constants");
 
@@ -474,6 +474,297 @@ async function _processDemo(meetingId) {
   console.log(`\n✅ Pipeline complete in ${elapsed}s — ${scorecard.score}/100 (${scorecard.rag})`);
   console.log(`${"─".repeat(60)}\n`);
 }
+
+// ─── Progression Stats API ──────────────────────────────────────
+// Returns team-wide and per-rep progression stats with live Pipedrive data
+
+const STAGE_MAPS_GLOBAL = {
+  12: { 52: "early", 55: "early", 54: "early", 79: "demo", 158: "advanced", 463: "advanced", 292: "stalled", 291: "advanced", 187: "advanced", 188: "won", 159: "won", 277: "stalled" },
+  70: { 474: "early", 487: "demo", 475: "early", 476: "advanced", 477: "advanced", 478: "advanced", 479: "won", 481: "lost" },
+  59: { 370: "early", 371: "early", 372: "early", 373: "demo", 374: "stalled", 375: "advanced", 396: "advanced", 397: "advanced", 398: "won", 399: "won", 468: "stalled" },
+  60: { 376: "early", 377: "early", 378: "early", 379: "demo", 380: "stalled", 393: "advanced", 394: "advanced", 395: "won" },
+  22: { 102: "early", 103: "early", 104: "demo", 107: "demo", 141: "advanced", 108: "advanced", 105: "advanced", 106: "won" },
+  11: { 46: "early", 47: "early", 48: "early", 49: "demo", 140: "advanced", 50: "advanced", 51: "advanced", 82: "won" },
+  18: { 74: "early", 75: "early", 76: "advanced", 77: "advanced", 78: "won" },
+  17: { 69: "early", 70: "early", 71: "advanced", 72: "advanced", 73: "won" },
+  3: { 429: "demo", 10: "early", 11: "early", 12: "demo", 13: "advanced" },
+  67: { 446: "demo", 447: "demo", 448: "advanced", 449: "advanced", 450: "advanced", 451: "won" },
+  68: { 457: "early", 458: "demo", 459: "demo", 462: "stalled", 461: "advanced", 460: "won" },
+  31: { 142: "demo", 143: "early", 144: "demo", 147: "advanced" },
+  69: { 469: "early", 470: "early", 471: "demo", 472: "advanced", 473: "advanced" },
+  37: { 182: "early", 183: "early", 184: "early", 185: "demo", 289: "stalled", 225: "advanced", 226: "advanced" },
+};
+
+function categorizeStage(stageId, dealStatus, pipelineId) {
+  if (dealStatus === "lost") return "lost";
+  if (dealStatus === "won") return "won";
+  if (!stageId) return "unknown";
+  const map = STAGE_MAPS_GLOBAL[pipelineId];
+  if (map && map[stageId]) return map[stageId];
+  return null;
+}
+
+function avgVal(arr, key) {
+  const STATUS_NUMS = { strong: 3, partial: 2, weak: 1, missing: 0, none: 0 };
+  const vals = arr.map((r) => r[key]).filter((v) => v != null).map((v) => typeof v === "number" ? v : STATUS_NUMS[String(v).toLowerCase().trim()] ?? null).filter((v) => v != null);
+  return vals.length ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(3) : null;
+}
+
+async function fetchPipedriveDeal(dealId, apiKey) {
+  try {
+    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}?api_token=${apiKey}`);
+    const json = await resp.json();
+    if (json.success && json.data) {
+      return { id: json.data.id, status: json.data.status, stage_id: json.data.stage_id, value: json.data.value, pipeline_id: json.data.pipeline_id };
+    }
+  } catch (e) {}
+  return null;
+}
+
+async function buildProgressionStats() {
+  const PIPEDRIVE_KEY = process.env.PIPEDRIVE_API_KEY;
+  if (!PIPEDRIVE_KEY) throw new Error("PIPEDRIVE_API_KEY not configured");
+
+  const data = await pool.query(`
+    SELECT id, rep_name, company_name, score, rag, pipedrive_deal_id,
+      score_pre_call, score_discovery, score_presentation, score_pricing, score_closing,
+      spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
+      bant_b, bant_a, bant_n, bant_t,
+      close_style, close_setup, close_bridge, close_ask,
+      call_date, duration_minutes, call_type, prospect_email
+    FROM scorecards
+    WHERE pipedrive_deal_id IS NOT NULL
+  `);
+  const rows = data.rows;
+
+  // Fetch live deal statuses in batches
+  const dealIds = [...new Set(rows.map((r) => r.pipedrive_deal_id))];
+  const liveDeals = {};
+  const batchSize = 20;
+  for (let i = 0; i < dealIds.length; i += batchSize) {
+    const batch = dealIds.slice(i, i + batchSize);
+    const results = await Promise.all(batch.map((id) => fetchPipedriveDeal(id, PIPEDRIVE_KEY)));
+    results.forEach((d) => { if (d) liveDeals[d.id] = d; });
+    if (i + batchSize < dealIds.length) await new Promise((r) => setTimeout(r, 200));
+  }
+
+  // Categorize each call
+  rows.forEach((r) => {
+    const deal = liveDeals[r.pipedrive_deal_id];
+    if (deal) {
+      r.liveBucket = categorizeStage(deal.stage_id, deal.status, deal.pipeline_id) || "other";
+      r.liveStatus = deal.status;
+      r.liveValue = deal.value;
+    } else {
+      r.liveBucket = "deleted";
+      r.liveStatus = "unknown";
+    }
+  });
+
+  const active = rows.filter((r) => r.liveBucket !== "deleted" && r.liveBucket !== "other");
+  const progressed = active.filter((r) => r.liveBucket === "won" || r.liveBucket === "advanced");
+  const stuck = active.filter((r) => r.liveBucket === "stalled" || r.liveBucket === "lost" || r.liveBucket === "demo" || r.liveBucket === "early");
+
+  // Team-wide criteria averages split by outcome
+  const criteriaKeys = [
+    { key: "score", label: "Overall Score", max: 100 },
+    { key: "score_discovery", label: "Discovery Phase", max: 32 },
+    { key: "score_presentation", label: "Presentation", max: 22 },
+    { key: "score_pricing", label: "Pricing & Objections", max: 28 },
+    { key: "score_closing", label: "Close & Next Steps", max: 12 },
+    { key: "spiced_s", label: "Situation (S)", max: 5 },
+    { key: "spiced_p", label: "Pain Identified (P)", max: 5 },
+    { key: "spiced_i", label: "Impact Quantified (I)", max: 5 },
+    { key: "spiced_c", label: "Critical Event (C)", max: 5 },
+    { key: "spiced_e", label: "Decision Mapped (E)", max: 5 },
+    { key: "bant_b", label: "Budget (B)", max: 5 },
+    { key: "bant_a", label: "Authority (A)", max: 5 },
+    { key: "bant_n", label: "Need (N)", max: 5 },
+    { key: "bant_t", label: "Timeline (T)", max: 5 },
+  ];
+
+  const teamAverages = criteriaKeys.map((c) => ({
+    key: c.key,
+    label: c.label,
+    max: c.max,
+    progressed: avgVal(progressed, c.key),
+    stuck: avgVal(stuck, c.key),
+    gap: (avgVal(progressed, c.key) != null && avgVal(stuck, c.key) != null)
+      ? +(avgVal(progressed, c.key) - avgVal(stuck, c.key)).toFixed(3)
+      : null,
+  }));
+
+  // Rank by predictive power (gap magnitude relative to stuck avg)
+  const rankedPredictors = [...teamAverages]
+    .filter((c) => c.gap != null && c.stuck > 0)
+    .map((c) => ({ ...c, relativeGap: +((c.gap / c.stuck) * 100).toFixed(1) }))
+    .sort((a, b) => Math.abs(b.relativeGap) - Math.abs(a.relativeGap));
+
+  // Close style effectiveness
+  const closeStyleMap = {};
+  active.forEach((r) => {
+    const style = r.close_style || "none";
+    if (!closeStyleMap[style]) closeStyleMap[style] = { progressed: 0, total: 0 };
+    closeStyleMap[style].total++;
+    if (r.liveBucket === "won" || r.liveBucket === "advanced") closeStyleMap[style].progressed++;
+  });
+  const closeStyleEffectiveness = Object.entries(closeStyleMap).map(([style, d]) => ({
+    style,
+    total: d.total,
+    progressed: d.progressed,
+    rate: d.total ? +(d.progressed / d.total * 100).toFixed(1) : 0,
+  })).sort((a, b) => b.total - a.total);
+
+  // Per-rep stats
+  const reps = {};
+  active.forEach((r) => {
+    if (!reps[r.rep_name]) reps[r.rep_name] = { all: [], progressed: [], stuck: [] };
+    reps[r.rep_name].all.push(r);
+    if (r.liveBucket === "won" || r.liveBucket === "advanced") reps[r.rep_name].progressed.push(r);
+    else reps[r.rep_name].stuck.push(r);
+  });
+
+  const perRep = Object.entries(reps).map(([name, data]) => {
+    const progRate = data.all.length ? +(data.progressed.length / data.all.length * 100).toFixed(1) : 0;
+    const repAverages = {};
+    for (const c of criteriaKeys) {
+      repAverages[c.key] = avgVal(data.all, c.key);
+    }
+    // Gap between progressed vs stuck for this rep
+    const repGaps = criteriaKeys.map((c) => {
+      const pVal = avgVal(data.progressed, c.key);
+      const sVal = avgVal(data.stuck, c.key);
+      return {
+        key: c.key,
+        label: c.label,
+        gap: (pVal != null && sVal != null) ? +(pVal - sVal).toFixed(3) : null,
+      };
+    }).filter((g) => g.gap != null).sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap));
+
+    return {
+      name,
+      totalCalls: data.all.length,
+      progressedCount: data.progressed.length,
+      stuckCount: data.stuck.length,
+      progressionRate: progRate,
+      averages: repAverages,
+      topGaps: repGaps.slice(0, 5),
+    };
+  }).sort((a, b) => b.progressionRate - a.progressionRate);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    totalCalls: rows.length,
+    activeCalls: active.length,
+    progressedCount: progressed.length,
+    stuckCount: stuck.length,
+    teamAverages,
+    rankedPredictors,
+    closeStyleEffectiveness,
+    perRep,
+  };
+}
+
+app.get("/api/progression-stats", async (req, res) => {
+  try {
+    const stats = await buildProgressionStats();
+    res.json(stats);
+  } catch (err) {
+    console.error(`[/api/progression-stats] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Closed Call Examples API ──────────────────────────────────
+// Returns top scored calls where the linked deal was won
+
+app.get("/api/closed-call-examples", async (req, res) => {
+  try {
+    const PIPEDRIVE_KEY = process.env.PIPEDRIVE_API_KEY;
+    if (!PIPEDRIVE_KEY) throw new Error("PIPEDRIVE_API_KEY not configured");
+
+    const data = await pool.query(`
+      SELECT id, rep_name, company_name, score, rag, verdict,
+        spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
+        close_style, close_setup, close_bridge, close_ask,
+        call_date, pipedrive_deal_id, title, scorecard_json
+      FROM scorecards
+      WHERE pipedrive_deal_id IS NOT NULL
+      ORDER BY score DESC
+      LIMIT 50
+    `);
+
+    const rows = data.rows;
+    const dealIds = [...new Set(rows.map((r) => r.pipedrive_deal_id))];
+
+    // Fetch live deal statuses
+    const liveDeals = {};
+    const batchSize = 20;
+    for (let i = 0; i < dealIds.length; i += batchSize) {
+      const batch = dealIds.slice(i, i + batchSize);
+      const results = await Promise.all(batch.map((id) => fetchPipedriveDeal(id, PIPEDRIVE_KEY)));
+      results.forEach((d) => { if (d) liveDeals[d.id] = d; });
+      if (i + batchSize < dealIds.length) await new Promise((r) => setTimeout(r, 200));
+    }
+
+    // Filter to won deals only
+    const wonCalls = rows.filter((r) => {
+      const deal = liveDeals[r.pipedrive_deal_id];
+      return deal && deal.status === "won";
+    }).sort((a, b) => b.score - a.score).slice(0, 5);
+
+    const appUrl = process.env.APP_URL || "";
+    const examples = wonCalls.map((r) => {
+      const spicedStrengths = ["s", "p", "i", "c", "e"]
+        .filter((el) => r[`spiced_${el}`] === "strong")
+        .map((el) => ({ s: "Situation", p: "Pain", i: "Impact", c: "Critical Event", e: "Decision" }[el]));
+
+      let closeStyle = r.close_style || "none";
+      const closeSteps = ["setup", "bridge", "ask"]
+        .filter((step) => r[`close_${step}`] === "strong")
+        .map((step) => step.charAt(0).toUpperCase() + step.slice(1));
+
+      let verdictText = r.verdict || "";
+      if (verdictText.startsWith("_") && verdictText.endsWith("_")) {
+        verdictText = verdictText.slice(1, -1);
+      }
+
+      return {
+        id: r.id,
+        repName: r.rep_name,
+        company: r.company_name,
+        score: r.score,
+        rag: r.rag,
+        verdict: verdictText,
+        spicedStrengths,
+        closeStyle,
+        closeSteps,
+        callDate: r.call_date,
+        scorecardUrl: appUrl ? `${appUrl}/calls/${r.id}` : null,
+      };
+    });
+
+    res.json({ examples, generatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.error(`[/api/closed-call-examples] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Static Dashboard ──────────────────────────────────────────
+const path = require("path");
+const fs = require("fs");
+
+app.get("/dashboard", (req, res) => {
+  const htmlPath = path.join(__dirname, "..", "web-static", "progression-dashboard.html");
+  try {
+    const html = fs.readFileSync(htmlPath, "utf8");
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  } catch (err) {
+    res.status(404).send("Dashboard not found");
+  }
+});
 
 // ─── Start Server ────────────────────────────────────────────────
 
