@@ -540,12 +540,12 @@ async function buildProgressionStats() {
   // Fetch live deal statuses in batches
   const dealIds = [...new Set(rows.map((r) => r.pipedrive_deal_id))];
   const liveDeals = {};
-  const batchSize = 20;
+  const batchSize = 10;
   for (let i = 0; i < dealIds.length; i += batchSize) {
     const batch = dealIds.slice(i, i + batchSize);
     const results = await Promise.all(batch.map((id) => fetchPipedriveDeal(id, PIPEDRIVE_KEY)));
     results.forEach((d) => { if (d) liveDeals[d.id] = d; });
-    if (i + batchSize < dealIds.length) await new Promise((r) => setTimeout(r, 200));
+    if (i + batchSize < dealIds.length) await new Promise((r) => setTimeout(r, 500));
   }
 
   // Categorize each call
@@ -699,12 +699,12 @@ app.get("/api/closed-call-examples", async (req, res) => {
 
     // Fetch live deal statuses
     const liveDeals = {};
-    const batchSize = 20;
+    const batchSize = 10;
     for (let i = 0; i < dealIds.length; i += batchSize) {
       const batch = dealIds.slice(i, i + batchSize);
       const results = await Promise.all(batch.map((id) => fetchPipedriveDeal(id, PIPEDRIVE_KEY)));
       results.forEach((d) => { if (d) liveDeals[d.id] = d; });
-      if (i + batchSize < dealIds.length) await new Promise((r) => setTimeout(r, 200));
+      if (i + batchSize < dealIds.length) await new Promise((r) => setTimeout(r, 500));
     }
 
     // Filter to won deals only

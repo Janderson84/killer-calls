@@ -117,13 +117,13 @@ async function run() {
     const dealIds = [...new Set(rows.map((r) => r.pipedrive_deal_id))];
     console.log(`Fetching ${dealIds.length} live deals...`);
     const liveDeals = {};
-    const batchSize = 20;
+    const batchSize = 10;
     for (let i = 0; i < dealIds.length; i += batchSize) {
       const batch = dealIds.slice(i, i + batchSize);
       const promises = batch.map((id) => fetchDeal(id));
       const results = await Promise.all(promises);
       results.forEach((d) => { if (d) liveDeals[d.id] = d; });
-      await sleep(200);
+      await sleep(500);
     }
     console.log(`Fetched ${Object.keys(liveDeals).length} live deals`);
 
