@@ -14,10 +14,8 @@ const AE_EMAILS = [
   "pedro.c@salescloser.ai",
   "edgar.a@salescloser.ai",
   "marc.b@salescloser.ai",
-  "zachary.o@salescloser.ai",
   "alfred.d@salescloser.ai",
   "vanessa.f@salescloser.ai",
-  "marysol.o@salescloser.ai",
   "gleidson.r@salescloser.ai",
   "david.m@salescloser.ai",
 ];
@@ -94,11 +92,30 @@ async function getScoredMeetingIds() {
 
 // ─── Scoring prompt (same as batch-import-openclaw.js) ───────────
 function buildOpenClawPrompt(transcriptText, repName, companyName, durationMinutes) {
-  return `You are an expert sales call analyst. Score this demo call against a strict 14-criterion rubric. Your output is ONLY valid JSON — no prose, no markdown fences.
+  return `You are a supportive sales coach who believes every rep can improve. Score this demo call against a 14-criterion rubric. Your output is ONLY valid JSON — no prose, no markdown fences.
 
 REP: ${repName}
 PROSPECT: ${companyName}
 DURATION: ${durationMinutes || "unknown"} minutes
+
+─── SCORING PHILOSOPHY ───
+
+Score honestly but frame feedback constructively. A call where the AE talked for 80% of the time, skipped discovery, and ended with "I'll send you a proposal" is a 35, not a 55 — but the feedback should help them see the path to 65, not just document what went wrong.
+
+Award points only for behaviors you can directly observe in the transcript. "They probably prepared" is not evidence — you need to hear the rep reference specific details about the prospect's business. Absence of evidence is not ambiguous — it's a zero for that criterion.
+
+─── COACHING VOICE ───
+
+The AEs read these scorecards personally — every word shapes their confidence and growth.
+
+Rules:
+• Name the rep in feedback. These are real people reviewing their own calls.
+• Reference specific timestamps for every observation.
+• Frame fixes as "try this next time" or "here's how to level up" — NOT as failures or mistakes.
+• Lead with what went right before suggesting what to improve.
+• Wins should highlight what specifically worked and why, so the rep knows to repeat it.
+• The verdict should be encouraging and specific — like a coach who sees potential, not a grader pointing out flaws.
+• Never use harsh language. "Failed to", "didn't bother", "completely missed" — rewrite as "opportunity to", "next time try", "this is an area to develop".
 
 ─── SCORING RUBRIC (100 points total) ───
 
@@ -337,6 +354,29 @@ async function processOne(meetingId, label) {
     teamId: "1f7fb17c-3581-47a0-ba89-d196f96944cd", // SalesCloser AI team
   };
   const scorecardId = await saveScorecard(scorecard, meta);
+
+  // Look up matching Pipedrive deal after scoring
+  const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY;
+  if (PIPEDRIVE_API_KEY && prospectEmail) {
+    try {
+      const pdResp = await fetch(
+        `https://api.pipedrive.com/v1/items/search?term=${encodeURIComponent(prospectEmail)}&item_types=deal&limit=1&api_token=${PIPEDRIVE_API_KEY}`
+      );
+      const pdData = await pdResp.json();
+      if (pdData.data?.items?.[0]?.item) {
+        const deal = pdData.data.items[0].item;
+        console.log(`${label} Found Pipedrive deal #${deal.id} (${deal.title})`);
+        await pool.query(
+          `UPDATE scorecards SET pipedrive_deal_id = $1, pipedrive_deal_stage = $2, pipedrive_deal_value = $3 WHERE id = $4`,
+          [String(deal.id), String(deal.stage_id || ""), deal.value || null, scorecardId]
+        );
+      } else {
+        console.log(`${label} No matching Pipedrive deal found for ${prospectEmail}`);
+      }
+    } catch (err) {
+      console.error(`${label} Pipedrive lookup error: ${err.message}`);
+    }
+  }
 
   // Post to Slack
   try {
