@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   let team;
   try {
     team = await createTeam(slug, body.name.trim(), adminToken);
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("unique") || msg.includes("duplicate") || msg.includes("already exists")) {
       return NextResponse.json({ error: "A team with this slug already exists" }, { status: 409 });

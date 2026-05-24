@@ -257,7 +257,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ status: "ok", scorecardId, score: scorecard.score, rag: scorecard.rag });
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ status: "error", error: msg }, { status: 500 });
   }

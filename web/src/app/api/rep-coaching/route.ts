@@ -170,7 +170,7 @@ export async function GET(request: Request) {
       .filter((line) => line.length > 10);
 
     return NextResponse.json({ tips: tips.slice(0, 3) });
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("rep-coaching error:", msg);
     return NextResponse.json({ error: msg }, { status: 500 });

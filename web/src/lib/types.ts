@@ -129,5 +129,8 @@ export interface ScorecardRow {
   scorecard_json: Scorecard;
   call_type: string;
   prospect_email: string | null;
+  pipedrive_deal_id: string | null;
+  pipedrive_deal_stage: string | null;
+  pipedrive_deal_value: number | null;
   created_at: string;
 }

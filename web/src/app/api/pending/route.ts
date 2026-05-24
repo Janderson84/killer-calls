@@ -88,7 +88,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ status: "empty", message: "No new calls to score" });
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ status: "error", error: msg }, { status: 500 });
   }

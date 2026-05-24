@@ -197,6 +197,47 @@ export default async function TeamCallDetailPage({
         </div>
       </section>
 
+      {/* PIPEDRIVE DEAL */}
+      {row.pipedrive_deal_id && (
+        <section className="section section--pipedrive">
+          <div className="sec-hd">
+            <span className="sec-tag">CRM</span>
+            <h2 className="sec-title">Pipedrive Deal</h2>
+          </div>
+          <div className="pipedrive-card">
+            <div className="pd-row">
+              <span className="pd-label">Deal</span>
+              <a
+                href={`https://wishpond.pipedrive.com/deal/${row.pipedrive_deal_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pd-value pd-link"
+              >
+                #{row.pipedrive_deal_id} <span className="pd-external">&#8599;</span>
+              </a>
+            </div>
+            {row.pipedrive_deal_stage && (
+              <div className="pd-row">
+                <span className="pd-label">Stage</span>
+                <span className="pd-value">{row.pipedrive_deal_stage}</span>
+              </div>
+            )}
+            {row.pipedrive_deal_value != null && row.pipedrive_deal_value > 0 && (
+              <div className="pd-row">
+                <span className="pd-label">Value</span>
+                <span className="pd-value pd-value--money">${Number(row.pipedrive_deal_value).toLocaleString()}</span>
+              </div>
+            )}
+            {row.prospect_email && (
+              <div className="pd-row">
+                <span className="pd-label">Prospect</span>
+                <span className="pd-value">{row.prospect_email}</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* SPICED */}
       <section className="section">
         <div className="sec-hd">

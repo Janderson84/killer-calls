@@ -840,3 +840,46 @@ a.ecir-ts:hover {
   .ecir-steps { margin-left: 0; }
   .ecir-obj { gap: 6px; }
 }
+
+/* ─── Pipedrive deal card ───────────────────────────────────── */
+.section--pipedrive { margin-top: -8px; }
+.pipedrive-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+}
+.pd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pd-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  font-weight: 600;
+  min-width: 70px;
+}
+.pd-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+.pd-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.pd-link:hover { text-decoration: underline; }
+.pd-external {
+  font-size: 11px;
+  opacity: .5;
+}
+.pd-value--money {
+  font-weight: 700;
+  color: var(--green);
+}

@@ -89,7 +89,7 @@ export async function GET(request: Request) {
             newMeetings.push({ id: t.id, title: t.title, email });
           }
         }
-      } catch (err: unknown) {
+      } catch (err: any) {
         const msg = err instanceof Error ? err.message : String(err);
         log.push(`  Error fetching for ${email}: ${msg}`);
       }
@@ -114,7 +114,7 @@ export async function GET(request: Request) {
         const result = await processOne(meeting.id, meeting.email, sql, log, aeByEmail, aeEmailSet, aeTeamMap);
         results.push(result);
         if (!result.skipped) scoredCount++;
-      } catch (err: unknown) {
+      } catch (err: any) {
         const msg = err instanceof Error ? err.message : String(err);
         log.push(`  FAILED ${meeting.id}: ${msg}`);
       }
@@ -129,7 +129,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ status: "ok", scored: scored.length, skipped: skipped.length, log });
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
     log.push(`Fatal: ${msg}`);
     return NextResponse.json({ status: "error", error: msg, log }, { status: 500 });
@@ -288,7 +288,7 @@ async function scoreCall(prompt: string, systemPrompt: string = SCORING_SYSTEM_P
       throw new Error("Railway API returned invalid scorecard");
     }
     return ensureCloseObject(result.scorecard);
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error("Railway API scoring failed: " + msg);
   }
@@ -396,7 +396,7 @@ async function processOne(
   aeByEmail: Record<string, string>,
   aeEmailSet: Set<string>,
   aeTeamMap: Record<string, string>,
-) {
+): Promise<{ meetingId: string; score?: number; rag?: string; rep?: string; skipped?: boolean }> {
   // Claim this meeting so no other pipeline processes it concurrently
   const claim = await sql`INSERT INTO skipped_meetings (meeting_id, reason) VALUES (${meetingId}, ${"processing"}) ON CONFLICT DO NOTHING RETURNING meeting_id`;
   if (claim.length === 0) {
@@ -452,7 +452,7 @@ async function processOne(
     ? buildFollowupScoringPrompt(transcript.transcriptText, transcript.repName, transcript.companyName, transcript.durationMinutes, priorCallContext)
     : buildScoringPrompt(transcript.transcriptText, transcript.repName, transcript.companyName, transcript.durationMinutes);
   const systemPrompt = isFollowup ? FOLLOWUP_SYSTEM_PROMPT : SCORING_SYSTEM_PROMPT;
-  const scorecard = await scoreCall(prompt, systemPrompt, { meetingId, repName: transcript.repName, companyName: transcript.companyName, durationMinutes: transcript.durationMinutes, callType, priorCallContext });
+  const scorecard: any = await scoreCall(prompt, systemPrompt, { meetingId, repName: transcript.repName, companyName: transcript.companyName, durationMinutes: transcript.durationMinutes, callType, priorCallContext });
   log.push(`  Score: ${scorecard.score}/100 (${scorecard.rag})`);
 
   // Resolve team from the organizer email → team mapping built from rosters
@@ -537,7 +537,7 @@ async function processOne(
       date: transcript.date,
       callType,
     }, scorecardId, teamId);
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
     log.push(`  Playbook extraction error: ${msg}`);
   }
@@ -588,7 +588,7 @@ async function processOne(
       await sql`UPDATE scorecards SET slack_killer_ts = ${killerTs} WHERE id = ${scorecardId}`;
       log.push(`  Posted to Slack #killer-calls`);
     }
-  } catch (err: unknown) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
     log.push(`  Slack error: ${msg}`);
   }
