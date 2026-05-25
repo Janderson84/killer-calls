@@ -4,6 +4,7 @@ const express = require("express");
 const { fetchTranscript } = require("./fireflies-client");
 const { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt, buildScoringPromptWithWeights } = require("./scoring-engine");
 const { postDemoReview, postKillerCall, calculateStallRisk, stallRiskBlock } = require("./slack-formatter");
+const { runDealAutopsy } = require("./deal-autopsy");
 const { saveScorecard, updateSlackTs, extractPlaybookExamples, pool } = require("./db");
 const { CONFIG } = require("./constants");
 
@@ -747,6 +748,46 @@ app.get("/api/closed-call-examples", async (req, res) => {
     res.json({ examples, generatedAt: new Date().toISOString() });
   } catch (err) {
     console.error(`[/api/closed-call-examples] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Deal Autopsy API ──────────────────────────────────────────
+// Analyzes what differentiated the calls that led to won deals.
+//
+// Query params:
+//   ?dealId=123         — autopsy a specific won Pipedrive deal
+//   ?rep=Vanessa&days=30 — autopsy recent won deals for a rep
+//
+// Returns structured analysis of winning call patterns vs lost deals.
+
+app.get("/api/deal-autopsy", async (req, res) => {
+  try {
+    const { dealId, rep, days } = req.query;
+    const pipedriveKey = process.env.PIPEDRIVE_API_KEY;
+    const firefliesKey = process.env.FIREFLIES_API_KEY;
+
+    if (!pipedriveKey) throw new Error("PIPEDRIVE_API_KEY not configured");
+    if (!firefliesKey) throw new Error("FIREFLIES_API_KEY not configured");
+
+    if (!dealId && !rep) {
+      return res.status(400).json({ error: "Provide ?dealId=X or ?rep=NAME (optionally ?days=30)" });
+    }
+
+    console.log(`[/api/deal-autopsy] dealId=${dealId || "N/A"} rep=${rep || "N/A"} days=${days || 30}`);
+
+    const result = await runDealAutopsy({
+      dealId: dealId || null,
+      repName: rep || null,
+      days: parseInt(days) || 30,
+      pool,
+      pipedriveKey,
+      firefliesKey,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error(`[/api/deal-autopsy] Error: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
