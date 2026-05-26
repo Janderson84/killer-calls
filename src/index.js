@@ -1040,7 +1040,7 @@ app.get("/api/test-slack", async (req, res) => {
     // Fallback to env vars for channel/token
     const roster = Array.isArray(teamConfig.ae_roster) ? teamConfig.ae_roster : [];
     const channelId = teamConfig.slack_channel_reviews || process.env.SLACK_CHANNEL_REVIEWS;
-    const slackBotToken = teamConfig.slack_bot_token || undefined;
+    const slackBotToken = teamConfig.slack_bot_token || process.env.SLACK_BOT_TOKEN;
 
     const meta = {
       repName,
