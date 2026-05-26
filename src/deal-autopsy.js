@@ -152,6 +152,19 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
     // Find won deals linked to scorecards for the given rep
     const daysAgo = days || 30;
     const repFilter = repName ? `AND s.rep_name = '${repName.replace(/'/g, "''")}'` : "";
+
+    // Debug: count total scorecards with pipedrive_deal_id (no rep filter)
+    const { rows: totalRows } = await pool.query(`
+      SELECT COUNT(*) as cnt FROM scorecards WHERE pipedrive_deal_id IS NOT NULL
+    `);
+    debugInfo.totalWithDealId = parseInt(totalRows[0]?.cnt || 0);
+
+    // Debug: distinct rep names in scorecards
+    const { rows: repRows } = await pool.query(`
+      SELECT DISTINCT rep_name FROM scorecards WHERE pipedrive_deal_id IS NOT NULL
+    `);
+    debugInfo.repsWithLinkedDeals = repRows.map(r => r.rep_name);
+
     const { rows } = await pool.query(`
       SELECT DISTINCT s.pipedrive_deal_id, s.rep_name
       FROM scorecards s
@@ -159,6 +172,8 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
       LIMIT 20
     `);
 
+    debugInfo.queryMatchCount = rows.length;
+    debugInfo.sampleDealIds = rows.slice(0, 5).map(r => ({ dealId: r.pipedrive_deal_id, rep: r.rep_name }));
 
     // Fetch live status from Pipedrive in batches
     const dealIds = [...new Set(rows.map((r) => r.pipedrive_deal_id))];
@@ -171,6 +186,9 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
       }
       if (i + 5 < dealIds.length) await new Promise((r) => setTimeout(r, 300));
     }
+
+    debugInfo.pipedriveChecked = dealIds.length;
+    debugInfo.wonAfterCheck = targetDeals.length;
 
     if (repName) {
       targetDeals = targetDeals.filter((d) =>
