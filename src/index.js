@@ -954,6 +954,123 @@ app.get("/api/autopsy/:id", async (req, res) => {
   }
 });
 
+// ─── Test Slack Notification ────────────────────────────────────
+// GET /api/test-slack — fires a sample notification to verify the pipeline
+app.get("/api/test-slack", async (req, res) => {
+  try {
+    const repName = req.query.rep || "Vanessa Fortune";
+    console.log(`[test-slack] Firing test notification for ${repName}...`);
+
+    // Build a fake scorecard
+    const scorecard = {
+      score: 72,
+      rag: "yellow",
+      verdict: `${repName.split(" ")[0]} ran a solid discovery call — good agenda setting and rapport. Room to grow on impact quantification and close execution.`,
+      phases: {
+        preCall: { score: 4, maxPoints: 6 },
+        discovery: { score: 21, maxPoints: 32 },
+        presentation: { score: 16, maxPoints: 22 },
+        pricing: { score: 19, maxPoints: 28 },
+        closing: { score: 8, maxPoints: 12 },
+      },
+      spiced: {
+        s: { score: 4, status: "strong", feedback: "Good situation mapping" },
+        p: { score: 3, status: "partial", feedback: "Pain identified but not fully explored" },
+        i: { score: 2, status: "partial", feedback: "Impact needs quantification" },
+        c: { score: 3, status: "partial", feedback: "Some urgency established" },
+        e: { score: 4, status: "strong", feedback: "Decision process well mapped" },
+      },
+      bant: {
+        b: { score: 2, status: "partial", feedback: "Budget mentioned but not nailed down" },
+        a: { score: 4, status: "strong", feedback: "Confirmed decision-maker on call" },
+        n: { score: 4, status: "strong", feedback: "Clear need established" },
+        t: { score: 3, status: "partial", feedback: "Timeline discussed, not locked" },
+      },
+      close: {
+        style: "consultative",
+        styleName: "Consultative Close",
+        setup: { score: 3, status: "strong", label: "Summarize Value", feedback: "Good value recap" },
+        bridge: { score: 2, status: "partial", label: "Surface Blockers", feedback: "Could probe deeper on hesitation" },
+        ask: { score: 2, status: "partial", label: "Ask for Commitment", feedback: "Ask was soft — try a direct commitment ask next time" },
+      },
+      wins: [
+        "Set a clear agenda and got prospect buy-in at 01:45",
+        "Built strong rapport — prospect shared unguarded pain points",
+        "Mapped decision process including legal review timeline",
+      ],
+      fixes: [
+        "Try quantifying impact next time — ask 'what does this problem cost you per month?'",
+        "The close was a soft 'shall I send a proposal?' — try 'can we get you started on the monthly plan today?'",
+      ],
+      closingTips: [
+        "After presenting pricing, stay silent and let the prospect respond first",
+        "Tie the ask to the prospect's own urgency — reference their timeline when closing",
+        "If they hesitate, isolate the objection: 'other than price, is there anything holding you back?'",
+      ],
+      quoteOfTheCall: {
+        text: "This is exactly what we've been looking for — we just need to figure out the timing.",
+        timestamp: "18:42",
+        context: "Strong buying signal — rep should have locked in a specific date here instead of saying 'I'll follow up'",
+      },
+      flags: {
+        enthusiasm: { detected: true, note: "High energy throughout" },
+        unprofessionalLanguage: { detected: false, note: "" },
+        prematureDisqualification: { detected: false, note: "" },
+      },
+    };
+
+    // Fetch team settings to get roster/channel info
+    const teamResult = await pool.query(
+      `SELECT s.key, s.value FROM settings s WHERE s.key IN ('ae_roster', 'slack_channel_reviews', 'slack_bot_token', 'app_url')`
+    );
+    const teamConfig = {};
+    for (const row of teamResult.rows) {
+      teamConfig[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    }
+
+    const meta = {
+      repName,
+      companyName: "Acme Corp (Test)",
+      date: new Date().toISOString().split("T")[0],
+      durationMinutes: 28,
+      meetingId: "test-" + Date.now(),
+      callType: "discovery",
+      pipedriveDealId: "29",
+      pipedriveDealTitle: "K.A.G. Polytech (Test)",
+      pipedriveDealValue: 7000,
+      pipedriveDealStage: "Demo Held",
+      recentAvg: 64,
+      recentCount: 5,
+    };
+
+    const roster = teamConfig.ae_roster || [];
+    const channelId = teamConfig.slack_channel_reviews || process.env.SLACK_CHANNEL_REVIEWS;
+    const slackBotToken = teamConfig.slack_bot_token || undefined;
+
+    console.log(`[test-slack] Channel: ${channelId || "NOT SET"}, Roster: ${roster.length} AEs`);
+
+    if (!channelId) {
+      return res.json({ error: "No Slack channel configured", teamConfig });
+    }
+
+    const result = await postDemoReview(scorecard, meta, "test-" + Date.now(), {
+      channelId,
+      roster,
+      slackBotToken,
+    });
+
+    if (result) {
+      console.log(`[test-slack] ✅ Posted! ts=${result.ts}`);
+      res.json({ status: "ok", slack_ts: result.ts, channel: channelId, rep: repName });
+    } else {
+      res.json({ status: "failed", reason: "postDemoReview returned null — check Railway logs" });
+    }
+  } catch (err) {
+    console.error(`[test-slack] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Start Server ────────────────────────────────────────────────
 
 function validateEnv() {
