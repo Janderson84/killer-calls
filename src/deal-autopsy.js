@@ -57,13 +57,14 @@ async function fetchTranscript(meetingId, apiKey) {
 async function fetchDeal(dealId, apiKey) {
   try {
     const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}?api_token=${apiKey}`);
-    const json = await resp.json();
+    const text = await resp.text();
+    const json = JSON.parse(text);
     if (json.success && json.data) {
-      return { id: json.data.id, title: json.data.title, status: json.data.status, value: json.data.value, stage_id: json.data.stage_id, pipeline_id: json.data.pipeline_id, won_time: json.data.won_time, add_time: json.data.add_time };
+      return { id: json.data.id, title: json.data.title, status: json.data.status, value: json.data.value, stage_id: json.data.stage_id, pipeline_id: json.data.pipeline_id };
     }
-    console.error(`[autopsy] Pipedrive API error for deal ${dealId}: success=${json.success} hasData=${!!json.data}`);
+    console.error(`[autopsy] Pipedrive error for deal ${dealId}: success=${json.success} error=${json.error}`);
   } catch (e) {
-    console.error(`[autopsy] fetchDeal exception for ${dealId}: ${e.message}`);
+    console.error(`[autopsy] fetchDeal exception: ${e.message}`);
   }
   return null;
 }
@@ -110,19 +111,43 @@ async function runAutopsyLLM(prompt) {
 // ─── Main autopsy function ─────────────────────────────────────
 
 async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firefliesKey }) {
-  console.log(`[autopsy] START dealId=${dealId} repName=${repName} days=${days}`);
+  let debugInfo = { dealId, repName, days, keyOk: !!pipedriveKey };
 
   // ── Step 1: Find won deals to analyze ──────────────────────
   let targetDeals;
 
   if (dealId) {
-    // Specific deal
-    console.log(`[autopsy] fetchDeal for dealId=${dealId} keyLen=${pipedriveKey ? pipedriveKey.length : 0}`);
-    const deal = await fetchDeal(dealId, pipedriveKey);
-    console.log(`[autopsy] fetchDeal result: ${deal ? `found (status=${deal.status})` : 'null'}`);
-    if (!deal) throw new Error(`Deal ${dealId} not found in Pipedrive`);
-    if (deal.status !== "won") throw new Error(`Deal ${dealId} is not won (status: ${deal.status})`);
-    targetDeals = [deal];
+    // Direct Pipedrive call with raw response capture
+    let rawPipedrive = "";
+    try {
+      const url = `https://api.pipedrive.com/v1/deals/${dealId}?api_token=${pipedriveKey}`;
+      const resp = await fetch(url);
+      rawPipedrive = await resp.text();
+      const json = JSON.parse(rawPipedrive);
+      debugInfo.pdSuccess = json.success;
+      debugInfo.pdStatus = json.data?.status;
+      if (json.success && json.data) {
+        targetDeals = [{
+          id: json.data.id,
+          title: json.data.title,
+          status: json.data.status,
+          value: json.data.value,
+          stage_id: json.data.stage_id,
+          pipeline_id: json.data.pipeline_id,
+        }];
+      }
+    } catch (e) {
+      debugInfo.pdError = e.message;
+      rawPipedrive = rawPipedrive.substring(0, 200);
+    }
+    debugInfo.rawPipedrive = rawPipedrive.substring(0, 200);
+
+    if (!targetDeals || targetDeals.length === 0) {
+      return { error: `Deal ${dealId} not found in Pipedrive`, dealsAnalyzed: 0, _debug: debugInfo };
+    }
+    if (targetDeals[0].status !== "won") {
+      return { error: `Deal ${dealId} is not won (status: ${targetDeals[0].status})`, dealsAnalyzed: 0, _debug: debugInfo };
+    }
   } else {
     // Find won deals linked to scorecards for the given rep
     const daysAgo = days || 30;
@@ -135,6 +160,8 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
       ORDER BY s.pipedrive_deal_id, s.call_date DESC
       LIMIT 20
     `);
+
+    debugInfo.dbRows = rows.length;
 
     // Fetch live status from Pipedrive in batches
     const dealIds = [...new Set(rows.map((r) => r.pipedrive_deal_id))];
@@ -156,7 +183,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
   }
 
   if (targetDeals.length === 0) {
-    return { error: "No won deals found with linked scorecards", dealsAnalyzed: 0 };
+    return { error: "No won deals found with linked scorecards", dealsAnalyzed: 0, _debug: debugInfo };
   }
   console.log(`[autopsy] Found ${targetDeals.length} won deal(s) to analyze`);
 
@@ -224,7 +251,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
     for (const card of lostCards) {
       if (!card.meeting_id) continue;
       const dealStatus = lostDealStatuses[card.pipedrive_deal_id];
-      if (!dealStatus) continue; // Skip won deals in comparison set
+      if (!dealStatus) continue;
       try {
         const t = await fetchTranscript(card.meeting_id, firefliesKey);
         if (t) lostTranscripts.push({
@@ -341,7 +368,7 @@ Focus on SPECIFIC behaviors, exact phrases, and observable differences — not g
     generatedAt: new Date().toISOString(),
     dealsAnalyzed: autopsies.length,
     autopsies,
-    _debug: { dealId, repName, days, hasPipedriveKey: !!pipedriveKey, pipedriveKeyLen: pipedriveKey ? pipedriveKey.length : 0, hasFirefliesKey: !!firefliesKey },
+    _debug: debugInfo,
   };
 }
 
