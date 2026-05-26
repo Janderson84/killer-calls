@@ -818,8 +818,8 @@ function validateEnv() {
 
   if (missing.length > 0) {
     console.error(`\n❌ Missing required environment variables: ${missing.join(", ")}`);
-    console.error("   Copy .env.example to .env and fill in your keys.\n");
-    process.exit(1);
+    console.error("   The server will start but features requiring these keys will fail gracefully.");
+    // WARN instead of killing — avoids crash loops on Railway
   }
 
   const missingOptional = optional.filter((key) => !process.env[key]);
@@ -828,7 +828,48 @@ function validateEnv() {
   }
 }
 
+// ─── Crash Protection ────────────────────────────────────────────
+// Prevents process death from unhandled rejections and uncaught exceptions.
+// Railway restarts on exit, so these keep the service alive for investigation.
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("[FATAL] Unhandled Rejection at:", promise, "reason:", reason);
+  // Don't exit — let the server stay up and serve other requests
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("[FATAL] Uncaught Exception:", err.message, err.stack);
+  // Don't exit — prevents crash loops on Railway
+});
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  console.log("[shutdown] SIGTERM received — closing gracefully");
+  process.exit(0);
+});
+process.on("SIGINT", () => {
+  console.log("[shutdown] SIGINT received — closing gracefully");
+  process.exit(0);
+});
+
 validateEnv();
+
+// ─── Health check endpoint ───────────────────────────────────────
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    env: {
+      fireflies: !!process.env.FIREFLIES_API_KEY,
+      database: !!process.env.DATABASE_URL,
+      pipedrive: !!process.env.PIPEDRIVE_API_KEY,
+      deepseek: !!process.env.DEEPSEEK_API_KEY,
+      openrouter: !!process.env.OPENROUTER_API_KEY,
+      slack: !!process.env.SLACK_BOT_TOKEN,
+    }
+  });
+});
 
 app.listen(CONFIG.port, () => {
   console.log(`\n🚀 Killer Calls running on port ${CONFIG.port} (multi-team)`);
