@@ -70,50 +70,45 @@ async function fetchDeal(dealId, apiKey) {
 // ─── Call LLM for autopsy analysis ────────────────────────────
 
 async function runAutopsyLLM(prompt) {
-  // Try Gemini first (key confirmed working)
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
-          }),
-        }
-      );
-      const json = await resp.json();
-      const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return text;
-      console.log("[autopsy] Gemini returned no text, trying Anthropic...");
-    } catch (e) {
-      console.error("[autopsy] Gemini failed, trying Anthropic:", e.message);
-    }
+  // DeepSeek API (OpenAI-compatible)
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+
+  if (deepseekKey) {
+    const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${deepseekKey}` },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens: 4096,
+        response_format: { type: "json_object" },
+      }),
+    });
+    const json = await resp.json();
+    if (json.error) throw new Error(`DeepSeek error: ${json.error.message}`);
+    return json.choices?.[0]?.message?.content || "";
   }
 
-  // Fall back to Anthropic API
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY configured");
+  if (openrouterKey) {
+    const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${openrouterKey}` },
+      body: JSON.stringify({
+        model: "deepseek/deepseek-chat",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens: 4096,
+        response_format: { type: "json_object" },
+      }),
+    });
+    const json = await resp.json();
+    if (json.error) throw new Error(`OpenRouter error: ${json.error.message}`);
+    return json.choices?.[0]?.message?.content || "";
+  }
 
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: process.env.CLAUDE_MODEL || "claude-sonnet-4-6-20250514",
-      max_tokens: 4096,
-      temperature: 0.3,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  const json = await resp.json();
-  if (json.error) throw new Error(`Anthropic error: ${json.error.message}`);
-  return json.content?.[0]?.text || "";
+  throw new Error("Set DEEPSEEK_API_KEY or OPENROUTER_API_KEY on Railway");
 }
 
 // ─── Main autopsy function ─────────────────────────────────────
@@ -463,6 +458,28 @@ Focus on SPECIFIC behaviors, exact phrases, and observable differences — not g
       status: "data_ready",
       generatedAt: new Date().toISOString(),
     });
+
+    // Try LLM analysis if key is available
+    try {
+      console.log(`[autopsy] Running LLM analysis for deal #${deal.id}...`);
+      const llmOutput = await runAutopsyLLM(autopsies[autopsies.length - 1].analysisPrompt);
+      console.log(`[autopsy] LLM output: ${llmOutput.substring(0, 200)}...`);
+
+      let parsed;
+      try {
+        parsed = JSON.parse(llmOutput);
+      } catch {
+        const jsonMatch = llmOutput.match(/\{[\s\S]*\}/);
+        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: llmOutput };
+      }
+
+      autopsies[autopsies.length - 1].analysis = parsed;
+      autopsies[autopsies.length - 1].status = "analyzed";
+    } catch (e) {
+      console.error(`[autopsy] LLM failed for deal #${deal.id}: ${e.message}`);
+      autopsies[autopsies.length - 1].llmError = e.message;
+      // Keep status as "data_ready" — caller can retry analysis
+    }
   }
 
   return {
