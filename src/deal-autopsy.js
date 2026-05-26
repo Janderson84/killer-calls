@@ -210,11 +210,11 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
 
     // Get all scorecards linked to this deal
     const { rows: wonCards } = await pool.query(`
-      SELECT id, fireflies_id, rep_name, company_name, score, rag, verdict,
+      SELECT id, meeting_id, rep_name, company_name, score, rag, verdict,
         score_pre_call, score_discovery, score_presentation, score_pricing, score_closing,
         spiced_s, spiced_p, spiced_i, spiced_c, spiced_e,
         bant_b, bant_a, bant_n, bant_t,
-        close_style, call_date, call_type, transcript
+        close_style, call_date, call_type, scorecard_json
       FROM scorecards
       WHERE pipedrive_deal_id = $1
       ORDER BY call_date ASC
@@ -227,38 +227,44 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
     // Fetch transcripts for won deal calls
     const wonTranscripts = [];
     for (const card of wonCards) {
-      if (!card.fireflies_id && !card.transcript) continue;
+      if (!card.meeting_id) continue;
       try {
-        // Use stored transcript if available, otherwise fetch from Fireflies
-        if (card.transcript) {
-          // Transcript is already stored in DB
+        // Try stored transcript from scorecard_json first
+        let storedText = null;
+        try {
+          if (card.scorecard_json) {
+            const sj = typeof card.scorecard_json === "string" ? JSON.parse(card.scorecard_json) : card.scorecard_json;
+            storedText = sj.transcript || sj.full_transcript || null;
+          }
+        } catch {}
+        if (storedText) {
           wonTranscripts.push({
-            meetingId: card.fireflies_id || "db-stored",
+            meetingId: card.meeting_id,
             title: card.company_name || "Call",
             date: card.call_date ? new Date(card.call_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
             duration: null,
-            text: card.transcript,
-            truncated: card.transcript.length > 8000 ? card.transcript.substring(0, 8000) + "\n...[transcript truncated for analysis]" : card.transcript,
+            text: storedText,
+            truncated: storedText.length > 8000 ? storedText.substring(0, 8000) + "\n...[transcript truncated for analysis]" : storedText,
             score: card.score,
             rag: card.rag,
             callDate: card.call_date,
           });
         } else {
-          const t = await fetchTranscript(card.fireflies_id, firefliesKey);
+          const t = await fetchTranscript(card.meeting_id, firefliesKey);
           if (t) wonTranscripts.push({ ...t, score: card.score, rag: card.rag, callDate: card.call_date });
           await new Promise((r) => setTimeout(r, 200));
         }
       } catch (e) {
-        console.error(`[autopsy] Failed to fetch transcript ${card.fireflies_id}: ${e.message}`);
+        console.error(`[autopsy] Failed to fetch transcript ${card.meeting_id}: ${e.message}`);
       }
     }
 
     // ── Step 3: Get the same AE's lost/stalled deal calls for comparison ──
     const { rows: lostCards } = await pool.query(`
-      SELECT s.id, s.fireflies_id, s.rep_name, s.company_name, s.score, s.rag, s.verdict,
+      SELECT s.id, s.meeting_id, s.rep_name, s.company_name, s.score, s.rag, s.verdict,
         s.score_discovery, s.score_presentation, s.score_pricing, s.score_closing,
         s.spiced_s, s.spiced_p, s.spiced_i, s.spiced_c, s.spiced_e,
-        s.close_style, s.call_date, s.transcript
+        s.close_style, s.call_date, s.scorecard_json
       FROM scorecards s
       WHERE s.rep_name = $1
         AND s.pipedrive_deal_id IS NOT NULL
@@ -280,24 +286,31 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
 
     const lostTranscripts = [];
     for (const card of lostCards) {
-      if (!card.fireflies_id && !card.transcript) continue;
+      if (!card.meeting_id) continue;
       const dealStatus = lostDealStatuses[card.pipedrive_deal_id];
       if (!dealStatus) continue;
       try {
-        if (card.transcript) {
+        let storedText = null;
+        try {
+          if (card.scorecard_json) {
+            const sj = typeof card.scorecard_json === "string" ? JSON.parse(card.scorecard_json) : card.scorecard_json;
+            storedText = sj.transcript || sj.full_transcript || null;
+          }
+        } catch {}
+        if (storedText) {
           lostTranscripts.push({
-            meetingId: card.fireflies_id || "db-stored",
+            meetingId: card.meeting_id,
             title: card.company_name || "Call",
             date: card.call_date ? new Date(card.call_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
             duration: null,
-            text: card.transcript,
-            truncated: card.transcript.length > 8000 ? card.transcript.substring(0, 8000) + "\n...[transcript truncated for analysis]" : card.transcript,
+            text: storedText,
+            truncated: storedText.length > 8000 ? storedText.substring(0, 8000) + "\n...[transcript truncated for analysis]" : storedText,
             score: card.score,
             rag: card.rag,
             dealStatus: dealStatus.status,
           });
         } else {
-          const t = await fetchTranscript(card.fireflies_id, firefliesKey);
+          const t = await fetchTranscript(card.meeting_id, firefliesKey);
           if (t) lostTranscripts.push({
             ...t,
             score: card.score,
