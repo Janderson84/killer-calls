@@ -20,6 +20,13 @@ function getSlack(token) {
   return slackClients[t];
 }
 
+// ─── Pipedrive Deal URL ───────────────────────────────────────────
+
+function pipedriveDealUrl(dealId) {
+  if (!dealId) return null;
+  return `https://wishpond.pipedrive.com/deal/${dealId}`;
+}
+
 // ─── SPICED Pips ─────────────────────────────────────────────────
 
 function spicedPip(element, data) {
@@ -126,6 +133,11 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster) {
   if (bantLine) frameworksText += `\n\n*BANT*\n${bantLine}`;
   if (closeLine) frameworksText += `\n\n*Close*\n${closeLine}`;
 
+  const dealUrl = pipedriveDealUrl(meta.pipedriveDealId);
+  const dealInfo = meta.pipedriveDealId
+    ? `${meta.pipedriveDealStage || "Deal"}${meta.pipedriveDealValue ? ` · $${Number(meta.pipedriveDealValue).toLocaleString()}` : ""}`
+    : null;
+
   const blocks = [
     {
       type: "section",
@@ -156,7 +168,6 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster) {
   const stallRisk = calculateStallRisk(scorecard.spiced);
   const stallBlock = stallRiskBlock(stallRisk);
   if (stallBlock) {
-    // Insert after the verdict block (after index 2)
     blocks.splice(3, 0, stallBlock);
   }
 
@@ -167,9 +178,21 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster) {
     });
   }
 
+  // Pipedrive deal link
+  if (dealUrl) {
+    blocks.push({ type: "divider" });
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `📋 *Pipedrive:* <${dealUrl}|${meta.pipedriveDealTitle || `Deal #${meta.pipedriveDealId}`}> — ${dealInfo}`
+      }
+    });
+  }
+
   const url = scorecardUrl(scorecardId, appUrl);
   if (url) {
-    blocks.push({ type: "divider" });
+    if (!dealUrl) blocks.push({ type: "divider" });
     blocks.push({
       type: "actions",
       elements: [
@@ -188,15 +211,69 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster) {
 
 // ─── Thread: Coaching Detail ─────────────────────────────────────
 
-function buildThreadBlocks(scorecard, scorecardId) {
+function buildThreadBlocks(scorecard, meta, scorecardId) {
   const blocks = [];
 
-  if (scorecard.wins && scorecard.wins.length > 0) {
+  // Coaching header — personal and supportive
+  const firstName = meta.repName?.split(" ")[0] || "rep";
+  const rag = getRAG(scorecard.score);
+  let coachingTone;
+  if (scorecard.score >= 80) {
+    coachingTone = `Excellent call, ${firstName} — this is the bar. Here is what made it work and where you can push even further:`;
+  } else if (scorecard.score >= 60) {
+    coachingTone = `Solid foundation, ${firstName}. A few adjustments will take this from good to great:`;
+  } else {
+    coachingTone = `Growth opportunity here, ${firstName}. Honest look at what to tighten up:`;
+  }
+
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `*🎯 ${coachingTone}*`
+    }
+  });
+
+  // Recent trend (if available)
+  if (meta.recentAvg != null) {
+    const diff = scorecard.score - meta.recentAvg;
+    const trendEmoji = diff >= 5 ? "📈" : diff >= -5 ? "➡️" : "📉";
+    let trendText;
+    if (diff >= 5) {
+      trendText = `${diff} pts above your recent average`;
+    } else if (diff <= -5) {
+      trendText = `${Math.abs(diff)} pts below your recent average`;
+    } else {
+      trendText = `right around your recent average`;
+    }
+    blocks.push({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: `${trendEmoji} ${trendText} (last ${meta.recentCount || 5} calls: ${meta.recentAvg}/100)` }]
+    });
+  }
+
+  // Pipedrive deal link in thread
+  const dealUrl = pipedriveDealUrl(meta.pipedriveDealId);
+  if (dealUrl) {
+    const dealValueStr = meta.pipedriveDealValue
+      ? ` · $${Number(meta.pipedriveDealValue).toLocaleString()}`
+      : "";
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*✅ What landed*\n${scorecard.wins.map((w) => `• ${w}`).join("\n")}`
+        text: `📋 *Linked Deal:* <${dealUrl}|${meta.pipedriveDealTitle || `Deal #${meta.pipedriveDealId}`}> — ${meta.pipedriveDealStage || "Active"}${dealValueStr}`
+      }
+    });
+  }
+
+  if (scorecard.wins && scorecard.wins.length > 0) {
+    blocks.push({ type: "divider" });
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*✅ What worked*\n${scorecard.wins.map((w) => `• ${w}`).join("\n")}`
       }
     });
   }
@@ -206,7 +283,7 @@ function buildThreadBlocks(scorecard, scorecardId) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*📈 Growth areas*\n${scorecard.fixes.map((f) => `• ${f}`).join("\n")}`
+        text: `*📈 Areas to develop*\n${scorecard.fixes.map((f) => `• ${f}`).join("\n")}`
       }
     });
   }
@@ -217,7 +294,7 @@ function buildThreadBlocks(scorecard, scorecardId) {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*🎯 Closing tips*\n${scorecard.closingTips.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
+        text: `*🎯 Try this next time*\n${scorecard.closingTips.map((t, i) => `${i + 1}. ${t}`).join("\n")}`
       }
     });
   }
@@ -325,7 +402,7 @@ async function postDemoReview(scorecard, meta, scorecardId, teamConfig = {}) {
     });
     console.log(`[slack] Posted to #demo-reviews: ${result.ts}`);
 
-    const threadBlocks = buildThreadBlocks(scorecard, scorecardId);
+    const threadBlocks = buildThreadBlocks(scorecard, meta, scorecardId);
     if (threadBlocks.length > 0) {
       await slack.chat.postMessage({
         channel: channelId,

@@ -388,6 +388,10 @@ async function _processDemo(meetingId) {
   // Step 4b: Look up matching Pipedrive deal
   console.log(`[4b/5] Looking up Pipedrive deal...`);
   const PIPEDRIVE_API_KEY = process.env.PIPEDRIVE_API_KEY;
+  let pipedriveDealId = null;
+  let pipedriveDealTitle = null;
+  let pipedriveDealValue = null;
+  let pipedriveDealStage = null;
   if (PIPEDRIVE_API_KEY && meta.prospectEmail) {
     try {
       const pdPersonResp = await fetch(
@@ -416,9 +420,13 @@ async function _processDemo(meetingId) {
             if (stageData.success && stageData.data) stageName = stageData.data.name;
           } catch (e) {}
           console.log(`[4b/5] Found Pipedrive deal #${deal.id} (${deal.title}) [${stageName}]`);
+          pipedriveDealId = String(deal.id);
+          pipedriveDealTitle = deal.title || null;
+          pipedriveDealValue = deal.value || null;
+          pipedriveDealStage = stageName;
           await pool.query(
             `UPDATE scorecards SET pipedrive_deal_id = $1, pipedrive_deal_stage = $2, pipedrive_deal_value = $3 WHERE id = $4`,
-            [String(deal.id), stageName, deal.value || null, scorecardId]
+            [pipedriveDealId, pipedriveDealStage, pipedriveDealValue, scorecardId]
           );
         } else {
           console.log(`[4b/5] No Pipedrive deals for person #${personId}`);
@@ -433,6 +441,33 @@ async function _processDemo(meetingId) {
     console.log(`[4b/5] PIPEDRIVE_API_KEY not set, skipping deal lookup`);
   } else {
     console.log(`[4b/5] No prospect email, skipping Pipedrive lookup`);
+  }
+
+  // Attach Pipedrive deal info to meta so Slack formatter can use it
+  meta.pipedriveDealId = pipedriveDealId;
+  meta.pipedriveDealTitle = pipedriveDealTitle;
+  meta.pipedriveDealValue = pipedriveDealValue;
+  meta.pipedriveDealStage = pipedriveDealStage;
+
+  // Fetch recent average for trend comparison in Slack thread
+  console.log(`[4c/5] Fetching recent scores for ${meta.repName}...`);
+  try {
+    const recentQuery = await pool.query(
+      `SELECT score FROM scorecards
+       WHERE rep_name = $1 AND id != $2
+       ORDER BY created_at DESC LIMIT 5`,
+      [meta.repName, scorecardId]
+    );
+    if (recentQuery.rows.length > 0) {
+      const scores = recentQuery.rows.map(r => r.score);
+      meta.recentAvg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+      meta.recentCount = scores.length;
+      console.log(`[4c/5] Recent avg: ${meta.recentAvg}/100 over ${meta.recentCount} calls`);
+    } else {
+      console.log(`[4c/5] No prior scores found for ${meta.repName}`);
+    }
+  } catch (err) {
+    console.error(`[4c/5] Error fetching recent scores: ${err.message}`);
   }
 
   // Step 5: Post to Slack (using team-specific channel IDs)
