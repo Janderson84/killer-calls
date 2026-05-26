@@ -70,9 +70,32 @@ async function fetchDeal(dealId, apiKey) {
 // ─── Call LLM for autopsy analysis ────────────────────────────
 
 async function runAutopsyLLM(prompt) {
-  // Use Anthropic API (Claude) — same provider as the scoring engine
+  // Try Gemini first (key confirmed working)
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+          }),
+        }
+      );
+      const json = await resp.json();
+      const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return text;
+      console.log("[autopsy] Gemini returned no text, trying Anthropic...");
+    } catch (e) {
+      console.error("[autopsy] Gemini failed, trying Anthropic:", e.message);
+    }
+  }
+
+  // Fall back to Anthropic API
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
+  if (!apiKey) throw new Error("Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY configured");
 
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
