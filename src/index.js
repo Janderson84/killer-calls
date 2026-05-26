@@ -1062,17 +1062,41 @@ app.get("/api/test-slack", async (req, res) => {
       return res.json({ error: "No Slack channel configured", teamConfig });
     }
 
-    const result = await postDemoReview(scorecard, meta, "test-" + Date.now(), {
-      channelId,
-      roster,
-      slackBotToken,
-    });
+    // Try direct Slack API call to surface exact error
+    const { WebClient } = require("@slack/web-api");
+    const slackTest = new WebClient(slackBotToken);
+    try {
+      const slackResult = await slackTest.chat.postMessage({
+        channel: channelId,
+        text: "🔧 *Killer Calls test notification* — Slack pipeline is live! 🎉\n\nFull notifications will include: scorecard, SPICED/BANT/Close pips, stall risk, Pipedrive deal link, and a coaching thread.",
+        unfurl_links: false,
+      });
+      console.log(`[test-slack] ✅ Test message posted! ts=${slackResult.ts}`);
 
-    if (result) {
-      console.log(`[test-slack] ✅ Posted! ts=${result.ts}`);
-      res.json({ status: "ok", slack_ts: result.ts, channel: channelId, rep: repName });
-    } else {
-      res.json({ status: "failed", reason: "postDemoReview returned null — check Railway logs" });
+      // Now post the full demo review
+      const result = await postDemoReview(scorecard, meta, "test-" + Date.now(), {
+        channelId,
+        roster,
+        slackBotToken,
+      });
+
+      res.json({
+        status: "ok",
+        test_ts: slackResult.ts,
+        review_result: result ? { ts: result.ts } : null,
+        channel: channelId,
+        rep: repName,
+      });
+    } catch (slackErr) {
+      console.error(`[test-slack] Slack API error: ${slackErr.message}`);
+      res.json({
+        status: "failed",
+        slack_error: slackErr.message,
+        slack_code: slackErr.code,
+        slack_data: slackErr.data,
+        channel: channelId,
+        rep: repName,
+      });
     }
   } catch (err) {
     console.error(`[test-slack] Error: ${err.message}`);
