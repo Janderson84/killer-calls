@@ -940,6 +940,41 @@ function validateEnv() {
   }
 }
 
+// ─── Run pending migrations ─────────────────────────────────────
+
+async function runMigrations() {
+  try {
+    // Create autopsies table if not exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS autopsies (
+        id SERIAL PRIMARY KEY,
+        rep_name VARCHAR(255) NOT NULL,
+        deal_id VARCHAR(50),
+        deal_title VARCHAR(500),
+        deal_value NUMERIC(12,2),
+        call_count INTEGER DEFAULT 0,
+        won_avg_score NUMERIC(5,1),
+        comparison_calls INTEGER DEFAULT 0,
+        summary TEXT,
+        key_differentiators JSONB DEFAULT '[]',
+        patterns_to_replicate JSONB DEFAULT '[]',
+        coaching_insight TEXT,
+        winning_close_style TEXT,
+        full_analysis JSONB DEFAULT '{}',
+        status VARCHAR(50) DEFAULT 'analyzed',
+        error_message TEXT,
+        generated_at TIMESTAMP DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_autopsies_rep_name ON autopsies(rep_name)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_autopsies_deal_id ON autopsies(deal_id)`);
+    console.log("[migrations] Autopsies table ready");
+  } catch (e) {
+    console.error("[migrations] Failed:", e.message);
+  }
+}
+
 // ─── Crash Protection ────────────────────────────────────────────
 // Prevents process death from unhandled rejections and uncaught exceptions.
 // Railway restarts on exit, so these keep the service alive for investigation.
@@ -965,6 +1000,7 @@ process.on("SIGINT", () => {
 });
 
 validateEnv();
+runMigrations();
 
 // ─── Health check endpoint ───────────────────────────────────────
 app.get("/health", (req, res) => {
