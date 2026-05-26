@@ -127,7 +127,9 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
 
   if (dealId) {
     // Specific deal
+    console.log(`[autopsy] fetchDeal for dealId=${dealId} keyLen=${pipedriveKey ? pipedriveKey.length : 0}`);
     const deal = await fetchDeal(dealId, pipedriveKey);
+    console.log(`[autopsy] fetchDeal result: ${deal ? `found (status=${deal.status})` : 'null'}`);
     if (!deal) throw new Error(`Deal ${dealId} not found in Pipedrive`);
     if (deal.status !== "won") throw new Error(`Deal ${dealId} is not won (status: ${deal.status})`);
     targetDeals = [deal];
