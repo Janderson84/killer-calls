@@ -111,7 +111,7 @@ async function runAutopsyLLM(prompt) {
 // ─── Main autopsy function ─────────────────────────────────────
 
 async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firefliesKey }) {
-  let debugInfo = { dealId, repName, days, keyOk: !!pipedriveKey };
+  let debugInfo = { dealId, repName, days, keyOk: !!pipedriveKey, ffKeyLen: firefliesKey ? firefliesKey.length : 0, ffKeyPrefix: firefliesKey ? firefliesKey.substring(0, 8) + "..." : "none" };
 
   // ── Step 1: Find won deals to analyze ──────────────────────
   let targetDeals;
