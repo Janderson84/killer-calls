@@ -129,7 +129,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
       SELECT DISTINCT s.pipedrive_deal_id, s.rep_name
       FROM scorecards s
       WHERE s.pipedrive_deal_id IS NOT NULL ${repFilter}
-        AND s.call_date >= NOW() - INTERVAL '${daysAgo} days'
+        AND s.call_date::timestamp >= NOW() - INTERVAL '${daysAgo} days'
       ORDER BY s.call_date DESC
       LIMIT 20
     `);
@@ -203,7 +203,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
       WHERE s.rep_name = $1
         AND s.pipedrive_deal_id IS NOT NULL
         AND s.pipedrive_deal_id != $2
-        AND s.call_date >= NOW() - INTERVAL '90 days'
+        AND s.call_date::timestamp >= NOW() - INTERVAL '90 days'
       ORDER BY s.call_date DESC
       LIMIT 5
     `, [aeRepName, String(deal.id)]);
