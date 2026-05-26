@@ -295,19 +295,24 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
     debugInfo.transcriptStats = { cardsWithMeetingId, cardsWithStoredTranscript, cardsFetched, cardsFailed, fetchErrors };
 
     // ── Step 3: Get the same AE's lost/stalled deal calls for comparison ──
+    // Removed date filter — comparisons should span all time for the rep
     const { rows: lostCards } = await pool.query(`
       SELECT s.id, s.meeting_id, s.rep_name, s.company_name, s.score, s.rag, s.verdict,
         s.score_discovery, s.score_presentation, s.score_pricing, s.score_closing,
         s.spiced_s, s.spiced_p, s.spiced_i, s.spiced_c, s.spiced_e,
-        s.close_style, s.call_date, s.scorecard_json
+        s.close_style, s.call_date, s.scorecard_json, s.pipedrive_deal_id
       FROM scorecards s
       WHERE s.rep_name = $1
         AND s.pipedrive_deal_id IS NOT NULL
         AND s.pipedrive_deal_id != $2
-        AND s.call_date::timestamp >= NOW() - INTERVAL '90 days'
       ORDER BY s.call_date DESC
-      LIMIT 5
+      LIMIT 10
     `, [aeRepName, String(deal.id)]);
+
+    debugInfo.comparisonDebug = {
+      lostCardsFound: lostCards.length,
+      lostDealIds: [...new Set(lostCards.map(r => r.pipedrive_deal_id))],
+    };
 
     // Fetch Pipedrive status for comparison deals, keep only lost/stalled
     const lostDealIds = [...new Set(lostCards.map((r) => r.pipedrive_deal_id))];
@@ -318,6 +323,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
         lostDealStatuses[lid] = d;
       }
     }
+    debugInfo.comparisonDebug.statusChecks = Object.keys(lostDealStatuses).length;
 
     const lostTranscripts = [];
     for (const card of lostCards) {
@@ -478,8 +484,10 @@ Focus on SPECIFIC behaviors, exact phrases, and observable differences — not g
     } catch (e) {
       console.error(`[autopsy] LLM failed for deal #${deal.id}: ${e.message}`);
       autopsies[autopsies.length - 1].llmError = e.message;
-      // Keep status as "data_ready" — caller can retry analysis
     }
+
+    // Save to DB
+    await saveAutopsy(pool, autopsies[autopsies.length - 1]);
   }
 
   return {
@@ -490,4 +498,40 @@ Focus on SPECIFIC behaviors, exact phrases, and observable differences — not g
   };
 }
 
-module.exports = { runDealAutopsy };
+// ─── Save autopsy to DB ───────────────────────────────────────
+
+async function saveAutopsy(pool, entry) {
+  try {
+    const analysis = entry.analysis || {};
+    await pool.query(`
+      INSERT INTO autopsies (
+        rep_name, deal_id, deal_title, deal_value,
+        call_count, won_avg_score, comparison_calls,
+        summary, key_differentiators, patterns_to_replicate,
+        coaching_insight, winning_close_style,
+        full_analysis, status, error_message
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+    `, [
+      entry.ae,
+      String(entry.dealId),
+      entry.dealTitle,
+      entry.dealValue,
+      entry.callCount,
+      entry.wonAvgScore,
+      entry.comparisonCalls,
+      analysis.summary || null,
+      JSON.stringify(analysis.key_differentiators || []),
+      JSON.stringify(analysis.patterns_to_replicate || []),
+      analysis.coaching_insight || null,
+      analysis.winning_close_style || null,
+      JSON.stringify(analysis),
+      entry.status === 'analyzed' ? 'analyzed' : 'data_ready',
+      entry.llmError || null,
+    ]);
+    console.log(`[autopsy] Saved to DB: ${entry.ae} deal #${entry.dealId}`);
+  } catch (e) {
+    console.error(`[autopsy] Failed to save to DB: ${e.message}`);
+  }
+}
+
+module.exports = { runDealAutopsy, saveAutopsy };

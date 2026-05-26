@@ -4,7 +4,7 @@ const express = require("express");
 const { fetchTranscript } = require("./fireflies-client");
 const { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt, buildScoringPromptWithWeights } = require("./scoring-engine");
 const { postDemoReview, postKillerCall, calculateStallRisk, stallRiskBlock } = require("./slack-formatter");
-const { runDealAutopsy } = require("./deal-autopsy");
+const { runDealAutopsy, saveAutopsy } = require("./deal-autopsy");
 const { saveScorecard, updateSlackTs, extractPlaybookExamples, pool } = require("./db");
 const { CONFIG } = require("./constants");
 
@@ -872,6 +872,49 @@ app.get("/api/team-autopsy", async (req, res) => {
     });
   } catch (err) {
     console.error(`[/api/team-autopsy] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Autopsy History API ──────────────────────────────────────
+// Retrieves saved autopsy results from the database.
+// GET /api/autopsy-history?rep=Vanessa&limit=5
+// GET /api/autopsy/:id
+
+app.get("/api/autopsy-history", async (req, res) => {
+  try {
+    const { rep, limit } = req.query;
+    let query = `SELECT id, rep_name, deal_id, deal_title, deal_value, call_count, won_avg_score, comparison_calls, summary, key_differentiators, coaching_insight, winning_close_style, status, generated_at FROM autopsies`;
+    const params = [];
+
+    if (rep) {
+      query += ` WHERE rep_name ILIKE $1`;
+      params.push(`${rep}%`);
+    }
+    query += ` ORDER BY generated_at DESC LIMIT $${params.length + 1}`;
+    params.push(String(parseInt(limit) || 20));
+
+    const { rows } = await pool.query(query, params);
+    res.json({ autopsies: rows, count: rows.length });
+  } catch (err) {
+    console.error(`[/api/autopsy-history] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/autopsy/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `SELECT * FROM autopsies WHERE id = $1`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Autopsy not found" });
+    }
+    res.json({ autopsy: rows[0] });
+  } catch (err) {
+    console.error(`[/api/autopsy/:id] Error: ${err.message}`);
     res.status(500).json({ error: err.message });
   }
 });
