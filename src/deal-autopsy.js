@@ -398,7 +398,43 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
         ].join("\n")).join("\n\n")
       : "(No lost/stalled deal transcripts available for comparison)";
 
-    const prompt = `You are a sales coach analyzing what differentiated a WON deal from the same AE's other deals.
+    // Build structured data for LLM (caller handles analysis)
+    autopsies.push({
+      dealId: deal.id,
+      dealTitle: deal.title,
+      dealValue: deal.value,
+      ae: aeRepName,
+      callCount: wonCards.length,
+      wonCallDates: wonCards.map((c) => c.call_date),
+      wonAvgScore: wonCards.reduce((s, c) => s + c.score, 0) / wonCards.length,
+      comparisonCalls: lostTranscripts.length,
+      wonTranscripts: wonTranscripts.map(t => ({
+        title: t.title,
+        date: t.date,
+        text: t.truncated || t.text,
+        score: t.score,
+        rag: t.rag,
+      })),
+      lostTranscripts: lostTranscripts.map(t => ({
+        title: t.title,
+        date: t.date,
+        text: t.truncated || t.text,
+        score: t.score,
+        rag: t.rag,
+        dealStatus: t.dealStatus,
+      })),
+      wonScorecards: wonCards.map(c => ({
+        id: c.id,
+        score: c.score,
+        rag: c.rag,
+        spiced_p: c.spiced_p,
+        spiced_i: c.spiced_i,
+        spiced_c: c.spiced_c,
+        spiced_e: c.spiced_e,
+        close_style: c.close_style,
+        call_date: c.call_date,
+      })),
+      analysisPrompt: `You are a sales coach analyzing what differentiated a WON deal from the same AE's other deals.
 
 CONTEXT:
 - AE: ${aeRepName}
@@ -423,43 +459,10 @@ ANALYZE and return a JSON object with these fields:
   "winning_close_style": "How the AE closed this deal vs their typical approach"
 }
 
-Focus on SPECIFIC behaviors, exact phrases, and observable differences — not generic sales advice. Use timestamps. If the comparison data is thin, note that limitation.`;
-
-    try {
-      console.log(`[autopsy] Running LLM analysis for deal #${deal.id}...`);
-      const llmOutput = await runAutopsyLLM(prompt);
-      console.log(`[autopsy] LLM output: ${llmOutput.substring(0, 200)}...`);
-
-      // Parse JSON from output (may be wrapped in markdown)
-      let parsed;
-      try {
-        parsed = JSON.parse(llmOutput);
-      } catch {
-        const jsonMatch = llmOutput.match(/\{[\s\S]*\}/);
-        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: llmOutput };
-      }
-
-      autopsies.push({
-        dealId: deal.id,
-        dealTitle: deal.title,
-        dealValue: deal.value,
-        ae: aeRepName,
-        callCount: wonCards.length,
-        wonCallDates: wonCards.map((c) => c.call_date),
-        wonAvgScore: wonCards.reduce((s, c) => s + c.score, 0) / wonCards.length,
-        comparisonCalls: lostTranscripts.length,
-        analysis: parsed,
-        generatedAt: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error(`[autopsy] LLM failed for deal #${deal.id}: ${e.message}`);
-      autopsies.push({
-        dealId: deal.id,
-        dealTitle: deal.title,
-        status: "error",
-        error: e.message,
-      });
-    }
+Focus on SPECIFIC behaviors, exact phrases, and observable differences — not generic sales advice. Use timestamps. If the comparison data is thin, note that limitation.`,
+      status: "data_ready",
+      generatedAt: new Date().toISOString(),
+    });
   }
 
   return {
