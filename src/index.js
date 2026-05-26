@@ -475,28 +475,21 @@ async function _processDemo(meetingId) {
   console.log(`\n✅ Pipeline complete in ${elapsed}s — ${scorecard.score}/100 (${scorecard.rag})`);
   console.log(`${"—".repeat(60)}\n`);
 
-  // Async: run won-deal autopsy for this AE in background
+  // Async: run won-deal autopsy for this AE after every demo
   const aeName = transcript.repName;
   if (aeName && process.env.PIPEDRIVE_API_KEY && process.env.FIREFLIES_API_KEY) {
-    const lastKey = `autopsy:${aeName}`;
-    if (!inFlightMeetings.has(lastKey)) {
-      inFlightMeetings.add(lastKey);
-      console.log(`[autopsy] Starting background analysis for ${aeName}...`);
-      runDealAutopsy({
-        repName: aeName,
-        days: 90,
-        pool,
-        pipedriveKey: process.env.PIPEDRIVE_API_KEY,
-        firefliesKey: process.env.FIREFLIES_API_KEY,
-      }).then((result) => {
-        console.log(`[autopsy] Done for ${aeName}: ${result.dealsAnalyzed} deals`);
-        inFlightMeetings.delete(lastKey);
-        setTimeout(() => inFlightMeetings.delete(lastKey), 4 * 60 * 60 * 1000);
-      }).catch((err) => {
-        console.error(`[autopsy] Failed for ${aeName}: ${err.message}`);
-        inFlightMeetings.delete(lastKey);
-      });
-    }
+    console.log(`[autopsy] Starting background analysis for ${aeName}...`);
+    runDealAutopsy({
+      repName: aeName,
+      days: 90,
+      pool,
+      pipedriveKey: process.env.PIPEDRIVE_API_KEY,
+      firefliesKey: process.env.FIREFLIES_API_KEY,
+    }).then((result) => {
+      console.log(`[autopsy] Done for ${aeName}: ${result.dealsAnalyzed} deals`);
+    }).catch((err) => {
+      console.error(`[autopsy] Failed for ${aeName}: ${err.message}`);
+    });
   }
 }
 
