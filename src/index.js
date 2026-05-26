@@ -1200,6 +1200,9 @@ app.get("/health", (req, res) => {
       deepseek: !!process.env.DEEPSEEK_API_KEY,
       openrouter: !!process.env.OPENROUTER_API_KEY,
       slack: !!process.env.SLACK_BOT_TOKEN,
+      slack_token_preview: process.env.SLACK_BOT_TOKEN
+        ? process.env.SLACK_BOT_TOKEN.substring(0, 14) + "..."
+        : null,
     }
   });
 });
