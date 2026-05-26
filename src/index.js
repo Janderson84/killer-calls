@@ -954,6 +954,130 @@ app.get("/api/autopsy/:id", async (req, res) => {
   }
 });
 
+// ─── Backfill Endpoint ──────────────────────────────────────────
+// POST /api/backfill — score recent transcripts without posting to Slack
+// Body: { "meetingIds": ["id1","id2",...] }
+// Processes each: fetch → resolve team → score → save (no Slack, no autopsy)
+app.post("/api/backfill", async (req, res) => {
+  const { meetingIds } = req.body;
+  if (!Array.isArray(meetingIds) || meetingIds.length === 0) {
+    return res.status(400).json({ error: "meetingIds array required" });
+  }
+
+  console.log(`\n[backfill] Starting bulk scoring for ${meetingIds.length} meetings...`);
+
+  // Acknowledge immediately — process async
+  res.json({ status: "processing", count: meetingIds.length });
+
+  const results = [];
+  for (const meetingId of meetingIds) {
+    try {
+      // Check already scored
+      const existing = await pool.query(
+        `SELECT id FROM scorecards WHERE meeting_id = $1`, [meetingId]
+      );
+      if (existing.rows.length > 0) {
+        console.log(`[backfill] ${meetingId}: already scored (${existing.rows[0].id})`);
+        results.push({ meetingId, status: "skipped", reason: "already scored" });
+        continue;
+      }
+
+      // Fetch transcript
+      const transcript = await fetchTranscript(meetingId);
+      console.log(`[backfill] ${meetingId}: "${transcript.title}" (${transcript.durationMinutes}min, ${transcript.repName})`);
+
+      // Resolve team
+      const organizerEmail = transcript.participants?.find(p => {
+        const email = (typeof p === "string" ? p : p?.email || "").toLowerCase();
+        return email.includes("@");
+      }) || "";
+      const orgEmail = (typeof organizerEmail === "string" ? organizerEmail : organizerEmail?.email || "").toLowerCase();
+      const teamMatch = await resolveTeam(orgEmail);
+      if (!teamMatch) {
+        console.log(`[backfill] ${meetingId}: no team match for ${orgEmail}`);
+        results.push({ meetingId, status: "skipped", reason: "no team match" });
+        continue;
+      }
+      const { teamId, aeEntry } = teamMatch;
+      const teamSettings = await getTeamSettings(teamId);
+      const aeEmails = buildAeEmailSet(teamSettings.ae_roster || []);
+      const prospectEmail = extractProspectEmail(transcript.participants, aeEmails);
+
+      // Detect followup
+      const { isFollowup, priorCallContext } = await detectFollowup(
+        transcript.repName, transcript.companyName, prospectEmail, transcript.title
+      );
+      const callType = isFollowup ? "followup" : "discovery";
+
+      // Score
+      const scoringArgs = {
+        transcriptText: transcript.transcriptText,
+        repName: transcript.repName,
+        companyName: transcript.companyName,
+        durationMinutes: transcript.durationMinutes,
+        meetingId
+      };
+      if (isFollowup) {
+        scoringArgs.systemPrompt = FOLLOWUP_SYSTEM_PROMPT;
+        scoringArgs.userPrompt = buildFollowupScoringPrompt(
+          transcript.transcriptText, transcript.repName, transcript.companyName,
+          transcript.durationMinutes, priorCallContext
+        );
+      }
+      const scorecard = await scoreTranscript(scoringArgs);
+      console.log(`[backfill] ${meetingId}: scored ${scorecard.score}/100 (${scorecard.rag})`);
+
+      // Save
+      const meta = {
+        repName: transcript.repName,
+        companyName: transcript.companyName,
+        date: transcript.date,
+        durationMinutes: transcript.durationMinutes,
+        meetingId,
+        callType,
+        prospectEmail,
+        teamId
+      };
+      const scorecardId = await saveScorecard(scorecard, meta);
+      console.log(`[backfill] ${meetingId}: saved as ${scorecardId}`);
+
+      // Pipedrive lookup
+      if (process.env.PIPEDRIVE_API_KEY && meta.prospectEmail) {
+        try {
+          const pdResp = await fetch(
+            `https://api.pipedrive.com/v1/persons/search?term=${encodeURIComponent(meta.prospectEmail)}&limit=3&api_token=${process.env.PIPEDRIVE_API_KEY}`
+          );
+          const pdData = await pdResp.json();
+          if (pdData.success && pdData.data?.items?.[0]?.item) {
+            const dealsResp = await fetch(
+              `https://api.pipedrive.com/v1/persons/${pdData.data.items[0].item.id}/deals?api_token=${process.env.PIPEDRIVE_API_KEY}`
+            );
+            const dealsData = await dealsResp.json();
+            if (dealsData.success && dealsData.data?.length > 0) {
+              const deal = dealsData.data[0];
+              await pool.query(
+                `UPDATE scorecards SET pipedrive_deal_id=$1, pipedrive_deal_stage=$2, pipedrive_deal_value=$3 WHERE id=$4`,
+                [String(deal.id), String(deal.stage_id), deal.value || null, scorecardId]
+              );
+            }
+          }
+        } catch (e) {}
+      }
+
+      results.push({ meetingId, status: "scored", scorecardId, score: scorecard.score, rep: transcript.repName });
+
+      // Brief pause between calls to avoid hammering APIs
+      await new Promise(r => setTimeout(r, 2000));
+    } catch (err) {
+      console.error(`[backfill] ${meetingId}: FAILED — ${err.message}`);
+      results.push({ meetingId, status: "error", error: err.message });
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+
+  console.log(`[backfill] Complete: ${results.filter(r => r.status === "scored").length} scored, ${results.filter(r => r.status === "skipped").length} skipped, ${results.filter(r => r.status === "error").length} errors`);
+});
+
 // ─── Test Slack Notification ────────────────────────────────────
 // GET /api/test-slack — fires a sample notification to verify the pipeline
 app.get("/api/test-slack", async (req, res) => {
