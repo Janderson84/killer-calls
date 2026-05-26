@@ -220,14 +220,40 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
       ORDER BY call_date ASC
     `, [String(deal.id)]);
 
-    if (wonCards.length === 0) continue;
+    if (wonCards.length === 0) {
+      debugInfo.skippedDeals = (debugInfo.skippedDeals || []);
+      debugInfo.skippedDeals.push({ dealId: deal.id, reason: "no scorecards linked" });
+      continue;
+    }
+
+    // Debug: show first scorecard's meeting_id and transcript status
+    const firstCard = wonCards[0];
+    let hasTranscriptJson = false;
+    try {
+      if (firstCard.scorecard_json) {
+        const sj = typeof firstCard.scorecard_json === "string" ? JSON.parse(firstCard.scorecard_json) : firstCard.scorecard_json;
+        hasTranscriptJson = !!(sj.transcript || sj.full_transcript);
+      }
+    } catch {}
+    debugInfo.firstWonCard = {
+      id: firstCard.id,
+      meetingId: firstCard.meeting_id,
+      hasTranscriptJson,
+      hasScorecardJson: !!firstCard.scorecard_json,
+      repName: firstCard.rep_name,
+    };
 
     const aeRepName = wonCards[0].rep_name;
 
     // Fetch transcripts for won deal calls
     const wonTranscripts = [];
+    let cardsWithMeetingId = 0, cardsWithStoredTranscript = 0, cardsFetched = 0, cardsFailed = 0;
     for (const card of wonCards) {
-      if (!card.meeting_id) continue;
+      if (!card.meeting_id) {
+        cardsFailed++;
+        continue;
+      }
+      cardsWithMeetingId++;
       try {
         // Try stored transcript from scorecard_json first
         let storedText = null;
@@ -238,6 +264,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
           }
         } catch {}
         if (storedText) {
+          cardsWithStoredTranscript++;
           wonTranscripts.push({
             meetingId: card.meeting_id,
             title: card.company_name || "Call",
@@ -251,13 +278,16 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
           });
         } else {
           const t = await fetchTranscript(card.meeting_id, firefliesKey);
-          if (t) wonTranscripts.push({ ...t, score: card.score, rag: card.rag, callDate: card.call_date });
+          if (t) { cardsFetched++; wonTranscripts.push({ ...t, score: card.score, rag: card.rag, callDate: card.call_date }); }
+          else cardsFailed++;
           await new Promise((r) => setTimeout(r, 200));
         }
       } catch (e) {
+        cardsFailed++;
         console.error(`[autopsy] Failed to fetch transcript ${card.meeting_id}: ${e.message}`);
       }
     }
+    debugInfo.transcriptStats = { cardsWithMeetingId, cardsWithStoredTranscript, cardsFetched, cardsFailed };
 
     // ── Step 3: Get the same AE's lost/stalled deal calls for comparison ──
     const { rows: lostCards } = await pool.query(`
