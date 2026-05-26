@@ -151,7 +151,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
   } else {
     // Find won deals linked to scorecards for the given rep
     const daysAgo = days || 30;
-    const repFilter = repName ? `AND s.rep_name = '${repName.replace(/'/g, "''")}'` : "";
+    const repFilter = repName ? `AND s.rep_name ILIKE '${repName.replace(/'/g, "''")}%'` : "";
 
     // Debug: count total scorecards with pipedrive_deal_id (no rep filter)
     const { rows: totalRows } = await pool.query(`
@@ -192,7 +192,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
 
     if (repName) {
       targetDeals = targetDeals.filter((d) =>
-        rows.some((r) => r.pipedrive_deal_id === String(d.id) && r.rep_name === repName)
+        rows.some((r) => r.pipedrive_deal_id === String(d.id) && r.rep_name.toLowerCase().startsWith(repName.toLowerCase()))
       );
     }
   }
