@@ -473,7 +473,31 @@ async function _processDemo(meetingId) {
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(`\n✅ Pipeline complete in ${elapsed}s — ${scorecard.score}/100 (${scorecard.rag})`);
-  console.log(`${"─".repeat(60)}\n`);
+  console.log(`${"—".repeat(60)}\n`);
+
+  // Async: run won-deal autopsy for this AE in background
+  const aeName = transcript.repName;
+  if (aeName && process.env.PIPEDRIVE_API_KEY && process.env.FIREFLIES_API_KEY) {
+    const lastKey = `autopsy:${aeName}`;
+    if (!inFlightMeetings.has(lastKey)) {
+      inFlightMeetings.add(lastKey);
+      console.log(`[autopsy] Starting background analysis for ${aeName}...`);
+      runDealAutopsy({
+        repName: aeName,
+        days: 90,
+        pool,
+        pipedriveKey: process.env.PIPEDRIVE_API_KEY,
+        firefliesKey: process.env.FIREFLIES_API_KEY,
+      }).then((result) => {
+        console.log(`[autopsy] Done for ${aeName}: ${result.dealsAnalyzed} deals`);
+        inFlightMeetings.delete(lastKey);
+        setTimeout(() => inFlightMeetings.delete(lastKey), 4 * 60 * 60 * 1000);
+      }).catch((err) => {
+        console.error(`[autopsy] Failed for ${aeName}: ${err.message}`);
+        inFlightMeetings.delete(lastKey);
+      });
+    }
+  }
 }
 
 // ─── Progression Stats API ──────────────────────────────────────
@@ -804,6 +828,58 @@ app.get("/dashboard", (req, res) => {
     res.send(html);
   } catch (err) {
     res.status(404).send("Dashboard not found");
+  }
+});
+
+// ─── Team Autopsy API ──────────────────────────────────────────
+// Runs won-deal autopsy for all active AEs in one request.
+// GET /api/team-autopsy — returns analysis for all reps with won deals
+
+app.get("/api/team-autopsy", async (req, res) => {
+  try {
+    const pipedriveKey = process.env.PIPEDRIVE_API_KEY;
+    const firefliesKey = process.env.FIREFLIES_API_KEY;
+    if (!pipedriveKey) throw new Error("PIPEDRIVE_API_KEY not configured");
+    if (!firefliesKey) throw new Error("FIREFLIES_API_KEY not configured");
+
+    // Get distinct reps with won deals in the DB
+    const { rows } = await pool.query(`
+      SELECT DISTINCT rep_name FROM scorecards
+      WHERE pipedrive_deal_id IS NOT NULL
+      ORDER BY rep_name
+    `);
+    const reps = rows.map(r => r.rep_name);
+
+    console.log(`[/api/team-autopsy] Running for ${reps.length} reps: ${reps.join(", ")}`);
+
+    const results = {};
+    for (const rep of reps) {
+      try {
+        console.log(`[/api/team-autopsy] Analyzing ${rep}...`);
+        const result = await runDealAutopsy({
+          repName: rep,
+          days: 90,
+          pool,
+          pipedriveKey,
+          firefliesKey,
+        });
+        results[rep] = {
+          dealsAnalyzed: result.dealsAnalyzed,
+          autopsies: result.autopsies,
+        };
+      } catch (e) {
+        results[rep] = { error: e.message };
+      }
+    }
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      repsAnalyzed: reps.length,
+      results,
+    });
+  } catch (err) {
+    console.error(`[/api/team-autopsy] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
   }
 });
 
