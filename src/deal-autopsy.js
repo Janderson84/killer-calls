@@ -126,11 +126,11 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
     const daysAgo = days || 30;
     const repFilter = repName ? `AND s.rep_name = '${repName.replace(/'/g, "''")}'` : "";
     const { rows } = await pool.query(`
-      SELECT DISTINCT s.pipedrive_deal_id, s.rep_name
+      SELECT DISTINCT ON (s.pipedrive_deal_id) s.pipedrive_deal_id, s.rep_name, s.call_date
       FROM scorecards s
       WHERE s.pipedrive_deal_id IS NOT NULL ${repFilter}
         AND s.call_date::timestamp >= NOW() - INTERVAL '${daysAgo} days'
-      ORDER BY s.call_date DESC
+      ORDER BY s.pipedrive_deal_id, s.call_date DESC
       LIMIT 20
     `);
 
