@@ -1020,18 +1020,31 @@ app.get("/api/test-slack", async (req, res) => {
     };
 
     // Fetch team settings to get roster/channel info
-    const teamResult = await pool.query(
-      `SELECT s.key, s.value FROM settings s WHERE s.key IN ('ae_roster', 'slack_channel_reviews', 'slack_bot_token', 'app_url')`
-    );
-    const teamConfig = {};
-    for (const row of teamResult.rows) {
-      teamConfig[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    let teamConfig = {};
+    try {
+      const teamResult = await pool.query(
+        `SELECT s.key, s.value FROM settings s WHERE s.key IN ('ae_roster', 'slack_channel_reviews', 'slack_bot_token', 'app_url')`
+      );
+      for (const row of teamResult.rows) {
+        try {
+          teamConfig[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+        } catch {
+          teamConfig[row.key] = row.value;
+        }
+      }
+      console.log(`[test-slack] Settings keys found: ${teamResult.rows.map(r => r.key).join(", ")}`);
+    } catch (err) {
+      console.error(`[test-slack] Failed to fetch settings: ${err.message}`);
     }
+
+    // Fallback to env vars for channel/token
+    const roster = Array.isArray(teamConfig.ae_roster) ? teamConfig.ae_roster : [];
+    const channelId = teamConfig.slack_channel_reviews || process.env.SLACK_CHANNEL_REVIEWS;
+    const slackBotToken = teamConfig.slack_bot_token || undefined;
 
     const meta = {
       repName,
       companyName: "Acme Corp (Test)",
-      date: new Date().toISOString().split("T")[0],
       durationMinutes: 28,
       meetingId: "test-" + Date.now(),
       callType: "discovery",
@@ -1042,10 +1055,6 @@ app.get("/api/test-slack", async (req, res) => {
       recentAvg: 64,
       recentCount: 5,
     };
-
-    const roster = teamConfig.ae_roster || [];
-    const channelId = teamConfig.slack_channel_reviews || process.env.SLACK_CHANNEL_REVIEWS;
-    const slackBotToken = teamConfig.slack_bot_token || undefined;
 
     console.log(`[test-slack] Channel: ${channelId || "NOT SET"}, Roster: ${roster.length} AEs`);
 
