@@ -54,28 +54,18 @@ async function fetchTranscript(meetingId, apiKey) {
 
 // ─── Fetch deal info from Pipedrive ───────────────────────────
 
-async function fetchDeal(dealId, pipedriveKey) {
+async function fetchDeal(dealId, apiKey) {
   try {
-    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}?api_token=${pipedriveKey}`);
+    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}?api_token=${apiKey}`);
     const json = await resp.json();
-    if (!json.success || !json.data) {
-      console.error(`[autopsy] Pipedrive API error for deal ${dealId}: ${JSON.stringify(json)}`);
-      return null;
+    if (json.success && json.data) {
+      return { id: json.data.id, title: json.data.title, status: json.data.status, value: json.data.value, stage_id: json.data.stage_id, pipeline_id: json.data.pipeline_id, won_time: json.data.won_time, add_time: json.data.add_time };
     }
-    return {
-      id: json.data.id,
-      title: json.data.title,
-      status: json.data.status,
-      value: json.data.value,
-      stage_id: json.data.stage_id,
-      pipeline_id: json.data.pipeline_id,
-      won_time: json.data.won_time,
-      add_time: json.data.add_time,
-    };
+    console.error(`[autopsy] Pipedrive API error for deal ${dealId}: success=${json.success} hasData=${!!json.data}`);
   } catch (e) {
-    console.error(`[autopsy] fetchDeal failed for ${dealId}: ${e.message}`);
-    return null;
+    console.error(`[autopsy] fetchDeal exception for ${dealId}: ${e.message}`);
   }
+  return null;
 }
 
 // ─── Call LLM for autopsy analysis ────────────────────────────
