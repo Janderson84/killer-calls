@@ -120,6 +120,8 @@ async function runAutopsyLLM(prompt) {
 // ─── Main autopsy function ─────────────────────────────────────
 
 async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firefliesKey }) {
+  console.log(`[autopsy] START dealId=${dealId} repName=${repName} days=${days}`);
+
   // ── Step 1: Find won deals to analyze ──────────────────────
   let targetDeals;
 
@@ -347,6 +349,7 @@ Focus on SPECIFIC behaviors, exact phrases, and observable differences — not g
     generatedAt: new Date().toISOString(),
     dealsAnalyzed: autopsies.length,
     autopsies,
+    _debug: { dealId, repName, days, hasPipedriveKey: !!pipedriveKey, hasFirefliesKey: !!firefliesKey },
   };
 }
 
