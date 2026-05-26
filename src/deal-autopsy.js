@@ -5,8 +5,6 @@
 // Trigger: GET /api/deal-autopsy?dealId=X or ?rep=NAME&days=30
 // Returns: Structured analysis of winning patterns
 
-const { execSync } = require("child_process");
-
 const FIREFLIES_QUERY = `
   query Transcript($transcriptId: String!) {
     transcript(id: $transcriptId) {
@@ -72,40 +70,27 @@ async function fetchDeal(dealId, apiKey) {
 // ─── Call LLM for autopsy analysis ────────────────────────────
 
 async function runAutopsyLLM(prompt) {
-  // Try Gemini first (if key is set)
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
-          }),
-        }
-      );
-      const json = await resp.json();
-      const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return text;
-    } catch (e) {
-      console.error("[autopsy] Gemini failed, falling back to OpenClaw:", e.message);
-    }
-  }
+  // Use Anthropic API (Claude) — same provider as the scoring engine
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
-  // Fall back to OpenClaw CLI
-  try {
-    const result = execSync("openclaw agent --raw", {
-      input: prompt,
-      encoding: "utf-8",
-      maxBuffer: 100 * 1024 * 1024,
-      timeout: 120000,
-    });
-    return result.trim();
-  } catch (e) {
-    throw new Error(`OpenClaw autopsy failed: ${e.message}`);
-  }
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: process.env.CLAUDE_MODEL || "claude-sonnet-4-6-20250514",
+      max_tokens: 4096,
+      temperature: 0.3,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  const json = await resp.json();
+  if (json.error) throw new Error(`Anthropic error: ${json.error.message}`);
+  return json.content?.[0]?.text || "";
 }
 
 // ─── Main autopsy function ─────────────────────────────────────
