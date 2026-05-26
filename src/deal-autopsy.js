@@ -341,7 +341,7 @@ Focus on SPECIFIC behaviors, exact phrases, and observable differences — not g
     generatedAt: new Date().toISOString(),
     dealsAnalyzed: autopsies.length,
     autopsies,
-    _debug: { dealId, repName, days, hasPipedriveKey: !!pipedriveKey, hasFirefliesKey: !!firefliesKey },
+    _debug: { dealId, repName, days, hasPipedriveKey: !!pipedriveKey, pipedriveKeyLen: pipedriveKey ? pipedriveKey.length : 0, hasFirefliesKey: !!firefliesKey },
   };
 }
 
