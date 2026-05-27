@@ -1469,3 +1469,52 @@ app.get("/api/debug/scorecards", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── Admin: Clear skipped_meetings for reprocessing ──────────────
+app.post("/api/admin/clear-skipped", async (req, res) => {
+  try {
+    const { meetingIds } = req.body;
+    if (meetingIds && Array.isArray(meetingIds)) {
+      const result = await pool.query(
+        `DELETE FROM skipped_meetings WHERE meeting_id = ANY($1) RETURNING meeting_id`,
+        [meetingIds]
+      );
+      res.json({ cleared: result.rows.length, ids: result.rows.map(r => r.meeting_id) });
+    } else {
+      // Clear all from today
+      const result = await pool.query(
+        `DELETE FROM skipped_meetings WHERE created_at > NOW() - INTERVAL '2 days' RETURNING meeting_id`
+      );
+      res.json({ cleared: result.rows.length, ids: result.rows.map(r => r.meeting_id) });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Admin: Backfill all recent Fireflies meetings ───────────────
+app.post("/api/admin/backfill-recent", async (req, res) => {
+  res.status(200).json({ status: "started" });
+  try {
+    const firefliesKey = process.env.FIREFLIES_API_KEY;
+    const query = `query { transcripts(limit: 50) { id title date participants } }`;
+    const ffResp = await fetch("https://api.fireflies.ai/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${firefliesKey}` },
+      body: JSON.stringify({ query })
+    });
+    const ffData = await ffResp.json();
+    const meetings = ffData?.data?.transcripts || [];
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayMeetings = meetings.filter(m => m.date >= todayStart.getTime());
+
+    console.log(`[backfill-recent] Found ${todayMeetings.length} meetings from today`);
+    for (const m of todayMeetings) {
+      processDemo(m.id).catch(err => console.error(`[backfill-recent] ${m.id}: ${err.message}`));
+      await new Promise(r => setTimeout(r, 2000)); // 2s stagger
+    }
+  } catch (err) {
+    console.error(`[backfill-recent] Error: ${err.message}`);
+  }
+});
