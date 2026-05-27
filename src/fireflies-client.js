@@ -79,6 +79,7 @@ async function fetchTranscript(meetingId, apiKey) {
     transcriptText,
     sentences: t.sentences,
     participants: t.participants || [],
+    organizer_email: t.organizer_email || "",
     speakerCount: t.speakers ? t.speakers.length : 0
   };
 }

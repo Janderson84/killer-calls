@@ -269,13 +269,10 @@ async function _processDemo(meetingId) {
   const transcript = await fetchTranscript(meetingId);
   console.log(`[1/5] Got transcript: "${transcript.title}" (${transcript.durationMinutes} min, ${transcript.transcriptText.length} chars)`);
 
-  // Step 2: Resolve team from organizer email
-  console.log(`\n[2/5] Resolving team...`);
-  const organizerEmail = transcript.participants?.find((p) => {
-    const email = (typeof p === "string" ? p : p?.email || "").toLowerCase();
-    return email.includes("@");
-  }) || "";
-  const orgEmail = (typeof organizerEmail === "string" ? organizerEmail : organizerEmail?.email || "").toLowerCase();
+  // Step 2: Resolve team from organizer email (use Fireflies' organizer_email field directly)
+  console.log(`\\n[2/5] Resolving team...`);
+  const organizerEmail = (transcript.organizer_email || "").toLowerCase();
+  const orgEmail = organizerEmail;
 
   const teamMatch = await resolveTeam(orgEmail);
   if (!teamMatch) {
@@ -1027,12 +1024,9 @@ app.post("/api/backfill", async (req, res) => {
       const transcript = await fetchTranscript(meetingId);
       console.log(`[backfill] ${meetingId}: "${transcript.title}" (${transcript.durationMinutes}min, ${transcript.repName})`);
 
-      // Resolve team
-      const organizerEmail = transcript.participants?.find(p => {
-        const email = (typeof p === "string" ? p : p?.email || "").toLowerCase();
-        return email.includes("@");
-      }) || "";
-      const orgEmail = (typeof organizerEmail === "string" ? organizerEmail : organizerEmail?.email || "").toLowerCase();
+      // Resolve team (use Fireflies' organizer_email field directly)
+      const organizerEmail = (transcript.organizer_email || "").toLowerCase();
+      const orgEmail = organizerEmail;
       const teamMatch = await resolveTeam(orgEmail);
       if (!teamMatch) {
         console.log(`[backfill] ${meetingId}: no team match for ${orgEmail}`);
