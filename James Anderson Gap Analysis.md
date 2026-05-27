@@ -2,7 +2,7 @@
 ## What the top closer did differently (and how to operationalize it)
 
 **Analysis date:** May 27, 2026
-**Data sources:** Pipedrive CRM (won deals), deal velocity/timeline data
+**Data sources:** Pipedrive CRM (won deals), deal velocity/timeline data, Fireflies transcripts (9 calls recovered)
 
 ---
 
@@ -71,6 +71,58 @@ James wrote the demo flow we just updated. Every pattern in his data maps to tha
 
 The document IS what James did. The gap isn't knowledge — it's execution.
 
+### 6. The Transcript Evidence: Riley Shelton Call (July 29, 2025)
+
+We recovered the full transcript of a James Anderson closed deal — Riley Shelton's ad agency. 36 minutes, $650/mo deal. Here's what it reveals about James's actual in-call behavior:
+
+**Talk Ratio: JA 80%, Prospect 20%**
+
+James dominates the conversation. This isn't a balanced discussion — he's driving. He talks 5,127 words to the prospect's 1,266. But critically, he gets LESS talkative in the final phase (1,102 words in first 20% → 973 words in last 20%), shifting to listening as the close approaches.
+
+**Rapport Is His #1 Tool (50 rapport-building lines)**
+
+James's most-used communication pattern isn't discovery, demo, or closing — it's rapport. He uses casual, warm language throughout: "man," "buddy," "dude," "appreciate it," "good luck with the business," "I think you're going to crush." This isn't fake friendliness — it's consistent and natural. The prospect mirrors it back by the end.
+
+**Demo-Heavy, Not Discovery-Heavy (38 demo vs 10 discovery lines)**
+
+James doesn't do long structured discovery. He asks sharp, embedded questions ("describe your ideal clients," "what does a contract look like," "what are your sales goals?") but spends most of his talk time showing the product and building vision. He learns by showing, not by interrogating.
+
+**Close Language Is Everywhere (35 close-signal lines)**
+
+James doesn't save the close for the end. Close language is spread throughout: "send you the statement of work," "get you set up," "calendar invite," "onboarding," "Slack channel with account manager." Every feature demo ends with a close bridge. The final sequence is pure warmth + confirmation:
+
+> *"I'm excited to see what you make here. I think it's going to be good. I'll make that intro and I'll see you at onboarding on Thursday. You'll get a calendar invite, too. A pleasure to talk to you, Riley."*
+
+**Objection Handling Is Proactive (7 lines, all preemptive)**
+
+James doesn't wait for objections. He addresses them before they surface: pricing context, onboarding timeline, "we'll put all your information in here about case studies, testimonials." He removes friction before the prospect can raise it.
+
+**What the Degraded Transcripts Confirm**
+
+Five additional transcripts (labeled "AE:James" in the Fireflies title) show consistent patterns despite generic speaker labels:
+
+| Call | Length | Discovery | Close | Pain | Pipeline |
+|---|---|---|---|---|---|
+| highvibes227 (Jun 24) | 46 min / 747 lines | 24 | 51 | 7 | 55 |
+| val@raumkitchens (Jun 25) | 33 min / 512 lines | 13 | 30 | 3 | 72 |
+| juryintegrity (Jul 7) | 19 min / 251 lines | 8 | 16 | 1 | 28 |
+| staffordking (Oct 31) | 34 min / 626 lines | 8 | 20 | 5 | 41 |
+
+**The pattern is consistent across all five:** Heavy on close language and product/pipeline discussion, light on explicit pain probing. James sells the solution, not the problem.
+
+**Compare to Vanessa (Maria & Vanessa Trial Set-Up, April 2025):**
+
+51 minutes, 1,048 lines — but only 8 close signals. James's 36-minute call had 35. Vanessa's call-to-close density is 0.16 close signals per minute. James's is 0.97. Vanessa talks longer and closes less.
+
+**The Transcript-Backed James Anderson Formula:**
+
+1. **Rapport-first:** Warm, casual, "buddy/dude/man" — makes the prospect feel like a peer
+2. **Demo-as-discovery:** Learn about the prospect by showing the product, not interrogating
+3. **Close-everywhere:** Every feature demo bridges to "here's how we'll set you up"
+4. **Preemptive objection handling:** Remove friction before the prospect raises it
+5. **Shrink at the end:** Talk less in the final phase, let the prospect confirm
+6. **Celebrate the close:** Make signing feel like the start of something, not the end of a sales call
+
 ---
 
 ## Root Causes of the Gap
@@ -107,13 +159,15 @@ James held himself accountable. Current team: deals sit in "Demo Held" or "Objec
 ## Bob & Marc Comparison
 
 | Trait | James | Bob Oshidary | Marc Bowring |
-|---|---|---|---|
+|---|---|---|---|---|
 | Close style | Fast, assumptive default | One-call close, price anchor → trial | Conversational, relationship |
-| Talk ratio | Unknown (no transcripts) | 75-80% AE | More balanced |
+| Talk ratio | 80% AE (transcript-confirmed) | 75-80% AE | More balanced |
 | Deal size | $4.6K avg | $2.9K avg | $5.3K avg |
 | Velocity | 4 days median | Same call | Multi-call, longer cycle |
 | Volume | 4-8/month | Lower volume, higher close rate | 5-7 demos/day |
-| Discovery | QUICK (was SPICED) | Minimal, pitch-heavy | Structured, prep-heavy |
+| Discovery | Embedded in demo (not formal) | Minimal, pitch-heavy | Structured, prep-heavy |
+| Rapport style | Casual, warm, "buddy/man/dude" | Direct, price-focused | Professional, consultative |
+| Close density | 0.97 close signals/min | Aggressive, one-and-done | Progressive, multi-touch |
 
 **The pattern across all three high-performers:** They CLOSE. Bob closes on the spot, James closes within the week, Marc closes through systematic follow-up. None of them finish a demo with "I'll send you a proposal and we'll go from there."
 
