@@ -15,10 +15,9 @@
 
 ## Quick Links & Tools
 
-- **PandaDoc:** [PandaDoc](https://app.pandadoc.com)
-  Email: pandadocsales2@wishpond.com  |  Password: Pond2125
 - [Sales Presentation](https://docs.google.com/presentation/d/1xsrkLaNFuhwcvk1edMlkkA1IPn4OXzuPFRnW3YQQ65U/edit?slide=id.g3c5e63a5d4f_0_0#slide=id.g3c5e63a5d4f_0_0)
 - [Mutual Action Plan](https://docs.google.com/spreadsheets/d/18-bdrtfH2DWMmACwI85Anj14NcTg_JhSXPeEO0y-yYo/edit?gid=1211058917#gid=1211058917)
+- **Payment Links:** Have your sign-up link ready before every call
 
 ---
 
@@ -111,7 +110,7 @@
 3. Soft schedule follow-up
 
 ### 5b. Credibility Anchors
-- "SalesCloser AI is a solution created by Wishpond Technologies. Wishpond has been around for 15 years in the SaaS space and is publicly traded on the TSX. SalesCloser started as an internal tool and we're now spinning this company out into its own public-listed company."
+- "SalesCloser AI started as an internal tool under Wishpond Technologies, but we've grown into our own company. We're now independently publicly listed, with over 400 clients on the platform. We built this from the inside out — we know what it takes to close deals because we've been doing it ourselves for years."
 
 ---
 
@@ -189,8 +188,8 @@
 
 Act as though the decision is already made and move straight into logistics.
 
-- "Great — let me get the SOW over to you so we can lock in your training slot. Do you have 30 minutes tomorrow between X-X or [next day] at X?"
-- "Cool, I'll send over the payment link now so we can reserve your spot."
+- "Great — let me send over the payment link so we can lock in your training slot. Do you have 30 minutes tomorrow between X-X or [next day] at X?"
+- "Cool, I'll drop the sign-up link in chat now so we can get you rolling."
 
 #### B: The Alternative Close
 **Best when: Prospect is interested but hasn't committed. Give them a choice between two "yes" options.**
@@ -211,57 +210,51 @@ Tie back to their timeline and the cost of waiting.
 
 Walk through everything they're getting, point by point:
 
-- "So just to recap — you're getting an AI agent that handles [use case], solves [pain from U step], saves you roughly [impact number] per month, and you'll be live before [deadline from I step]. The [package] at $X/mo covers all of that. Want me to send over the details?"
+- "So just to recap — you're getting an AI agent that handles [use case], solves [pain from U step], saves you roughly [impact number] per month, and you'll be live before [deadline from I step]. The [package] at $X/mo covers all of that. Ready to get you set up?"
 
-#### E: The Trial Close / Temperature Check
-**Best when: You're not sure where they stand and need to gauge before the hard close.**
-
-Ask a low-pressure question to test commitment:
-
-- "On a scale of 1-10, how confident are you that this solves the problem we talked about?"
-- "If we could get the pricing to work, is this something you'd want to move on this week?"
-- Use their answer to decide whether to go for A/B/C/D or circle back to Step 2
-
-#### F: The Puppy Dog Close
+#### E: The Puppy Dog Close
 **Best when: Prospect likes it but is hesitant. Let the product sell itself.**
 
-- "Tell you what — let's get your agent set up, get you into a training call, and you can see it working with your real use case. Once you see the calls coming in, I think you'll see exactly what I mean."
+- "Tell you what — let's get your agent set up right now, get you into a training call, and you can see it working with your real use case. No paperwork, you just sign up and we get you rolling. Once you see the calls coming in, I think you'll see exactly what I mean."
 
-**After the close attempt:** If they say yes, move to Steps 9-13 below. If they stall, return to Step 2 (Handle Concerns) and try a different method.
+**After the close attempt:** If they say yes, move to Step 9 (Pricing & Close) below. If they stall, return to Step 2 (Handle Concerns) and try a different method.
 
 ---
 
-### 9. Prepare SOW
+### 9. Pricing & Close
 
-### 10. Pricing
+**No SOWs. No paperwork. Close on the call.**
 
-**Packages:**
+The goal is to get them signed up before they hang up. Have your payment link ready before the call starts.
+
+**Value Stack — How to Structure the Deal:**
+
+You have flexibility here. Pick a starting price based on the lead quality, then negotiate from there:
+
+| Good Lead (start here) | Smaller Deal (start here) |
+| :--- | :--- |
+| Pitch at **$750/mo** | Pitch at **$500/mo** |
+| Drop 20% → **$600/mo** close | Drop 20% → **$400/mo** close |
+
+**Reference packages (reps are NOT locked to these — use them as anchors, not rules):**
 
 | Package | Price | Hours | Notes |
 | :--- | :--- | :--- | :--- |
-| Basic | $750/mo | 30 Hours (960 min) | NO OUTBOUND |
-| Silver | $1,250/mo | 60 Hours (4,800 min) | |
+| Basic | $750/mo | 30 Hours (1,800 min) | NO OUTBOUND |
+| Silver | $1,250/mo | 60 Hours (3,600 min) | |
 | Gold | $2,000/mo | 200 Hours (12,000 min) | |
 
 **Pricing approach:**
-1. Use their use case to determine the correct package. Focus on outcomes, not talk time
-2. Recap all features and tie back to pain points:
-   - Adding those clients into your roster, getting through the qualifying and bringing new leads into your pipeline, handling/returning calls, capturing X amount of additional revenue
-3. Drop price and stay silent, gauge reaction
-4. Return to objections if needed — ECIR framework
+1. Decide your pitch price and floor price before the call. Know your walk-away number
+2. Tie the package to outcomes, not hours: "This covers your inbound calls and lead qualification so your team can focus on closing"
+3. If you need to drop, drop once and hold. Don't nickel-and-dime yourself
+4. **Canadian customers: charge tax.** Factor it in or call it out, but don't eat it
 
-**Hard close script:**
-"Cool, so I'll send over the payment link and we can reserve the time slot for your training call. I just dropped that into the chat for you. Did you have 30 minutes tomorrow between X-X or [next day] at X?"
-
-### 11. Send SOW (Agreement, Paperwork, Outline)
-1. "I'm sending over the details for you now. If you open that link I can answer any questions you may have..."
-2. "I'm a visual person..."
-
-### 12. Send Payment Link
-1. "And just to ensure that we have that spot reserved for you, I've provided a link for your payment details..."
-2. Payment pause for delay launch — need first payment to secure team for training call
-
-### 13. Close
+**Closing on the call:**
+- Send the payment link in chat while they're still on the line
+- "I'm dropping the link in the chat now. Once you fill that out, we'll lock in your training slot. Do you have 30 minutes tomorrow at [time]?"
+- If they hesitate, use the Puppy Dog close: "Let's just get you set up and you'll see it working with your real calls this week"
+- No SOWs, no contracts to sign, no follow-up paperwork. The payment link is the close
 
 ---
 
@@ -285,8 +278,7 @@ Ask a low-pressure question to test commitment:
 | **B — Alternative** | Interested but uncommitted; give two "yes" options | "Would you want Silver or Basic?" |
 | **C — Urgency** | Real deadline or genuine time pressure | "You mentioned you need this by..." |
 | **D — Summary** | Multiple pain points addressed; stack the value | "So just to recap — you're getting..." |
-| **E — Trial / Temp Check** | Unsure where they stand; gauge before hard close | "On a scale of 1-10..." |
-| **F — Puppy Dog** | Likes it but hesitant; let the product sell itself | "Let's get your agent set up..." |
+| **E — Puppy Dog** | Likes it but hesitant; let the product sell itself | "Let's get your agent set up right now..." |
 
 ---
 
