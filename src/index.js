@@ -1470,6 +1470,22 @@ app.get("/api/debug/scorecards", async (req, res) => {
   }
 });
 
+// ─── Debug: Dump AE roster from settings ─────────────────────────
+app.get("/api/debug/roster", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT team_id, value as roster FROM settings WHERE key = 'ae_roster'`
+    );
+    const parsed = result.rows.map(r => ({
+      team_id: r.team_id,
+      roster: typeof r.roster === "string" ? JSON.parse(r.roster) : r.roster
+    }));
+    res.json(parsed);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Admin: Clear skipped_meetings for reprocessing ──────────────
 app.post("/api/admin/clear-skipped", async (req, res) => {
   try {
