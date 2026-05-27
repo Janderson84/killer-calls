@@ -138,7 +138,13 @@ async function getTeamSettings(teamId) {
   );
   const settings = {};
   for (const row of result.rows) {
-    settings[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    try {
+      settings[row.key] = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+    } catch (err) {
+      console.error(`[settings] Failed to parse ${row.key}: ${err.message}. Value: ${String(row.value).substring(0, 100)}`);
+      pipelineErrors.unshift({ meetingId: 'settings:' + row.key, step: 'parse', message: err.message, time: new Date().toISOString() });
+      settings[row.key] = row.value; // use raw value as fallback
+    }
   }
   return settings;
 }
