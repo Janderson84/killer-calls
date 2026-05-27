@@ -1486,6 +1486,20 @@ app.get("/api/debug/roster", async (req, res) => {
   }
 });
 
+// ─── Debug: Dump skipped_meetings and settings ──────────────────
+app.get("/api/debug/skipped", async (req, res) => {
+  try {
+    const skipped = await pool.query(`SELECT * FROM skipped_meetings ORDER BY created_at DESC LIMIT 10`);
+    const excluded = await pool.query(`SELECT * FROM settings WHERE key = 'excluded_patterns'`);
+    res.json({
+      skipped: skipped.rows,
+      excluded_patterns: excluded.rows.map(r => ({ team_id: r.team_id, value: r.value }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Admin: Clear skipped_meetings for reprocessing ──────────────
 app.post("/api/admin/clear-skipped", async (req, res) => {
   try {
