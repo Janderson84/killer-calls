@@ -15,9 +15,13 @@ const FOLLOWUP_TITLE_PATTERNS = /follow[\s-]?up|2nd\s*call|second\s*call|check[\
 function extractProspectEmail(participants, aeEmails) {
   if (!participants || !Array.isArray(participants)) return null;
   for (const p of participants) {
-    const email = (typeof p === "string" ? p : p?.email || "").toLowerCase().trim();
-    if (email && email.includes("@") && !aeEmails.has(email)) {
-      return email;
+    const raw = (typeof p === "string" ? p : p?.email || "").toLowerCase().trim();
+    if (!raw || !raw.includes("@")) continue;
+    // Fireflies sometimes concatenates multiple emails in one string (e.g. "ae@co.com,prospect@co.com")
+    // Split and check each individually so we find the prospect, not the AE blob
+    const emails = raw.split(",").map(e => e.trim()).filter(e => e.includes("@"));
+    for (const email of emails) {
+      if (!aeEmails.has(email)) return email;
     }
   }
   return null;
