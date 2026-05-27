@@ -227,7 +227,29 @@ function parseScorecardText(text) {
     cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
   }
 
-  const scorecard = JSON.parse(cleaned);
+  let scorecard;
+  try {
+    scorecard = JSON.parse(cleaned);
+  } catch (err) {
+    // If JSON is truncated, try to salvage by closing braces
+    if (err.message.includes('Unexpected end') && cleaned.startsWith('{')) {
+      // Count open vs close braces and add missing ones
+      let open = 0;
+      for (const ch of cleaned) {
+        if (ch === '{') open++;
+        if (ch === '}') open--;
+      }
+      const salvaged = cleaned + '}'.repeat(Math.max(0, open));
+      try {
+        scorecard = JSON.parse(salvaged);
+        console.warn('[scoring] Truncated JSON salvaged by adding ' + Math.max(0, open) + ' closing braces');
+      } catch (e2) {
+        throw new Error('DeepSeek returned truncated/unparseable JSON. Partial: ' + cleaned.substring(0, 300));
+      }
+    } else {
+      throw new Error('DeepSeek returned invalid JSON: ' + err.message + '. Partial: ' + cleaned.substring(0, 300));
+    }
+  }
   if (typeof scorecard.score !== 'number' || !scorecard.rag) {
     throw new Error('Scoring response missing required fields (score, rag)');
   }
@@ -265,7 +287,7 @@ async function scoreTranscript({ transcriptText, repName, companyName, durationM
       { role: "user", content: effectiveUserPrompt },
     ],
     temperature: 0.1,
-    max_tokens: 8192,
+    max_tokens: 16384,
     response_format: { type: "json_object" },
   };
 
