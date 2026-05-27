@@ -274,7 +274,7 @@ You have flexibility here. Pick a starting price based on the lead quality, then
 
 | Method | Best When | Example Script Starts With |
 | :--- | :--- | :--- |
-| **A — Assumptive** | Prospect is positive, no major objections | "Great — let me get the SOW over..." |
+| **A — Assumptive** | Prospect is positive, no major objections | "Great — let me send the payment link..." |
 | **B — Alternative** | Interested but uncommitted; give two "yes" options | "Would you want Silver or Basic?" |
 | **C — Urgency** | Real deadline or genuine time pressure | "You mentioned you need this by..." |
 | **D — Summary** | Multiple pain points addressed; stack the value | "So just to recap — you're getting..." |
