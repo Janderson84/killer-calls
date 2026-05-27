@@ -1448,6 +1448,21 @@ app.get("/health", (req, res) => {
   });
 });
 
+// ─── Admin: remove test reps from frontend ────────────────────
+
+app.post("/api/admin/remove-reps", async (req, res) => {
+  const names = ["Marc Bowring", "Bob Oshidary"];
+  try {
+    for (const name of names) {
+      const result = await pool.query("DELETE FROM scorecards WHERE rep_name = $1", [name]);
+      console.log(`[admin] Removed ${result.rowCount} scorecards for ${name}`);
+    }
+    res.json({ status: "ok", removed: names });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(CONFIG.port, () => {
   console.log(`\n🚀 Killer Calls running on port ${CONFIG.port} (multi-team)`);
   console.log(`   Webhook URL: POST http://localhost:${CONFIG.port}/webhook/fireflies`);
