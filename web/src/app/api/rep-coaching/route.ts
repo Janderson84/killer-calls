@@ -66,26 +66,26 @@ export async function GET(request: Request) {
       }
     }
 
-    // SPICED hit rates
-    const spicedElements = ["s", "p", "i", "c", "e"] as const;
-    const spicedLabels: Record<string, string> = {
-      s: "Situation", p: "Pain", i: "Impact", c: "Critical Event", e: "Decision",
+    // QUICK hit rates
+    const quickElements = ["s", "p", "i", "c", "e"] as const;
+    const quickLabels: Record<string, string> = {
+      s: "Qualify", p: "Uncover & Amplify", i: "Identify Budget", c: "Confirm Decision", e: "Keep Moving",
     };
-    const spicedLines: string[] = [];
-    for (const el of spicedElements) {
+    const quickLines: string[] = [];
+    for (const el of quickElements) {
       const statuses = scorecards
         .map((sc) => sc.spiced?.[el]?.status as string)
         .filter(Boolean);
       const missing = statuses.filter((s) => s === "missing").length;
       const partial = statuses.filter((s) => s === "partial").length;
       if (missing + partial > statuses.length * 0.3) {
-        spicedLines.push(
-          `${spicedLabels[el]}: missing in ${missing}/${statuses.length}, partial in ${partial}/${statuses.length}`
+        quickLines.push(
+          `${quickLabels[el]}: missing in ${missing}/${statuses.length}, partial in ${partial}/${statuses.length}`
         );
       }
     }
 
-    // BANT gaps
+    // BANT qualification gaps
     const bantElements = ["b", "a", "n", "t"] as const;
     const bantLabels: Record<string, string> = {
       b: "Budget", a: "Authority", n: "Need", t: "Timeline",
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
       `Calls analyzed: ${scorecards.length}`,
       `Avg score: ${avgScore}/100, trend: ${trend}`,
       `Phase averages: ${phaseAvgs.join(", ")}`,
-      spicedLines.length > 0 ? `SPICED gaps: ${spicedLines.join("; ")}` : "SPICED: generally covered",
+      quickLines.length > 0 ? `QUICK gaps: ${quickLines.join("; ")}` : "QUICK: generally covered",
       bantLines.length > 0 ? `BANT gaps: ${bantLines.join("; ")}` : "BANT: generally covered",
       `Close styles used: ${Object.entries(styleCount).map(([s, c]) => `${s}(${c})`).join(", ") || "varied"}`,
       closeWeaknesses.length > 0 ? `Close weaknesses: ${closeWeaknesses.join("; ")}` : "Close execution: generally solid",

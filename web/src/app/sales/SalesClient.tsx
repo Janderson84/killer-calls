@@ -214,7 +214,7 @@ export default function SalesClient() {
                 <PhaseBar label="Close" score={11} max={12} delay={0.7} />
               </div>
               <div className="sl-mock-pips">
-                <div className="sl-mock-pip-label">SPICED</div>
+                <div className="sl-mock-pip-label">QUICK</div>
                 <div className="sl-mock-pip-row">
                   <Pip letter="S" status="g" />
                   <Pip letter="P" status="g" />
@@ -351,7 +351,7 @@ export default function SalesClient() {
               <div className="sl-pb-icon">&#9881;</div>
               <div className="sl-pb-title">Custom Scoring Criteria</div>
               <div className="sl-pb-desc">
-                Add, remove, or reweight any scoring criterion. Running MEDDIC instead of BANT? Swap it in. Your rubric, your rules.
+                Add, remove, or reweight any scoring criterion. Running MEDDIC instead of QUICK? Swap it in. Your rubric, your rules.
               </div>
             </div>
             <div className="sl-pb-card">
@@ -365,7 +365,7 @@ export default function SalesClient() {
               <div className="sl-pb-icon">&#127919;</div>
               <div className="sl-pb-title">Framework Flexibility</div>
               <div className="sl-pb-desc">
-                Choose which frameworks get scored — SPICED, BANT, ECIR, or bring your own. The coaching engine adapts to your methodology.
+                Choose which frameworks get scored — QUICK, ECIR, or bring your own. The coaching engine adapts to your methodology.
               </div>
             </div>
             <div className="sl-pb-card">
@@ -387,30 +387,29 @@ export default function SalesClient() {
           <p className="sl-sec-sub">Not a checklist. A coaching system.</p>
           <div className="sl-fw-grid">
             <div className="sl-fw-card">
-              <div className="sl-fw-name">SPICED</div>
-              <div className="sl-fw-role">Discovery</div>
+              <div className="sl-fw-name">QUICK</div>
+              <div className="sl-fw-role">Qualification & Discovery</div>
               <div className="sl-fw-pips">
-                <Pip letter="S" status="g" />
-                <Pip letter="P" status="g" />
+                <Pip letter="Q" status="g" />
+                <Pip letter="U" status="g" />
                 <Pip letter="I" status="r" />
                 <Pip letter="C" status="y" />
-                <Pip letter="E" status="g" />
+                <Pip letter="K" status="g" />
               </div>
               <div className="sl-fw-desc">
-                Situation, Pain, Impact, Critical Event, Decision. Each element scored independently — because Impact is missed 80% of the time.
+                Qualify, Uncover &amp; Amplify, Identify Budget, Confirm Decision, Keep Moving. Each element scored independently — because budget qualification is missed 80% of the time.
               </div>
             </div>
             <div className="sl-fw-card">
-              <div className="sl-fw-name">BANT</div>
-              <div className="sl-fw-role">Qualification</div>
+              <div className="sl-fw-name">Close</div>
+              <div className="sl-fw-role">Execution</div>
               <div className="sl-fw-pips">
+                <Pip letter="S" status="g" />
                 <Pip letter="B" status="y" />
                 <Pip letter="A" status="g" />
-                <Pip letter="N" status="g" />
-                <Pip letter="T" status="r" />
               </div>
               <div className="sl-fw-desc">
-                Budget, Authority, Need, Timeline. Evaluated separately from the score — because qualification and coaching are different conversations.
+                Three closing styles — Consultative, Assumptive, Urgency. AI identifies which style the rep used and scores Setup, Bridge, Ask. The highest-weighted phase at 22 points.
               </div>
             </div>
             <div className="sl-fw-card">
@@ -424,18 +423,6 @@ export default function SalesClient() {
               </div>
               <div className="sl-fw-desc">
                 Empathize, Clarify, Isolate, Respond. Scored per objection, then averaged. If no objections were raised, that&apos;s a zero.
-              </div>
-            </div>
-            <div className="sl-fw-card">
-              <div className="sl-fw-name">Close</div>
-              <div className="sl-fw-role">Execution</div>
-              <div className="sl-fw-pips">
-                <Pip letter="S" status="g" />
-                <Pip letter="B" status="y" />
-                <Pip letter="A" status="g" />
-              </div>
-              <div className="sl-fw-desc">
-                Three closing styles — Consultative, Assumptive, Urgency. AI identifies which style the rep used and scores Setup, Bridge, Ask.
               </div>
             </div>
           </div>
