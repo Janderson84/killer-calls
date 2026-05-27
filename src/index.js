@@ -785,7 +785,7 @@ app.get("/api/closed-call-examples", async (req, res) => {
     const examples = wonCalls.map((r) => {
       const spicedStrengths = ["s", "p", "i", "c", "e"]
         .filter((el) => r[`spiced_${el}`] === "strong")
-        .map((el) => ({ s: "Situation", p: "Pain", i: "Impact", c: "Critical Event", e: "Decision" }[el]));
+        .map((el) => ({ s: "Questioning", p: "Uncover Pain", i: "Impact", c: "Close Readiness", e: "Know-How" }[el]));
 
       let closeStyle = r.close_style || "none";
       const closeSteps = ["setup", "bridge", "ask"]
@@ -1256,7 +1256,7 @@ app.get("/api/test-slack", async (req, res) => {
     try {
       const slackResult = await slackTest.chat.postMessage({
         channel: channelId,
-        text: "🔧 *Killer Calls test notification* — Slack pipeline is live! 🎉\n\nFull notifications will include: scorecard, SPICED/BANT/Close pips, stall risk, Pipedrive deal link, and a coaching thread.",
+        text: "🔧 *Killer Calls test notification* — Slack pipeline is live! 🎉\n\nFull notifications will include: scorecard, QUICK/BANT/Close pips, stall risk, Pipedrive deal link, and a coaching thread.",
         unfurl_links: false,
       });
       console.log(`[test-slack] ✅ Test message posted! ts=${slackResult.ts}`);

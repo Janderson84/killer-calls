@@ -27,18 +27,25 @@ function pipedriveDealUrl(dealId) {
   return `https://wishpond.pipedrive.com/deal/${dealId}`;
 }
 
-// ─── SPICED Pips ─────────────────────────────────────────────────
+// ─── QUICK Pips ──────────────────────────────────────────────────
 
-function spicedPip(element, data) {
-  const letter = element.toUpperCase();
+function quickPip(element, letter, data) {
   if (data.status === "strong") return `✅ ${letter}`;
   if (data.status === "partial") return `🟡 ${letter}`;
   return `🔴 ${letter}`;
 }
 
-function formatSpicedLine(spiced) {
-  return ["s", "p", "i", "c", "e"]
-    .map((el) => spicedPip(el, spiced[el]))
+const QUICK_LABELS = [
+  { key: "s", letter: "Q", name: "Questioning" },
+  { key: "p", letter: "U", name: "Uncover Pain" },
+  { key: "i", letter: "I", name: "Impact" },
+  { key: "c", letter: "C", name: "Close Readiness" },
+  { key: "e", letter: "K", name: "Know-How" },
+];
+
+function formatQuickLine(spiced) {
+  return QUICK_LABELS
+    .map(({ key, letter }) => quickPip(key, letter, spiced[key]))
     .join("   ");
 }
 
@@ -46,7 +53,7 @@ function formatSpicedLine(spiced) {
 
 function formatBantLine(bant) {
   return ["b", "a", "n", "t"]
-    .map((el) => spicedPip(el, bant[el]))
+    .map((el) => quickPip(el, el.toUpperCase(), bant[el]))
     .join("   ");
 }
 
@@ -89,7 +96,7 @@ function buildFrameworkTags(scorecard) {
   const sp = scorecard.spiced;
 
   const allStrong = ["s", "p", "i", "c", "e"].every((el) => sp[el].status === "strong");
-  if (allStrong) tags.push("⭐ Perfect SPICED");
+  if (allStrong) tags.push("⭐ Perfect QUICK");
 
   const ecir = scorecard.phases?.pricing?.criteria?.ecir;
   if (ecir && ecir.objectionsHandled > 0) {
@@ -124,12 +131,12 @@ function scorecardUrl(scorecardId, appUrl) {
 
 function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster) {
   const rag = getRAG(scorecard.score);
-  const spicedLine = formatSpicedLine(scorecard.spiced);
+  const quickLine = formatQuickLine(scorecard.spiced);
   const bantLine = scorecard.bant ? formatBantLine(scorecard.bant) : null;
   const closeLine = scorecard.close ? formatCloseLine(scorecard.close) : null;
   const tags = buildFrameworkTags(scorecard);
 
-  let frameworksText = `*SPICED*\n${spicedLine}`;
+  let frameworksText = `*QUICK*\n${quickLine}`;
   if (bantLine) frameworksText += `\n\n*BANT*\n${bantLine}`;
   if (closeLine) frameworksText += `\n\n*Close*\n${closeLine}`;
 
@@ -317,7 +324,7 @@ function buildThreadBlocks(scorecard, meta, scorecardId) {
 
 function buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl, roster) {
   const tags = buildFrameworkTags(scorecard);
-  const spicedLine = formatSpicedLine(scorecard.spiced);
+  const quickLine = formatQuickLine(scorecard.spiced);
 
   const blocks = [
     {
@@ -332,7 +339,7 @@ function buildKillerCallBlocks(scorecard, meta, scorecardId, appUrl, roster) {
       fields: [
         { type: "mrkdwn", text: `*Prospect*\n${meta.companyName}` },
         { type: "mrkdwn", text: `*Duration*\n${meta.durationMinutes || "?"} min · ${meta.date}` },
-        { type: "mrkdwn", text: `*SPICED*\n${spicedLine}` }
+        { type: "mrkdwn", text: `*QUICK*\n${quickLine}` }
       ]
     }
   ];
@@ -454,8 +461,8 @@ async function postKillerCall(scorecard, meta, scorecardId, teamConfig = {}) {
 }
 
 // ─── Stall Risk Calculation ──────────────────────────────────
-// Based on data analysis: SPICED-I (Impact), SPICED-C (Critical Event),
-// and SPICED-E (Decision) are the strongest predictors of deal progression.
+// Based on data analysis: QUICK-I (Impact), QUICK-C (Close Readiness),
+// and QUICK-K (Know-How) are the strongest predictors of deal progression.
 // Calls weak on all three have HIGH stall risk.
 
 function calculateStallRisk(spiced) {
@@ -467,7 +474,7 @@ function calculateStallRisk(spiced) {
   for (const el of predictive) {
     const status = spiced[el]?.status;
     if (!status || status === "partial" || status === "missing") {
-      const names = { i: "Impact Quantified", c: "Critical Event", e: "Decision Mapped" };
+      const names = { i: "Impact Quantified", c: "Close Readiness", e: "Know-How" };
       weakFactors.push(names[el]);
     }
   }
@@ -491,7 +498,7 @@ function stallRiskBlock(stallRisk) {
 
   const emoji = stallRiskEmoji(stallRisk.level);
   const text = stallRisk.level === "HIGH"
-    ? `${emoji} *Stall Risk: HIGH* — Coach on: quantify impact, create urgency, map decision process before next touch`
+    ? `${emoji} *Stall Risk: HIGH* — Coach on: quantify impact, establish close readiness, map decision process before next touch`
     : `${emoji} *Stall Risk: MEDIUM* — Strengthen ${stallRisk.factors.join(" and ")} to reduce risk`;
 
   return {

@@ -37,15 +37,15 @@ const RUBRIC = {
         },
         {
           id: "spiced",
-          name: "SPICED discovery (all 5 elements)",
+          name: "QUICK discovery (all 5 elements)",
           maxPoints: 25,
           isSpiced: true,
           elements: {
-            s: { name: "Situation", maxPoints: 5, question: "What is the prospect's current setup, team size, and context?" },
-            p: { name: "Pain", maxPoints: 5, question: "Did the AE uncover a specific, named business problem?" },
+            s: { name: "Questioning", maxPoints: 5, question: "Did the AE qualify the prospect's current setup, tools, and call volume?" },
+            p: { name: "Uncover Pain", maxPoints: 5, question: "Did the AE uncover a specific business pain and amplify its cost?" },
             i: { name: "Impact", maxPoints: 5, question: "Did the AE quantify what the pain costs the business?" },
-            c: { name: "Critical Event", maxPoints: 5, question: "Is there a deadline or event that makes solving this urgent?" },
-            e: { name: "Decision", maxPoints: 5, question: "Did the AE map the decision process, timeline, and stakeholders?" }
+            c: { name: "Close Readiness", maxPoints: 5, question: "Did the AE confirm decision process and stakeholders?" },
+            e: { name: "Know-How", maxPoints: 5, question: "Did the AE keep discovery efficient without getting stuck?" }
           }
         }
       ]

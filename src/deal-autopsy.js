@@ -363,7 +363,7 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
       return [
         `=== WON DEAL CALL #${i + 1}: ${t.title} (${t.date}, ${t.duration}min) ===`,
         `Score: ${t.score}/100 (${t.rag})`,
-        `SPICED: P=${card.spiced_p || "?"} I=${card.spiced_i || "?"} C=${card.spiced_c || "?"} E=${card.spiced_e || "?"}`,
+        `QUICK: Q=${card.spiced_s || "?"} U=${card.spiced_p || "?"} I=${card.spiced_i || "?"} C=${card.spiced_c || "?"} K=${card.spiced_e || "?"}`,
         `Close style: ${card.close_style || "none"}`,
         ``,
         t.truncated || t.text,
@@ -433,7 +433,7 @@ ANALYZE and return a JSON object with these fields:
 {
   "summary": "2-3 sentence executive summary of what made this deal close",
   "key_differentiators": [
-    { "dimension": "Discovery/SPICED/Pricing/Closing/etc", "what_worked": "specific behavior observed", "evidence": "quote or timestamp from transcript" }
+    { "dimension": "Discovery/QUICK/Pricing/Closing/etc", "what_worked": "specific behavior observed", "evidence": "quote or timestamp from transcript" }
   ],
   "patterns_to_replicate": ["1-3 specific things the AE should repeat"],
   "followup_signals": "What happened BETWEEN calls that indicated progression?",
