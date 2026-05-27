@@ -140,8 +140,10 @@ export function buildDemoReviewBlocks(scorecard: Scorecard, meta: Meta, scorecar
   const tags = buildFrameworkTags(scorecard);
 
   let frameworksText = `*QUICK*\n${spicedLine}`;
-  if (bantLine) frameworksText += `\n\n*BANT*\n${bantLine}`;
   if (closeLine) frameworksText += `\n\n*Close*\n${closeLine}`;
+  if (scorecard.phases?.closing) {
+    frameworksText += `\n_Close score: ${scorecard.phases.closing.score}/${scorecard.phases.closing.maxPoints || 22}_`;
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blocks: any[] = [
