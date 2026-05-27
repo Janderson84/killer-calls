@@ -80,11 +80,11 @@ PHASE 2 — QUALIFICATION (18 pts)
 
 3. QUICK qualification (13 pts total)
    - Q — Qualify current state (3 pts): Does the AE understand their current setup, tools, call volume?
-   - U — Uncover the pain (3 pts): Did the AE identify the specific problem/inefficiency?
+   - U — Uncover the pain & future state (3 pts): Did the AE identify the specific problem? Did they AMPLIFY the pain (what is it costing them right now)? Did they ask where the prospect wants to be 3-6 months from now? Did they position the product as the bridge from current pain to desired future?
    - I — Identify budget & timeline (3 pts): Did the AE surface budget expectations and buying timeline?
    - C — Confirm decision process (2 pts): Did the AE ask who else is involved in the decision?
    - K — Keep it moving (2 pts): Did the AE avoid getting stuck in discovery? Efficient, not rambling.
-   NOTE: This is a transactional sale. Discovery should be 5-10 minutes, not 20+. Score the QUALITY of questions asked, not the quantity of time spent.
+   NOTE: This is a transactional sale. Discovery should be 5-10 minutes, not 20+. Score the QUALITY of questions asked, not the quantity of time spent. The U step is the most important qualifier — amplifying pain and connecting to future state is what separates a pitch from a prescription.
 
 PHASE 3 — PRESENTATION (24 pts)
 4. Smooth & professional (4 pts)
@@ -124,7 +124,7 @@ Return ONLY this JSON (no prose, no markdown fences):
   },
   "spiced": {
     "s": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<Q — Qualify: current setup, tools, call volume — 1-2 sentences>", "timestamps": ["MM:SS"] },
-    "p": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<U — Uncover: specific pain or inefficiency identified>", "timestamps": ["MM:SS"] },
+    "p": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<U — Uncover & Amplify: pain identified, cost amplified, future state explored, product positioned as bridge>", "timestamps": ["MM:SS"] },
     "i": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<I — Identify: budget expectations and timeline surfaced>", "timestamps": ["MM:SS"] },
     "c": { "score": <0-2>, "status": "strong"|"partial"|"missing", "feedback": "<C — Confirm: decision process and stakeholders mapped>", "timestamps": ["MM:SS"] },
     "e": { "score": <0-2>, "status": "strong"|"partial"|"missing", "feedback": "<K — Keep moving: efficient, didn't get stuck in discovery>", "timestamps": ["MM:SS"] }
