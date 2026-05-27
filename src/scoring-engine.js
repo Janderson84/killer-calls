@@ -1,20 +1,11 @@
-const { execSync } = require("child_process");
-const { CONFIG } = require("./constants");
+// ─── Killer Calls Scoring Engine ─────────────────────────────────
+// Sends call transcripts to DeepSeek for scoring against the
+// SalesCloser.ai rubric. Returns a structured JSON scorecard.
+// Requires: DEEPSEEK_API_KEY environment variable.
 
-// ─── Scoring Engine ──────────────────────────────────────────────
-// Sends a transcript to the configured LLM backend with the full
-// 14-criterion rubric. Returns a structured JSON scorecard.
-//
-// BACKENDS (set SCORING_BACKEND env var):
-//   - openclaw (default): Uses `openclaw agent` CLI to call the
-//     local OpenClaw Gateway. Works when gateway is accessible.
-//   - anthropic: Uses Anthropic SDK directly. Requires valid
-//     ANTHROPIC_API_KEY. For cloud-only deployments.
+// ─── System prompts ──────────────────────────────────────────────
 
-const SCORING_BACKEND = process.env.SCORING_BACKEND || (process.env.DEEPSEEK_API_KEY ? "deepseek" : "openclaw");
-
-// ─── Shared system prompt (identical to original) ────────────────
-const SYSTEM_PROMPT = `You are the scoring engine for Killer Calls, the internal demo review system at SalesCloser.ai — an AI-powered sales platform. You analyze recorded demo call transcripts and produce structured JSON scorecards against a 14-criterion, 100-point rubric using the SPICED, BANT, and ECIR frameworks, with flexible closing style evaluation.
+const SYSTEM_PROMPT = `You are the scoring engine for Killer Calls, the internal demo review system at SalesCloser.ai — an AI-powered sales platform. You analyze recorded demo call transcripts and produce structured JSON scorecards against a 100-point rubric.
 
 Your scorecards are read by the AEs themselves and their sales managers. Every score you give directly shapes how reps coach themselves. Accuracy and consistency matter more than speed.
 
@@ -23,11 +14,11 @@ Your scorecards are read by the AEs themselves and their sales managers. Every s
 Be a tough but fair evaluator. You are calibrating a sales team — not grading on a curve and not handing out participation trophies.
 
 Score distribution guidance:
-• 85-100 (Green): Exceptional. The rep executed nearly every phase well. Reserved for calls where discovery was thorough, pricing was handled cleanly, and a genuine close attempt was made. Most calls should NOT score this high.
+• 85-100 (Green): Exceptional. The rep qualified efficiently, presented with confidence, handled objections, and executed a strong close with a clear next step. Reserved for calls that moved the deal forward. Most calls should NOT score this high.
 • 60-84 (Yellow): Solid but with clear gaps. This is where the majority of calls should land. Good reps will consistently be in the 65-80 range. A 75 is a good call.
-• Below 60 (Red): Significant missed opportunities — weak discovery, no close attempt, or major framework gaps. Don't hesitate to score in the 30s-40s if the call warrants it.
+• Below 60 (Red): Significant missed opportunities — no close attempt, weak objection handling, or rambling presentation. Don't hesitate to score in the 30s-40s if the call warrants it.
 
-Score honestly but frame feedback constructively. A call where the AE talked for 80% of the time, skipped discovery, and ended with "I'll send you a proposal" is a 35, not a 55 — but the feedback should help them see the path to 65, not just document what went wrong. If no objections were raised, that's 0/12 for ECIR — do not give partial credit for something that didn't happen.
+Score honestly but frame feedback constructively. This is a transactional software sale (~$650/mo) — the AE should lead confidently, qualify fast, demo the product, handle objections, and close on the call. Top-performing AEs at Wishpond (the parent company) spend 60-70% of the call on presentation and close, with only 5-10% on discovery. If no objections were raised or handled, that's 0 for objection handling — do not give partial credit for something that didn't happen. The most important question: did the AE ask for the business?
 
 Award points only for behaviors you can directly observe in the transcript. "They probably prepared" is not evidence — you need to hear the rep reference specific details about the prospect's business. Absence of evidence is not ambiguous — it's a zero for that criterion.
 
@@ -64,6 +55,8 @@ Your output is ONLY valid JSON. No prose before or after. No markdown code fence
 
 MANDATORY: You MUST include ALL top-level keys: score, rag, verdict, phases, spiced, bant, close, closingTips, wins, fixes, flags, quoteOfTheCall. The "close" object is REQUIRED.`;
 
+// ─── Scoring prompt builders ─────────────────────────────────────
+
 function buildScoringPrompt(transcriptText, repName, companyName, durationMinutes) {
   return `Score the following sales demo transcript.
 
@@ -73,40 +66,45 @@ DURATION: ${durationMinutes || "unknown"} minutes
 
 ─── SCORING RUBRIC (100 points total) ───
 
-PHASE 1 — PRE-CALL PREPARATION (6 pts)
-1. Research & preparation (6 pts)
-   - Green (5-6): Industry/role knowledge evident, referenced specific details about prospect
-   - Yellow (3-4): Some research but surface-level
+PHASE 1 — PRE-CALL PREPARATION (8 pts)
+1. Research & prep outreach (8 pts)
+   - Green (6-8): Industry/role knowledge evident, referenced specific details, sent prep materials before call
+   - Yellow (3-5): Some research but surface-level
    - Red (0-2): No evidence of preparation
 
-PHASE 2 — DISCOVERY (32 pts)
-2. Agenda setting (7 pts)
-   - Green (6-7): Clear agenda stated AND prospect confirmed/agreed
-   - Yellow (3-5): Agenda stated but no buy-in
-   - Red (0-2): No agenda set
+PHASE 2 — QUALIFICATION (18 pts)
+2. Agenda setting (5 pts)
+   - Green (4-5): Clear agenda stated AND prospect confirmed/agreed
+   - Yellow (2-3): Agenda stated but no buy-in
+   - Red (0-1): No agenda set
 
-3. SPICED discovery (25 pts total — 5 pts per element)
-   - S — Situation (5 pts): What is the prospect's current setup, team size, context?
-   - P — Pain (5 pts): Did the AE uncover a specific, named business problem?
-   - I — Impact (5 pts): Did the AE quantify what the pain costs the business?
-   - C — Critical Event (5 pts): Is there a deadline or event that creates urgency?
-   - E — Decision (5 pts): Did the AE map the decision process, timeline, and stakeholders?
+3. QUICK qualification (13 pts total)
+   - Q — Qualify current state (3 pts): Does the AE understand their current setup, tools, call volume?
+   - U — Uncover the pain (3 pts): Did the AE identify the specific problem/inefficiency?
+   - I — Identify budget & timeline (3 pts): Did the AE surface budget expectations and buying timeline?
+   - C — Confirm decision process (2 pts): Did the AE ask who else is involved in the decision?
+   - K — Keep it moving (2 pts): Did the AE avoid getting stuck in discovery? Efficient, not rambling.
+   NOTE: This is a transactional sale. Discovery should be 5-10 minutes, not 20+. Score the QUALITY of questions asked, not the quantity of time spent.
 
-PHASE 3 — PRESENTATION (22 pts)
+PHASE 3 — PRESENTATION (24 pts)
 4. Smooth & professional (4 pts)
-5. Talk ratio (6 pts) — No unbroken AE stretch >90s, prospect spoke ~40%
+5. Confidence & leadership (6 pts) — AE led the conversation, spoke with authority, didn't defer to the prospect. Top closers speak 60-75% of the call. Dock points for: uncertainty, rambling explanations, excessive pauses.
 6. Personalization (8 pts) — Features tied to prospect's stated pain
-7. Tie-downs / micro-closes (4 pts) — Regular value checks
+7. Tie-downs / micro-closes (6 pts) — Regular value checks and "does that make sense?" / "any questions so far?"
 
 PHASE 4 — PRICING & OBJECTION HANDLING (28 pts)
 8. Value summary before price (8 pts)
-9. Simple pricing (6 pts) — One option, then silence
+9. Simple pricing (6 pts) — One option, then silence. Don't present a menu.
 10. No premature discount (2 pts) — Auto red flag if discount before ECIR
-11. ECIR objection handling (12 pts) — Empathize, Clarify, Isolate, Respond per objection
+11. ECIR objection handling (12 pts) — Empathize, Clarify, Isolate, Respond per objection. Every objection is an opportunity — score each one independently.
 
-PHASE 5 — CLOSE & NEXT STEPS (12 pts)
-12. Close execution (10 pts) — 3 closing styles: Consultative (Summarize/Surface Blockers/Ask), Assumptive (Read Signals/Transition/Lock Action), Urgency (Tie Event/Build Timeline/Propose Plan). Detect the style, score Setup(4)/Bridge(3)/Ask(3).
-13. Scheduled follow-up (2 pts)
+PHASE 5 — CLOSE & NEXT STEPS (22 pts)
+12. Close execution (18 pts) — This is the most important phase. Detect the closing style:
+    - Consultative: Summarize value / Surface blockers / Ask for business
+    - Assumptive: Read buying signals / Transition to next steps / Lock in commitment
+    - Urgency: Tie to event or deadline / Build timeline / Propose immediate action
+    Score: Setup(6)/Bridge(6)/Ask(6). Award full points for: trial close attempt, handling hesitation without folding, clear ask for commitment, sending agreement/payment link on the call.
+13. Scheduled follow-up (4 pts) — Specific date/time booked before hanging up. Bonus: prep materials or summary sent during the call.
 
 BANT QUALIFICATION (separate from 100-pt score, 0-5 each):
 B=Budget, A=Authority, N=Need, T=Timeline
@@ -118,18 +116,18 @@ Return ONLY this JSON (no prose, no markdown fences):
   "rag": "green"|"yellow"|"red",
   "verdict": "<one sentence summary>",
   "phases": {
-    "preCall": { "score": <n>, "maxPoints": 6, "criteria": { "research": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<2-3 sentences>", "timestamps": ["MM:SS"] } } },
-    "discovery": { "score": <n>, "maxPoints": 32, "criteria": { "agenda": { "score": <n>, "maxPoints": 7, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "spiced": { "score": <n>, "maxPoints": 25 } } },
-    "presentation": { "score": <n>, "maxPoints": 22, "criteria": { "smooth": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "talkRatio": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "personalization": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "tieDowns": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
+    "preCall": { "score": <n>, "maxPoints": 8, "criteria": { "research": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<2-3 sentences — include prep outreach if applicable>", "timestamps": ["MM:SS"] } } },
+    "discovery": { "score": <n>, "maxPoints": 18, "criteria": { "agenda": { "score": <n>, "maxPoints": 5, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "quick": { "score": <n>, "maxPoints": 13, "feedback": "<efficiency note: was discovery fast and focused?>" } } },
+    "presentation": { "score": <n>, "maxPoints": 24, "criteria": { "smooth": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "confidence": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<did the AE lead with authority or defer?>", "timestamps": ["MM:SS"] }, "personalization": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "tieDowns": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
     "pricing": { "score": <n>, "maxPoints": 28, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "simplePricing": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "noDiscount": { "score": <n>, "maxPoints": 2, "rag": "g"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "ecir": { "score": <n>, "maxPoints": 12, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
-    "closing": { "score": <n>, "maxPoints": 12, "criteria": { "closeExecution": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on close>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 2, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
+    "closing": { "score": <n>, "maxPoints": 22, "criteria": { "closeExecution": { "score": <n>, "maxPoints": 18, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on close — did they ask for the business?>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
   },
   "spiced": {
-    "s": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "p": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "i": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "c": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "e": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
+    "s": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<Q — Qualify: current setup, tools, call volume — 1-2 sentences>", "timestamps": ["MM:SS"] },
+    "p": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<U — Uncover: specific pain or inefficiency identified>", "timestamps": ["MM:SS"] },
+    "i": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<I — Identify: budget expectations and timeline surfaced>", "timestamps": ["MM:SS"] },
+    "c": { "score": <0-2>, "status": "strong"|"partial"|"missing", "feedback": "<C — Confirm: decision process and stakeholders mapped>", "timestamps": ["MM:SS"] },
+    "e": { "score": <0-2>, "status": "strong"|"partial"|"missing", "feedback": "<K — Keep moving: efficient, didn't get stuck in discovery>", "timestamps": ["MM:SS"] }
   },
   "bant": {
     "b": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
@@ -139,10 +137,10 @@ Return ONLY this JSON (no prose, no markdown fences):
   },
   "close": {
     "style": "consultative"|"assumptive"|"urgency"|"none",
-    "styleName": "<e.g. 'Consultative Close'>",
-    "setup": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "ask": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
+    "styleName": "<e.g. 'Assumptive Close'>",
+    "setup": { "score": <0-6>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Summarized Value>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-6>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Transitioned to Commitment>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-6>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Asked for Business>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
   },
   "closingTips": ["<tip 1>", "<tip 2>", "<tip 3>"],
   "wins": ["<win 1>", "<win 2>", "<win 3>"],
@@ -203,7 +201,7 @@ Return ONLY this JSON:
   "spiced": { "s": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }, "p": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }, "i": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }, "c": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }, "e": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] } },
   "bant": { "b": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }, "a": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }, "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }, "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] } },
   "close": { "style": "consultative"|"assumptive"|"urgency"|"none", "styleName": "<...>", "setup": { "score": <0-10>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] }, "bridge": { "score": <0-8>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] }, "ask": { "score": <0-12>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] } },
-  "closingTips": ["<tip 1>", "<tip 2>", "<tip 3>"],
+  "closingTips": ["<tip 1>", "<tip 2>"],
   "wins": ["<win 1>", "<win 2>"],
   "fixes": ["<fix 1>", "<fix 2>"],
   "flags": { "enthusiasm": { "detected": false, "note": "" }, "unprofessionalLanguage": { "detected": false, "note": "" }, "prematureDisqualification": { "detected": false, "note": "" } },
@@ -226,13 +224,13 @@ ${JSON.stringify(weights, null, 2)}`;
   return base;
 }
 
-// ─── Parse scorecard text (shared between backends) ─────────────
+// ─── Scorecard parser ─────────────────────────────────────────────
 
 function parseScorecardText(text) {
   let cleaned = text.trim();
   // Strip markdown code fences if present
   if (cleaned.includes('```')) {
-    const match = cleaned.match(/```(?:json)?[s]*n?([sS]*?)n?```/);
+    const match = cleaned.match(/```(?:json)?[\s]*\n?([\s\S]*?)\n?```/);
     if (match) cleaned = match[1];
   }
   const jsonStart = cleaned.indexOf('{');
@@ -260,124 +258,24 @@ function parseScorecardText(text) {
   return scorecard;
 }
 
-// ─── OpenClaw scoring backend ──────────────────────────────────
+// ─── Main scoring function (DeepSeek only) ────────────────────────
 
-function scoreViaOpenClaw(systemPrompt, userPrompt) {
-  // Combine system + user prompt for the openclaw agent CLI
-  const fullPrompt = systemPrompt
-    ? systemPrompt + '  Now score the following transcript as instructed:  ' + userPrompt
-    : userPrompt;
+function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt, userPrompt }) {
+  const effectiveSystemPrompt = systemPrompt || SYSTEM_PROMPT;
+  const effectiveUserPrompt = userPrompt || buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
 
-  const fs = require('fs');
-  const os = require('os');
-  const tmpFile = os.tmpdir() + '/killer-calls-prompt-' + Date.now() + '.txt';
-  fs.writeFileSync(tmpFile, fullPrompt);
+  console.log('[scoring] Backend: deepseek');
 
-  const sessionId = 'killer-calls-score-' + Date.now();
-
-  try {
-    const cmd = 'openclaw agent -m "$(cat ' + shellQuote(tmpFile) + ')" --json --session-id ' + sessionId + ' --timeout 300 2>/dev/null';
-    const rawResult = execSync(cmd, {
-      maxBuffer: 10 * 1024 * 1024,
-      timeout: 360000,
-      env: { ...process.env, NODE_OPTIONS: '' },
-    }).toString();
-
-    // OpenClaw may print a "Doctor" banner before the JSON.
-    // Strip everything before the first '{'
-    const firstBrace = rawResult.indexOf('{');
-    const lastBrace = rawResult.lastIndexOf('}');
-    if (firstBrace === -1 || lastBrace === -1) {
-      throw new Error('No JSON found in OpenClaw output');
-    }
-    const jsonStr = rawResult.substring(firstBrace, lastBrace + 1);
-
-    // Parse the OpenClaw response wrapper
-    const openclawResponse = JSON.parse(jsonStr);
-
-    // Extract the actual scorecard text
-    const text =
-      openclawResponse?.result?.payloads?.[0]?.text ||
-      openclawResponse.text ||
-      openclawResponse.content ||
-      openclawResponse.message ||
-      jsonStr;
-
-    return parseScorecardText(text);
-  } finally {
-    try { fs.unlinkSync(tmpFile); } catch (e) {}
+  if (!process.env.DEEPSEEK_API_KEY) {
+    throw new Error("DEEPSEEK_API_KEY not configured");
   }
-}
-
-function shellQuote(str) {
-  // Simple single-quote escaping for bash
-  return "'" + str.replace(/'/g, "'''") + "'";
-}
-
-// ─── Anthropic scoring backend (fallback for cloud deployments) ──
-
-function scoreViaAnthropic(systemPrompt, userPrompt) {
-  const fs = require('fs');
-  const os = require('os');
-  const tmpDir = os.tmpdir();
-  const inputFile = tmpDir + '/kc-anthropic-input-' + Date.now() + '.json';
-  const scriptFile = tmpDir + '/kc-anthropic-runner-' + Date.now() + '.js';
-
-  fs.writeFileSync(inputFile, JSON.stringify({
-    systemPrompt,
-    userPrompt,
-    model: CONFIG.claudeModel,
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  }));
-
-  const runnerCode = [
-    'const Anthropic = require("@anthropic-ai/sdk");',
-    'const fs = require("fs");',
-    'const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));',
-    'const client = new Anthropic({ apiKey: data.apiKey });',
-    '(async () => {',
-    '  try {',
-    '    const msg = await client.messages.create({',
-    '      model: data.model, max_tokens: 8192,',
-    '      system: data.systemPrompt,',
-    '      messages: [{ role: "user", content: data.userPrompt }],',
-    '    });',
-    '    const text = msg.content.filter(b => b.type === "text").map(b => b.text).join("");',
-    '    process.stdout.write(text);',
-    '  } catch (err) {',
-    '    process.stderr.write(err.message + String.fromCharCode(10));',
-    '    process.exit(1);',
-    '  }',
-    '})();',
-  ].join(String.fromCharCode(10));
-
-  fs.writeFileSync(scriptFile, runnerCode);
-
-  try {
-    const rawResult = execSync('node ' + shellQuote(scriptFile) + ' ' + shellQuote(inputFile), {
-      maxBuffer: 10 * 1024 * 1024,
-      timeout: 360000,
-    }).toString();
-
-    return parseScorecardText(rawResult);
-  } finally {
-    try { fs.unlinkSync(inputFile); } catch (e) {}
-    try { fs.unlinkSync(scriptFile); } catch (e) {}
-  }
-}
-
-// ─── DeepSeek scoring backend ────────────────────────────────────
-
-function scoreViaDeepSeek(systemPrompt, userPrompt) {
-  const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
-  if (!DEEPSEEK_KEY) throw new Error("DEEPSEEK_API_KEY not configured");
 
   const https = require("https");
   const payload = JSON.stringify({
     model: "deepseek-chat",
     messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
+      { role: "system", content: effectiveSystemPrompt },
+      { role: "user", content: effectiveUserPrompt },
     ],
     temperature: 0.1,
     max_tokens: 8192,
@@ -391,7 +289,7 @@ function scoreViaDeepSeek(systemPrompt, userPrompt) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer " + DEEPSEEK_KEY,
+          Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY,
         },
         timeout: 300000,
       },
@@ -417,25 +315,6 @@ function scoreViaDeepSeek(systemPrompt, userPrompt) {
     req.write(payload);
     req.end();
   });
-}
-
-// ─── Main scoring function ──────────────────────────────────────
-
-function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt, userPrompt }) {
-  const effectiveSystemPrompt = systemPrompt || SYSTEM_PROMPT;
-  const effectiveUserPrompt = userPrompt || buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
-
-  console.log('[scoring] Backend: ' + SCORING_BACKEND);
-
-  if (SCORING_BACKEND === 'deepseek') {
-    return scoreViaDeepSeek(effectiveSystemPrompt, effectiveUserPrompt);
-  } else if (SCORING_BACKEND === 'openclaw') {
-    return scoreViaOpenClaw(effectiveSystemPrompt, effectiveUserPrompt);
-  } else if (SCORING_BACKEND === 'anthropic') {
-    return scoreViaAnthropic(effectiveSystemPrompt, effectiveUserPrompt);
-  } else {
-    throw new Error('Unknown SCORING_BACKEND: ' + SCORING_BACKEND + '. Use "openclaw" or "anthropic".');
-  }
 }
 
 module.exports = {

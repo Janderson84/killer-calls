@@ -1283,9 +1283,7 @@ app.get("/api/test-slack", async (req, res) => {
 // ─── Start Server ────────────────────────────────────────────────
 
 function validateEnv() {
-  const scoringBackend = process.env.SCORING_BACKEND || "openclaw";
-  const required = ["FIREFLIES_API_KEY", "DATABASE_URL"];
-  if (scoringBackend === "anthropic") { required.push("ANTHROPIC_API_KEY"); }
+  const required = ["FIREFLIES_API_KEY", "DATABASE_URL", "DEEPSEEK_API_KEY"];
   const optional = ["SLACK_BOT_TOKEN", "SLACK_CHANNEL_REVIEWS", "SLACK_CHANNEL_KILLER"];
   const missing = required.filter((key) => !process.env[key]);
 
@@ -1374,7 +1372,6 @@ app.get("/health", (req, res) => {
       database: !!process.env.DATABASE_URL,
       pipedrive: !!process.env.PIPEDRIVE_API_KEY,
       deepseek: !!process.env.DEEPSEEK_API_KEY,
-      openrouter: !!process.env.OPENROUTER_API_KEY,
       slack: !!process.env.SLACK_BOT_TOKEN,
       slack_token_preview: process.env.SLACK_BOT_TOKEN
         ? process.env.SLACK_BOT_TOKEN.substring(0, 14) + "..."
@@ -1387,6 +1384,5 @@ app.listen(CONFIG.port, () => {
   console.log(`\n🚀 Killer Calls running on port ${CONFIG.port} (multi-team)`);
   console.log(`   Webhook URL: POST http://localhost:${CONFIG.port}/webhook/fireflies`);
   console.log(`   Health check: GET http://localhost:${CONFIG.port}/`);
-  const backend = process.env.SCORING_BACKEND || "openclaw";
-  console.log(`   Scoring backend: ${backend}${backend === "anthropic" ? " (model: " + CONFIG.claudeModel + ")" : " (via OpenClaw Gateway)"}`);
+  console.log(`   Scoring backend: deepseek (DeepSeek API)`);
 });

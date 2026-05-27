@@ -70,51 +70,32 @@ async function fetchDeal(dealId, apiKey) {
 // ─── Call LLM for autopsy analysis ────────────────────────────
 
 async function runAutopsyLLM(prompt) {
-  // DeepSeek API (OpenAI-compatible)
   const deepseekKey = process.env.DEEPSEEK_API_KEY;
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
 
-  if (deepseekKey) {
-    const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${deepseekKey}` },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
-        max_tokens: 4096,
-        response_format: { type: "json_object" },
-      }),
-    });
-    const json = await resp.json();
-    if (json.error) throw new Error(`DeepSeek error: ${json.error.message}`);
-    return json.choices?.[0]?.message?.content || "";
+  if (!deepseekKey) {
+    throw new Error("DEEPSEEK_API_KEY not configured on Railway");
   }
 
-  if (openrouterKey) {
-    const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${openrouterKey}` },
-      body: JSON.stringify({
-        model: "deepseek/deepseek-chat",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
-        max_tokens: 4096,
-        response_format: { type: "json_object" },
-      }),
-    });
-    const json = await resp.json();
-    if (json.error) throw new Error(`OpenRouter error: ${json.error.message}`);
-    return json.choices?.[0]?.message?.content || "";
-  }
-
-  throw new Error("Set DEEPSEEK_API_KEY or OPENROUTER_API_KEY on Railway");
+  const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${deepseekKey}` },
+    body: JSON.stringify({
+      model: "deepseek-chat",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 4096,
+      response_format: { type: "json_object" },
+    }),
+  });
+  const json = await resp.json();
+  if (json.error) throw new Error(`DeepSeek error: ${json.error.message}`);
+  return json.choices?.[0]?.message?.content || "";
 }
 
 // ─── Main autopsy function ─────────────────────────────────────
 
 async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firefliesKey }) {
-  let debugInfo = { dealId, repName, days, keyOk: !!pipedriveKey, ffKeyLen: firefliesKey ? firefliesKey.length : 0, ffKeyPrefix: firefliesKey ? firefliesKey.substring(0, 8) + "..." : "none", deepseekKeySet: !!process.env.DEEPSEEK_API_KEY, openrouterKeySet: !!process.env.OPENROUTER_API_KEY };
+  let debugInfo = { dealId, repName, days, keyOk: !!pipedriveKey, ffKeyLen: firefliesKey ? firefliesKey.length : 0, ffKeyPrefix: firefliesKey ? firefliesKey.substring(0, 8) + "..." : "none", deepseekKeySet: !!process.env.DEEPSEEK_API_KEY };
 
   // ── Step 1: Find won deals to analyze ──────────────────────
   let targetDeals;
