@@ -312,12 +312,13 @@ export default function LibraryClient({ rows, activeReps, teamSlug, teamName, te
                       </div>
                       <div className="top-verdict">{row.verdict}</div>
                       <div className="top-pips">
-                        {(["s", "p", "i", "c", "e"] as const).map((key) => {
+                        {(["s", "p", "i", "c", "e"] as const).map((key, idx) => {
                           const status = row[`spiced_${key}` as keyof CallRow] as string;
                           const cls = pipClass(status || "missing");
+                          const labels = ["Q", "U", "I", "C", "K"];
                           return (
                             <div key={key} className={`top-pip top-pip--${cls}`}>
-                              {key.toUpperCase()}
+                              {labels[idx]}
                             </div>
                           );
                         })}
@@ -417,12 +418,13 @@ export default function LibraryClient({ rows, activeReps, teamSlug, teamName, te
                         </td>
                         <td className="center">
                           <div className="pip-row">
-                            {(["s", "p", "i", "c", "e"] as const).map((key) => {
+                            {(["s", "p", "i", "c", "e"] as const).map((key, idx) => {
                               const status = row[`spiced_${key}` as keyof CallRow] as string;
                               const cls = pipClass(status || "missing");
+                              const labels = ["Q", "U", "I", "C", "K"];
                               return (
                                 <div key={key} className={`pip pip--${cls}`}>
-                                  {key.toUpperCase()}
+                                  {labels[idx]}
                                 </div>
                               );
                             })}

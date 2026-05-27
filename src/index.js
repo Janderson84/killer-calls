@@ -73,19 +73,12 @@ function buildPriorContext(row) {
   lines.push(`Prior call score: ${row.score}/100 (${row.rag})`);
   lines.push(`Verdict: ${row.verdict}`);
 
-  const spicedItems = ["s", "p", "i", "c", "e"].map((k) => {
+  const quickItems = ["s", "p", "i", "c", "e"].map((k) => {
     const status = row[`spiced_${k}`] || "missing";
-    const word = k === "s" ? "Situation" : k === "p" ? "Pain" : k === "i" ? "Impact" : k === "c" ? "Critical Event" : "Decision";
+    const word = k === "s" ? "Questioning" : k === "p" ? "Uncover Pain" : k === "i" ? "Impact" : k === "c" ? "Close Readiness" : "Know-How";
     return `${word}: ${status}`;
   });
-  lines.push(`SPICED: ${spicedItems.join(", ")}`);
-
-  const bantItems = ["b", "a", "n", "t"].map((k) => {
-    const status = row[`bant_${k}`] || "missing";
-    const word = k === "b" ? "Budget" : k === "a" ? "Authority" : k === "n" ? "Need" : "Timeline";
-    return `${word}: ${status}`;
-  });
-  lines.push(`BANT: ${bantItems.join(", ")}`);
+  lines.push(`QUICK: ${quickItems.join(", ")}`);
 
   if (sc?.fixes?.length > 0) {
     lines.push(`Top fixes from prior call:\n${sc.fixes.map((f) => `  - ${f}`).join("\n")}`);
@@ -625,15 +618,11 @@ async function buildProgressionStats() {
     { key: "score_presentation", label: "Presentation", max: 22 },
     { key: "score_pricing", label: "Pricing & Objections", max: 28 },
     { key: "score_closing", label: "Close & Next Steps", max: 12 },
-    { key: "spiced_s", label: "Situation (S)", max: 5 },
-    { key: "spiced_p", label: "Pain Identified (P)", max: 5 },
-    { key: "spiced_i", label: "Impact Quantified (I)", max: 5 },
-    { key: "spiced_c", label: "Critical Event (C)", max: 5 },
-    { key: "spiced_e", label: "Decision Mapped (E)", max: 5 },
-    { key: "bant_b", label: "Budget (B)", max: 5 },
-    { key: "bant_a", label: "Authority (A)", max: 5 },
-    { key: "bant_n", label: "Need (N)", max: 5 },
-    { key: "bant_t", label: "Timeline (T)", max: 5 },
+    { key: "spiced_s", label: "Questioning (Q)", max: 5 },
+    { key: "spiced_p", label: "Uncover Pain (U)", max: 5 },
+    { key: "spiced_i", label: "Impact (I)", max: 5 },
+    { key: "spiced_c", label: "Close Readiness (C)", max: 5 },
+    { key: "spiced_e", label: "Know-How (K)", max: 5 },
   ];
 
   const teamAverages = criteriaKeys.map((c) => ({

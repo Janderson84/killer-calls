@@ -48,22 +48,24 @@ export function slackMention(repName: string, roster?: RosterEntry[]): string {
   return repName;
 }
 
-function spicedPip(element: string, data: { status?: string }): string {
-  const letter = element.toUpperCase();
+const QUICK_LETTER: Record<string, string> = { s: "Q", p: "U", i: "I", c: "C", e: "K" };
+
+function quickPip(element: string, data: { status?: string }): string {
+  const letter = QUICK_LETTER[element] || element.toUpperCase();
   if (data.status === "strong") return `\u2705 ${letter}`;
   if (data.status === "partial") return `\u{1F7E1} ${letter}`;
   return `\u{1F534} ${letter}`;
 }
 
-export function formatSpicedLine(spiced: Record<string, { status?: string }>): string {
+export function formatQuickLine(spiced: Record<string, { status?: string }>): string {
   return ["s", "p", "i", "c", "e"]
-    .map((el) => spicedPip(el, spiced[el]))
+    .map((el) => quickPip(el, spiced[el]))
     .join("   ");
 }
 
 export function formatBantLine(bant: Record<string, { status?: string }>): string {
   return ["b", "a", "n", "t"]
-    .map((el) => spicedPip(el, bant[el]))
+    .map((el) => quickPip(el, bant[el]))
     .join("   ");
 }
 
