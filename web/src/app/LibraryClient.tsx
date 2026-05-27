@@ -360,7 +360,6 @@ export default function LibraryClient({ rows, activeReps, teamSlug, teamName, te
                     <th className={`sortable ${sortKey === "score" ? "active" : ""}`} onClick={() => toggleSort("score")}>Score{sortArrow("score")}</th>
                     <th className={`center sortable ${sortKey === "rag" ? "active" : ""}`} onClick={() => toggleSort("rag")}>Status{sortArrow("rag")}</th>
                     <th className="center">QUICK</th>
-                    <th className="center">BANT</th>
                     <th className={`sortable ${sortKey === "date" ? "active" : ""}`} onClick={() => toggleSort("date")}>Date{sortArrow("date")}</th>
                     <th className={`right sortable ${sortKey === "duration" ? "active" : ""}`} onClick={() => toggleSort("duration")}>Duration{sortArrow("duration")}</th>
                     <th className="center th-narrow"></th>
@@ -420,19 +419,6 @@ export default function LibraryClient({ rows, activeReps, teamSlug, teamName, te
                           <div className="pip-row">
                             {(["s", "p", "i", "c", "e"] as const).map((key) => {
                               const status = row[`spiced_${key}` as keyof CallRow] as string;
-                              const cls = pipClass(status || "missing");
-                              return (
-                                <div key={key} className={`pip pip--${cls}`}>
-                                  {key.toUpperCase()}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </td>
-                        <td className="center">
-                          <div className="pip-row">
-                            {(["b", "a", "n", "t"] as const).map((key) => {
-                              const status = row[`bant_${key}` as keyof CallRow] as string;
                               const cls = pipClass(status || "missing");
                               return (
                                 <div key={key} className={`pip pip--${cls}`}>

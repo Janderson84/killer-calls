@@ -276,83 +276,66 @@ export default async function TeamCallDetailPage({
         </div>
       </section>
 
-      {/* BANT */}
-      {sc.bant && (
-        <section className="section">
-          <div className="sec-hd">
-            <span className="sec-tag">Qualification</span>
-            <h2 className="sec-title">BANT</h2>
-          </div>
+      {/* CLOSE EXECUTION — always show, most important phase */}
+      <section className="section">
+        <div className="sec-hd">
+          <span className="sec-tag">Close</span>
+          <h2 className="sec-title">Close Execution</h2>
+        </div>
 
-          <div className="grid-4">
-            {(["b", "a", "n", "t"] as const).map((key, i) => {
-              const el: BantElement = sc.bant![key];
-              const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
-              return (
-                <div key={key} className={`fw-card fw-card--${cls}`} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
-                  <div className="fw-hd">
-                    <span className={`fw-letter fw-letter--${cls}`}>{key.toUpperCase()}</span>
-                    <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
-                  </div>
-                  <div className="fw-label">{BANT_WORDS[key]}</div>
-                  <p className="fw-feedback">{el.feedback}</p>
-                  {el.timestamps?.length > 0 && (
-                    <div className="fw-ts">
-                      {el.timestamps.map((ts, j) =>
-                        ffBase ? (
-                          <a key={j} href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {ts}</a>
-                        ) : (
-                          <span key={j} className="ts-pill">&#9654; {ts}</span>
-                        )
-                      )}
+        {sc.close && sc.close.style !== "none" ? (
+          <>
+            <div className="close-style-pill">{sc.close.styleName}</div>
+            <div className="grid-3">
+              {(["setup", "bridge", "ask"] as const).map((key, i) => {
+                const el: CloseStepElement = sc.close![key];
+                const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
+                return (
+                  <div key={key} className={`fw-card fw-card--${cls}`} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
+                    <div className="fw-hd">
+                      <span className={`fw-letter fw-letter--${cls}`}>{i + 1}</span>
+                      <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* CLOSE EXECUTION */}
-      {sc.close && sc.close.style !== "none" && (
-        <section className="section">
-          <div className="sec-hd">
-            <span className="sec-tag">Close</span>
-            <h2 className="sec-title">Close Execution</h2>
-          </div>
-
-          <div className="close-style-pill">{sc.close.styleName}</div>
-
-          <div className="grid-3">
-            {(["setup", "bridge", "ask"] as const).map((key, i) => {
-              const el: CloseStepElement = sc.close![key];
-              const cls = el.status === "strong" ? "g" : el.status === "partial" ? "y" : "r";
-              return (
-                <div key={key} className={`fw-card fw-card--${cls}`} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
-                  <div className="fw-hd">
-                    <span className={`fw-letter fw-letter--${cls}`}>{i + 1}</span>
-                    <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
+                    <div className="fw-label">{el.label}</div>
+                    <p className="fw-feedback">{el.feedback}</p>
+                    {el.timestamps?.length > 0 && (
+                      <div className="fw-ts">
+                        {el.timestamps.map((ts, j) =>
+                          ffBase ? (
+                            <a key={j} href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {ts}</a>
+                          ) : (
+                            <span key={j} className="ts-pill">&#9654; {ts}</span>
+                          )
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="fw-label">{el.label}</div>
-                  <p className="fw-feedback">{el.feedback}</p>
-                  {el.timestamps?.length > 0 && (
-                    <div className="fw-ts">
-                      {el.timestamps.map((ts, j) =>
-                        ffBase ? (
-                          <a key={j} href={ffBase} target="_blank" rel="noopener noreferrer" className="ts-pill">&#9654; {ts}</a>
-                        ) : (
-                          <span key={j} className="ts-pill">&#9654; {ts}</span>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="fw-card fw-card--r" style={{ textAlign: "center", padding: "2rem" }}>
+            <div className="fw-hd" style={{ justifyContent: "center" }}>
+              <span className="fw-letter fw-letter--r">✗</span>
+              <span className="fw-badge fw-badge--r">No Close Attempted</span>
+            </div>
+            <p className="fw-feedback" style={{ marginTop: "0.75rem" }}>
+              This rep did not ask for the business. The close is the highest-weighted phase at 22 points. Every demo should end with a clear commitment ask.
+            </p>
           </div>
-        </section>
-      )}
+        )}
+
+        {/* Show close score summary */}
+        {sc.phases?.closing && (
+          <div style={{ marginTop: "1rem", display: "flex", justifyContent: "center", gap: "0.5rem", alignItems: "center" }}>
+            <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>Close score:</span>
+            <span style={{ fontWeight: 700, fontSize: "1.1rem", color: sc.phases.closing.score / 22 >= 0.6 ? "var(--green)" : sc.phases.closing.score / 22 >= 0.3 ? "var(--yellow)" : "var(--red)" }}>
+              {sc.phases.closing.score}/{sc.phases.closing.maxPoints || 22}
+            </span>
+          </div>
+        )}
+      </section>
 
       {/* LEGACY SVC */}
       {!sc.close && sc.svc && (
