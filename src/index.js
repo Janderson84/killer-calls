@@ -1452,3 +1452,16 @@ app.listen(CONFIG.port, () => {
   console.log(`   Health check: GET http://localhost:${CONFIG.port}/`);
   console.log(`   Scoring backend: deepseek (DeepSeek API)`);
 });
+
+// ─── Debug: Raw scorecard dump (no Pipedrive filter) ─────────────
+app.get("/api/debug/scorecards", async (req, res) => {
+  try {
+    const data = await pool.query(
+      `SELECT id, meeting_id, rep_name, company_name, score, rag, pipedrive_deal_id, created_at
+       FROM scorecards ORDER BY created_at DESC LIMIT 20`
+    );
+    res.json({ count: data.rows.length, rows: data.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
