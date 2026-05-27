@@ -147,6 +147,10 @@ async function getTeamSettings(teamId) {
 // Prevent double-processing when Fireflies sends duplicate webhooks
 const inFlightMeetings = new Set();
 
+// ─── Error log for async pipeline debugging ──────────────────────
+const pipelineErrors = []; // { meetingId, step, message, time }
+const MAX_ERRORS = 50;
+
 const app = express();
 app.use(express.json());
 
@@ -267,6 +271,21 @@ async function _processDemo(meetingId) {
     console.log(`[dedup] meetingId=${meetingId} already claimed by another pipeline — skipping`);
     return;
   }
+
+  try {
+    await _processDemoInner(meetingId, startTime);
+  } catch (err) {
+    const msg = err.message || String(err);
+    console.error(`[pipeline] _processDemo CRASHED for ${meetingId}: ${msg}`);
+    console.error(err.stack);
+    pipelineErrors.unshift({ meetingId, step: 'crash', message: msg, time: new Date().toISOString() });
+    if (pipelineErrors.length > MAX_ERRORS) pipelineErrors.length = MAX_ERRORS;
+    // Clean up the claim so this meeting can be retried
+    try { await pool.query(`DELETE FROM skipped_meetings WHERE meeting_id = $1`, [meetingId]); } catch {}
+  }
+}
+
+async function _processDemoInner(meetingId, startTime) {
 
   // Step 1: Fetch transcript from Fireflies
   console.log(`\n[1/5] Fetching transcript from Fireflies...`);
@@ -1484,6 +1503,11 @@ app.get("/api/debug/roster", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── Debug: Pipeline error log ──────────────────────────────────
+app.get("/api/debug/errors", async (req, res) => {
+  res.json({ errors: pipelineErrors, count: pipelineErrors.length });
 });
 
 // ─── Debug: Dump skipped_meetings and settings ──────────────────
