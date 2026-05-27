@@ -954,6 +954,51 @@ app.get("/api/autopsy/:id", async (req, res) => {
   }
 });
 
+// ─── Direct Score Endpoint ──────────────────────────────────────
+// GET /api/score-direct?meetingId=X — scores ANY transcript without team matching
+// Useful for one-off scoring of reps outside the SalesCloser roster
+app.get("/api/score-direct", async (req, res) => {
+  const { meetingId } = req.query;
+  if (!meetingId) return res.status(400).json({ error: "meetingId required" });
+
+  try {
+    // Check already scored
+    const existing = await pool.query(`SELECT id FROM scorecards WHERE meeting_id = $1`, [meetingId]);
+    if (existing.rows.length > 0) {
+      return res.json({ status: "skipped", reason: "already scored", scorecardId: existing.rows[0].id });
+    }
+
+    const transcript = await fetchTranscript(meetingId);
+    console.log(`[score-direct] ${meetingId}: "${transcript.title}" (${transcript.repName}, ${transcript.durationMinutes}min)`);
+
+    const scorecard = await scoreTranscript({
+      transcriptText: transcript.transcriptText,
+      repName: transcript.repName,
+      companyName: transcript.companyName,
+      durationMinutes: transcript.durationMinutes,
+      meetingId
+    });
+
+    console.log(`[score-direct] ${meetingId}: ${scorecard.score}/100 (${scorecard.rag})`);
+
+    const meta = {
+      repName: transcript.repName,
+      companyName: transcript.companyName,
+      date: transcript.date,
+      durationMinutes: transcript.durationMinutes,
+      meetingId,
+      callType: "discovery",
+      teamId: null
+    };
+    const scorecardId = await saveScorecard(scorecard, meta);
+
+    res.json({ status: "scored", scorecardId, score: scorecard.score, rag: scorecard.rag, rep: transcript.repName, company: transcript.companyName });
+  } catch (err) {
+    console.error(`[score-direct] ${meetingId}: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Backfill Endpoint ──────────────────────────────────────────
 // POST /api/backfill — score recent transcripts without posting to Slack
 // Body: { "meetingIds": ["id1","id2",...] }
