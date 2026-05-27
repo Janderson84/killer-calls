@@ -6,32 +6,34 @@ import Link from "next/link";
 import "@/app/calls/[id]/call-detail.css";
 
 const PHASE_META: Record<string, { label: string; num: number; maxPoints: number }> = {
-  preCall: { label: "Pre-Call Prep", num: 1, maxPoints: 6 },
-  discovery: { label: "Discovery", num: 2, maxPoints: 32 },
-  presentation: { label: "Presentation", num: 3, maxPoints: 22 },
+  preCall: { label: "Pre-Call Prep", num: 1, maxPoints: 8 },
+  discovery: { label: "Qualification", num: 2, maxPoints: 18 },
+  presentation: { label: "Presentation", num: 3, maxPoints: 24 },
   pricing: { label: "Pricing & Objections", num: 4, maxPoints: 28 },
-  closing: { label: "Close & Next Steps", num: 5, maxPoints: 12 },
+  closing: { label: "Close & Next Steps", num: 5, maxPoints: 22 },
 };
 
 const CRITERIA_LABELS: Record<string, string> = {
   research: "AE demonstrated research and preparation",
   agenda: "Set a proper agenda at call open",
-  spiced: "SPICED discovery (all 5 elements)",
+  spiced: "QUICK qualification (all 5 elements)",
+  quick: "QUICK qualification (all 5 elements)",
   smooth: "Presentation was smooth and professional",
-  talkRatio: "AE avoided long monologues (talk ratio)",
+  confidence: "AE led with confidence and authority",
+  talkRatio: "AE led with confidence and authority",
   personalization: "Presentation was personalized to the prospect",
   tieDowns: "AE used tie-downs to close as they go",
   valueSummary: "Provided value summary before stating price",
   simplePricing: "Discussed pricing simply with one option first",
   noDiscount: "Did NOT cave on discount/terms prematurely",
   ecir: "ECIR objection handling",
-  closeExecution: "Close execution",
-  pushToClose: "Close execution",
+  closeExecution: "Close execution (did they ask for the business?)",
+  pushToClose: "Close execution (did they ask for the business?)",
   followUp: "Scheduled a specific follow-up date and time",
 };
 
-const SPICED_WORDS: Record<string, string> = {
-  s: "Situation", p: "Pain", i: "Impact", c: "Critical Event", e: "Decision",
+const QUICK_WORDS: Record<string, string> = {
+  s: "Qualify", p: "Uncover & Amplify", i: "Identify Budget", c: "Confirm Decision", e: "Keep Moving",
 };
 
 const BANT_WORDS: Record<string, string> = {
@@ -238,11 +240,11 @@ export default async function TeamCallDetailPage({
         </section>
       )}
 
-      {/* SPICED */}
+      {/* QUICK Qualification */}
       <section className="section">
         <div className="sec-hd">
           <span className="sec-tag">Framework</span>
-          <h2 className="sec-title">SPICED Discovery</h2>
+          <h2 className="sec-title">QUICK Qualification</h2>
         </div>
 
         <div className="grid-5">
@@ -255,7 +257,7 @@ export default async function TeamCallDetailPage({
                   <span className={`fw-letter fw-letter--${cls}`}>{key.toUpperCase()}</span>
                   <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
                 </div>
-                <div className="fw-label">{SPICED_WORDS[key]}</div>
+                <div className="fw-label">{QUICK_WORDS[key]}</div>
                 <p className="fw-feedback">{el.feedback}</p>
                 {el.timestamps?.length > 0 && (
                   <div className="fw-ts">

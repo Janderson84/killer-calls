@@ -359,7 +359,7 @@ export default function LibraryClient({ rows, activeReps, teamSlug, teamName, te
                     <th className={`sortable ${sortKey === "prospect" ? "active" : ""}`} onClick={() => toggleSort("prospect")}>Prospect{sortArrow("prospect")}</th>
                     <th className={`sortable ${sortKey === "score" ? "active" : ""}`} onClick={() => toggleSort("score")}>Score{sortArrow("score")}</th>
                     <th className={`center sortable ${sortKey === "rag" ? "active" : ""}`} onClick={() => toggleSort("rag")}>Status{sortArrow("rag")}</th>
-                    <th className="center">SPICED</th>
+                    <th className="center">QUICK</th>
                     <th className="center">BANT</th>
                     <th className={`sortable ${sortKey === "date" ? "active" : ""}`} onClick={() => toggleSort("date")}>Date{sortArrow("date")}</th>
                     <th className={`right sortable ${sortKey === "duration" ? "active" : ""}`} onClick={() => toggleSort("duration")}>Duration{sortArrow("duration")}</th>

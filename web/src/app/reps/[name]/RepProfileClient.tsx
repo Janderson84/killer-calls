@@ -217,14 +217,14 @@ export default function RepProfileClient({
     });
   }, [rows]);
 
-  // SPICED averages for report card
-  const spicedAvgs = useMemo(() => {
+  // QUICK averages for report card
+  const quickAvgs = useMemo(() => {
     const elements = [
-      { key: "s", label: "Situation", field: "spiced_s" as const },
-      { key: "p", label: "Pain", field: "spiced_p" as const },
-      { key: "i", label: "Impact", field: "spiced_i" as const },
-      { key: "c", label: "Critical Event", field: "spiced_c" as const },
-      { key: "e", label: "Decision", field: "spiced_e" as const },
+      { key: "s", label: "Qualify", field: "spiced_s" as const },
+      { key: "p", label: "Uncover & Amplify", field: "spiced_p" as const },
+      { key: "i", label: "Identify Budget", field: "spiced_i" as const },
+      { key: "c", label: "Confirm Decision", field: "spiced_c" as const },
+      { key: "e", label: "Keep Moving", field: "spiced_e" as const },
     ];
 
     return elements.map((el) => {
@@ -356,8 +356,8 @@ export default function RepProfileClient({
               </div>
 
               <div className="rep-rc-spiced">
-                <div className="rep-rc-header">SPICED Breakdown</div>
-                {spicedAvgs.map((el) => {
+                <div className="rep-rc-header">QUICK Breakdown</div>
+                {quickAvgs.map((el) => {
                   if (el.total === 0) return null;
                   return (
                     <div className="rep-rc-spiced-row" key={el.key}>

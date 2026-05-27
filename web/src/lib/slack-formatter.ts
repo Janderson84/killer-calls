@@ -100,7 +100,7 @@ export function buildFrameworkTags(scorecard: Scorecard): string[] {
   const sp = scorecard.spiced;
 
   const allSpicedStrong = ["s", "p", "i", "c", "e"].every((el) => sp[el].status === "strong");
-  if (allSpicedStrong) tags.push("\u2B50 Perfect SPICED");
+  if (allSpicedStrong) tags.push("\u2B50 Perfect QUICK");
 
   const ecir = scorecard.phases?.pricing?.criteria?.ecir;
   if (ecir && ecir.objectionsHandled > 0) {
@@ -139,7 +139,7 @@ export function buildDemoReviewBlocks(scorecard: Scorecard, meta: Meta, scorecar
   const closeLine = scorecard.close ? formatCloseLine(scorecard.close) : null;
   const tags = buildFrameworkTags(scorecard);
 
-  let frameworksText = `*SPICED*\n${spicedLine}`;
+  let frameworksText = `*QUICK*\n${spicedLine}`;
   if (bantLine) frameworksText += `\n\n*BANT*\n${bantLine}`;
   if (closeLine) frameworksText += `\n\n*Close*\n${closeLine}`;
 
@@ -269,7 +269,7 @@ export function buildKillerCallBlocks(scorecard: Scorecard, meta: Meta, scorecar
       fields: [
         { type: "mrkdwn", text: `*Prospect*\n${meta.companyName}` },
         { type: "mrkdwn", text: `*Duration*\n${meta.durationMinutes || "?"} min \u00B7 ${meta.date}` },
-        { type: "mrkdwn", text: `*SPICED*\n${spicedLine}` }
+        { type: "mrkdwn", text: `*QUICK*\n${spicedLine}` }
       ]
     }
   ];
