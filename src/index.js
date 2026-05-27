@@ -981,6 +981,13 @@ app.get("/api/score-direct", async (req, res) => {
 
     console.log(`[score-direct] ${meetingId}: ${scorecard.score}/100 (${scorecard.rag})`);
 
+    // Find or create a default team for non-roster reps
+    let teamId = null;
+    try {
+      const teamRows = await pool.query(`SELECT id FROM teams LIMIT 1`);
+      if (teamRows.rows.length > 0) teamId = teamRows.rows[0].id;
+    } catch (e) {}
+
     const meta = {
       repName: transcript.repName,
       companyName: transcript.companyName,
@@ -988,7 +995,7 @@ app.get("/api/score-direct", async (req, res) => {
       durationMinutes: transcript.durationMinutes,
       meetingId,
       callType: "discovery",
-      teamId: null
+      teamId
     };
     const scorecardId = await saveScorecard(scorecard, meta);
 
