@@ -36,6 +36,10 @@ const QUICK_WORDS: Record<string, string> = {
   s: "Qualify", p: "Uncover & Amplify", i: "Identify Budget", c: "Confirm Decision", e: "Keep Moving",
 };
 
+const QUICK_LETTERS: Record<string, string> = {
+  s: "Q", p: "U", i: "I", c: "C", e: "K",
+};
+
 const BANT_WORDS: Record<string, string> = {
   b: "Budget", a: "Authority", n: "Need", t: "Timeline",
 };
@@ -254,7 +258,7 @@ export default async function TeamCallDetailPage({
             return (
               <div key={key} className={`fw-card fw-card--${cls}`} style={{ animationDelay: `${0.1 + i * 0.06}s` }}>
                 <div className="fw-hd">
-                  <span className={`fw-letter fw-letter--${cls}`}>{key.toUpperCase()}</span>
+                  <span className={`fw-letter fw-letter--${cls}`}>{QUICK_LETTERS[key]}</span>
                   <span className={`fw-badge fw-badge--${cls}`}>{statusIcon(cls)} {statusWord(el.status)}</span>
                 </div>
                 <div className="fw-label">{QUICK_WORDS[key]}</div>
