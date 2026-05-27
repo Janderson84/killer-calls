@@ -45,7 +45,7 @@ These transcripts come from Fireflies.ai and have known quirks:
 
 Your output is ONLY valid JSON. No prose before or after. No markdown code fences. No explanatory text. Just the JSON object as specified in the scoring prompt.
 
-MANDATORY: You MUST include ALL top-level keys in the JSON output: score, rag, verdict, phases, spiced, bant, close, closingTips, wins, fixes, flags, quoteOfTheCall. The "close" object is REQUIRED — never omit it. If no close was attempted, use style: "none".`;
+MANDATORY: You MUST include ALL top-level keys in the JSON output: score, rag, verdict, phases, spiced, close, closingTips, wins, fixes, flags, quoteOfTheCall. The "spiced" key uses QUICK framework labels. The "close" object is REQUIRED — never omit it. If no close was attempted, use style: "none".`;
 
 const FOLLOWUP_SYSTEM_PROMPT = `You are the scoring engine for Killer Calls, evaluating a FOLLOW-UP call where the AE has already had a discovery call with this prospect.
 
@@ -53,7 +53,7 @@ Key difference: Do NOT penalize for skipping full discovery. Instead, evaluate w
 
 Your output is ONLY valid JSON. No prose before or after. No markdown code fences. Just the JSON object.
 
-MANDATORY: You MUST include ALL top-level keys: score, rag, verdict, phases, spiced, bant, close, closingTips, wins, fixes, flags, quoteOfTheCall. The "close" object is REQUIRED.`;
+MANDATORY: You MUST include ALL top-level keys: score, rag, verdict, phases, spiced, close, closingTips, wins, fixes, flags, quoteOfTheCall. The "close" object is REQUIRED.`;
 
 // ─── Scoring prompt builders ─────────────────────────────────────
 
@@ -106,9 +106,6 @@ PHASE 5 — CLOSE & NEXT STEPS (22 pts)
     Score: Setup(6)/Bridge(6)/Ask(6). Award full points for: trial close attempt, handling hesitation without folding, clear ask for commitment, sending agreement/payment link on the call.
 13. Scheduled follow-up (4 pts) — Specific date/time booked before hanging up. Bonus: prep materials or summary sent during the call.
 
-BANT QUALIFICATION (separate from 100-pt score, 0-5 each):
-B=Budget, A=Authority, N=Need, T=Timeline
-
 ─── OUTPUT FORMAT ───
 Return ONLY this JSON (no prose, no markdown fences):
 {
@@ -128,12 +125,6 @@ Return ONLY this JSON (no prose, no markdown fences):
     "i": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<I — Identify: budget expectations and timeline surfaced>", "timestamps": ["MM:SS"] },
     "c": { "score": <0-2>, "status": "strong"|"partial"|"missing", "feedback": "<C — Confirm: decision process and stakeholders mapped>", "timestamps": ["MM:SS"] },
     "e": { "score": <0-2>, "status": "strong"|"partial"|"missing", "feedback": "<K — Keep moving: efficient, didn't get stuck in discovery>", "timestamps": ["MM:SS"] }
-  },
-  "bant": {
-    "b": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "a": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
   },
   "close": {
     "style": "consultative"|"assumptive"|"urgency"|"none",
@@ -183,8 +174,6 @@ PHASE 3 — PRESENTATION CONTINUATION (15 pts)
 PHASE 4 — PRICING & NEGOTIATION (20 pts)
 PHASE 5 — CLOSE EXECUTION (30 pts) — Detect style, score Setup/Bridge/Ask
 
-BANT evaluated separately (does not affect 100-pt score).
-
 ─── OUTPUT FORMAT ───
 Return ONLY this JSON:
 {
@@ -199,7 +188,6 @@ Return ONLY this JSON:
     "closing": { "score": <n>, "maxPoints": 30, "criteria": { "closeExecution": { "score": <n>, "maxPoints": 30, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
   },
   "spiced": { "s": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }, "p": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }, "i": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }, "c": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] }, "e": { "score": 0, "status": "missing", "feedback": "Not evaluated on follow-up calls.", "timestamps": [] } },
-  "bant": { "b": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }, "a": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }, "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }, "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] } },
   "close": { "style": "consultative"|"assumptive"|"urgency"|"none", "styleName": "<...>", "setup": { "score": <0-10>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] }, "bridge": { "score": <0-8>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] }, "ask": { "score": <0-12>, "status": "strong"|"partial"|"missing", "label": "<...>", "feedback": "<...>", "timestamps": ["MM:SS"] } },
   "closingTips": ["<tip 1>", "<tip 2>"],
   "wins": ["<win 1>", "<win 2>"],
