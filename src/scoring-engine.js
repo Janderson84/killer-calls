@@ -248,7 +248,7 @@ function parseScorecardText(text) {
 
 // ─── Main scoring function (DeepSeek only) ────────────────────────
 
-function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt, userPrompt }) {
+async function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt, userPrompt }) {
   const effectiveSystemPrompt = systemPrompt || SYSTEM_PROMPT;
   const effectiveUserPrompt = userPrompt || buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
 
@@ -258,8 +258,7 @@ function scoreTranscript({ transcriptText, repName, companyName, durationMinutes
     throw new Error("DEEPSEEK_API_KEY not configured");
   }
 
-  const https = require("https");
-  const payload = JSON.stringify({
+  const payload = {
     model: "deepseek-chat",
     messages: [
       { role: "system", content: effectiveSystemPrompt },
@@ -268,50 +267,43 @@ function scoreTranscript({ transcriptText, repName, companyName, durationMinutes
     temperature: 0.1,
     max_tokens: 8192,
     response_format: { type: "json_object" },
+  };
+
+  const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(300000),
   });
 
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      {
-        hostname: "api.deepseek.com",
-        path: "/v1/chat/completions",
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY,
-        },
-        timeout: 300000,
-      },
-      (res) => {
-        let data = "";
-        res.on("data", (chunk) => (data += chunk));
-        res.on("end", () => {
-          if (res.statusCode !== 200) {
-            return reject(new Error("DeepSeek API " + res.statusCode + ": " + data.substring(0, 200)));
-          }
-          try {
-            const json = JSON.parse(data);
-            // Check for API-level errors (DeepSeek returns 200 with error object on auth failures)
-            if (json.error) {
-              const errMsg = json.error.message || JSON.stringify(json.error);
-              return reject(new Error("DeepSeek API error: " + errMsg));
-            }
-            const text = json.choices?.[0]?.message?.content;
-            if (!text || text.trim().length === 0) {
-              return reject(new Error("DeepSeek returned empty response. Raw: " + data.substring(0, 300)));
-            }
-            resolve(parseScorecardText(text));
-          } catch (err) {
-            reject(new Error("DeepSeek parse error: " + err.message + ". Raw: " + data.substring(0, 200)));
-          }
-        });
-      }
-    );
-    req.on("error", (err) => reject(new Error("DeepSeek API error: " + err.message)));
-    req.on("timeout", () => { req.destroy(); reject(new Error("DeepSeek API timeout")); });
-    req.write(payload);
-    req.end();
-  });
+  const data = await resp.text();
+
+  if (resp.status !== 200) {
+    throw new Error("DeepSeek API " + resp.status + ": " + data.substring(0, 200));
+  }
+
+  let json;
+  try {
+    json = JSON.parse(data);
+  } catch (err) {
+    throw new Error("DeepSeek returned non-JSON response (status " + resp.status + "). Raw: " + data.substring(0, 200));
+  }
+
+  // Check for API-level errors (DeepSeek returns 200 with error object on auth failures)
+  if (json.error) {
+    const errMsg = json.error.message || JSON.stringify(json.error);
+    throw new Error("DeepSeek API error: " + errMsg);
+  }
+
+  const text = json.choices?.[0]?.message?.content;
+  if (!text || text.trim().length === 0) {
+    throw new Error("DeepSeek returned empty response. Raw: " + data.substring(0, 300));
+  }
+
+  return parseScorecardText(text);
 }
 
 module.exports = {
