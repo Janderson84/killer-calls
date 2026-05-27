@@ -11,7 +11,7 @@ const { CONFIG } = require("./constants");
 //   - anthropic: Uses Anthropic SDK directly. Requires valid
 //     ANTHROPIC_API_KEY. For cloud-only deployments.
 
-const SCORING_BACKEND = process.env.SCORING_BACKEND || "openclaw";
+const SCORING_BACKEND = process.env.SCORING_BACKEND || (process.env.DEEPSEEK_API_KEY ? "deepseek" : "openclaw");
 
 // ─── Shared system prompt (identical to original) ────────────────
 const SYSTEM_PROMPT = `You are the scoring engine for Killer Calls, the internal demo review system at SalesCloser.ai — an AI-powered sales platform. You analyze recorded demo call transcripts and produce structured JSON scorecards against a 14-criterion, 100-point rubric using the SPICED, BANT, and ECIR frameworks, with flexible closing style evaluation.
@@ -366,6 +366,59 @@ function scoreViaAnthropic(systemPrompt, userPrompt) {
   }
 }
 
+// ─── DeepSeek scoring backend ────────────────────────────────────
+
+function scoreViaDeepSeek(systemPrompt, userPrompt) {
+  const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY;
+  if (!DEEPSEEK_KEY) throw new Error("DEEPSEEK_API_KEY not configured");
+
+  const https = require("https");
+  const payload = JSON.stringify({
+    model: "deepseek-chat",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.1,
+    max_tokens: 8192,
+  });
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: "api.deepseek.com",
+        path: "/v1/chat/completions",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + DEEPSEEK_KEY,
+        },
+        timeout: 300000,
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          if (res.statusCode !== 200) {
+            return reject(new Error("DeepSeek API " + res.statusCode + ": " + data.substring(0, 200)));
+          }
+          try {
+            const json = JSON.parse(data);
+            const text = json.choices?.[0]?.message?.content || "";
+            resolve(parseScorecardText(text));
+          } catch (err) {
+            reject(new Error("DeepSeek parse error: " + err.message + ". Raw: " + data.substring(0, 200)));
+          }
+        });
+      }
+    );
+    req.on("error", (err) => reject(new Error("DeepSeek API error: " + err.message)));
+    req.on("timeout", () => { req.destroy(); reject(new Error("DeepSeek API timeout")); });
+    req.write(payload);
+    req.end();
+  });
+}
+
 // ─── Main scoring function ──────────────────────────────────────
 
 function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt, userPrompt }) {
@@ -374,7 +427,9 @@ function scoreTranscript({ transcriptText, repName, companyName, durationMinutes
 
   console.log('[scoring] Backend: ' + SCORING_BACKEND);
 
-  if (SCORING_BACKEND === 'openclaw') {
+  if (SCORING_BACKEND === 'deepseek') {
+    return scoreViaDeepSeek(effectiveSystemPrompt, effectiveUserPrompt);
+  } else if (SCORING_BACKEND === 'openclaw') {
     return scoreViaOpenClaw(effectiveSystemPrompt, effectiveUserPrompt);
   } else if (SCORING_BACKEND === 'anthropic') {
     return scoreViaAnthropic(effectiveSystemPrompt, effectiveUserPrompt);
