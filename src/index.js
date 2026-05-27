@@ -1361,6 +1361,74 @@ process.on("SIGINT", () => {
 validateEnv();
 runMigrations();
 
+// ─── Regrade all demos endpoint ──────────────────────────────────
+
+app.post("/api/regrade-all", async (req, res) => {
+  try {
+    // Get all scored meeting IDs
+    const { rows } = await pool.query(
+      "SELECT meeting_id, rep_name, company_name, duration_minutes FROM scorecards WHERE meeting_id IS NOT NULL ORDER BY call_date DESC"
+    );
+    
+    if (rows.length === 0) {
+      return res.json({ status: "ok", message: "No scorecards found", count: 0 });
+    }
+
+    res.json({ status: "started", message: `Regrading ${rows.length} demos — this runs async`, count: rows.length });
+
+    let completed = 0;
+    let errors = 0;
+    const startTime = Date.now();
+
+    for (const row of rows) {
+      try {
+        console.log(`[regrade] ${row.meeting_id} — ${row.rep_name} / ${row.company_name}`);
+        
+        const transcript = await fetchTranscript(row.meeting_id);
+        if (!transcript || !transcript.transcriptText || transcript.transcriptText.trim().length < 100) {
+          console.log(`[regrade] ${row.meeting_id} — SKIP (no transcript)`);
+          errors++;
+          continue;
+        }
+
+        const scorecard = await scoreTranscript({
+          transcriptText: transcript.transcriptText,
+          repName: row.rep_name,
+          companyName: row.company_name,
+          durationMinutes: row.duration_minutes,
+        });
+
+        const meta = {
+          repName: row.rep_name,
+          companyName: row.company_name,
+          date: transcript.date,
+          durationMinutes: row.duration_minutes,
+          meetingId: row.meeting_id,
+          title: transcript.title,
+          callType: "demo",
+          prospectEmail: "",
+          teamId: "1f7fb17c-3581-47a0-ba89-d196f96944cd",
+        };
+
+        await saveScorecard(scorecard, meta);
+        completed++;
+        console.log(`[regrade] ${row.meeting_id} — ✅ ${scorecard.score}/100 (${completed}/${rows.length})`);
+
+        // Small delay between calls to avoid rate limits
+        await new Promise(r => setTimeout(r, 500));
+      } catch (err) {
+        errors++;
+        console.error(`[regrade] ${row.meeting_id} — ❌ ${err.message}`);
+      }
+    }
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(0);
+    console.log(`[regrade] DONE — ${completed} regraded, ${errors} errors in ${elapsed}s`);
+  } catch (err) {
+    console.error("[regrade] Fatal:", err.message);
+  }
+});
+
 // ─── Health check endpoint ───────────────────────────────────────
 app.get("/health", (req, res) => {
   res.json({
