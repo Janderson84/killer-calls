@@ -291,7 +291,15 @@ function scoreTranscript({ transcriptText, repName, companyName, durationMinutes
           }
           try {
             const json = JSON.parse(data);
-            const text = json.choices?.[0]?.message?.content || "";
+            // Check for API-level errors (DeepSeek returns 200 with error object on auth failures)
+            if (json.error) {
+              const errMsg = json.error.message || JSON.stringify(json.error);
+              return reject(new Error("DeepSeek API error: " + errMsg));
+            }
+            const text = json.choices?.[0]?.message?.content;
+            if (!text || text.trim().length === 0) {
+              return reject(new Error("DeepSeek returned empty response. Raw: " + data.substring(0, 300)));
+            }
             resolve(parseScorecardText(text));
           } catch (err) {
             reject(new Error("DeepSeek parse error: " + err.message + ". Raw: " + data.substring(0, 200)));
