@@ -1578,3 +1578,158 @@ app.post("/api/admin/backfill-recent", async (req, res) => {
     console.error(`[backfill-recent] Error: ${err.message}`);
   }
 });
+
+// ─── Rep Pipeline View ───────────────────────────────────────────
+// GET /api/rep-pipeline — shows every AE's active deals with demo
+// scores and live Pipedrive stage data, grouped by rep.
+
+app.get("/api/rep-pipeline", async (req, res) => {
+  try {
+    const PIPEDRIVE_KEY = process.env.PIPEDRIVE_API_KEY;
+    if (!PIPEDRIVE_KEY) throw new Error("PIPEDRIVE_API_KEY not configured");
+
+    // 1. Get AE roster
+    const rosterResult = await pool.query(
+      `SELECT team_id, value as roster FROM settings WHERE key = 'ae_roster'`
+    );
+    const allRoster = [];
+    for (const row of rosterResult.rows) {
+      const roster = typeof row.roster === "string" ? JSON.parse(row.roster) : row.roster;
+      if (Array.isArray(roster)) allRoster.push(...roster);
+    }
+    const aeNames = new Set(allRoster.filter(a => a.active !== false).map(a => a.name));
+
+    // 2. Get all scorecards with Pipedrive deals
+    const scorecardRows = await pool.query(`
+      SELECT id, rep_name, company_name, score, rag, call_date,
+             pipedrive_deal_id, pipedrive_deal_stage, created_at,
+             call_type
+      FROM scorecards
+      WHERE pipedrive_deal_id IS NOT NULL
+      ORDER BY created_at ASC
+    `);
+
+    // 3. Group scorecards by deal_id
+    const dealMap = {}; // deal_id → { scores[], rep }
+    for (const r of scorecardRows.rows) {
+      const did = r.pipedrive_deal_id;
+      if (!dealMap[did]) {
+        dealMap[did] = { dealId: did, rep: r.rep_name, company: r.company_name, scores: [] };
+      }
+      dealMap[did].scores.push({
+        id: r.id,
+        score: r.score,
+        rag: r.rag,
+        date: r.call_date,
+        type: r.call_type || "discovery",
+        stageAtScore: r.pipedrive_deal_stage
+      });
+    }
+
+    // 4. Build stages map from Pipedrive
+    const stagesResp = await fetch(
+      `https://api.pipedrive.com/v1/stages?api_token=${PIPEDRIVE_KEY}`
+    );
+    const stagesData = await stagesResp.json();
+    const stageNames = {};
+    if (stagesData.success && stagesData.data) {
+      for (const s of stagesData.data) stageNames[s.id] = s.name;
+    }
+
+    // 5. Fetch live deal statuses from Pipedrive
+    const dealIds = Object.keys(dealMap);
+    const liveDeals = {};
+    for (let i = 0; i < dealIds.length; i += 10) {
+      const batch = dealIds.slice(i, i + 10);
+      const results = await Promise.all(batch.map(async (did) => {
+        try {
+          const resp = await fetch(
+            `https://api.pipedrive.com/v1/deals/${did}?api_token=${PIPEDRIVE_KEY}`
+          );
+          const data = await resp.json();
+          if (data.success && data.data) return data.data;
+        } catch {}
+        return null;
+      }));
+      results.forEach(d => { if (d) liveDeals[d.id] = d; });
+      if (i + 10 < dealIds.length) await new Promise(r => setTimeout(r, 300));
+    }
+
+    // 6. Build per-rep view
+    const repMap = {}; // rep_name → { deals[] }
+    for (const [did, dm] of Object.entries(dealMap)) {
+      const live = liveDeals[parseInt(did)] || liveDeals[did];
+      if (!live) continue; // deal deleted or inaccessible
+
+      const rep = dm.rep;
+      if (!repMap[rep]) repMap[rep] = { rep, deals: [] };
+
+      const lastScore = dm.scores[dm.scores.length - 1];
+      const firstScore = dm.scores[0];
+      const scores = dm.scores.map(s => s.score);
+      const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+      const scoreTrend = scores.length >= 2
+        ? (scores[scores.length - 1] - scores[0] >= 5 ? "📈" : scores[scores.length - 1] - scores[0] <= -5 ? "📉" : "➡️")
+        : "•";
+
+      const currentStage = stageNames[live.stage_id] || `Stage ${live.stage_id}`;
+      const firstStage = dm.scores[0].stageAtScore || "?";
+      const stageChanged = firstStage !== currentStage;
+
+      const createdDate = new Date(live.add_time);
+      const daysInPipeline = Math.floor((Date.now() - createdDate.getTime()) / 86400000);
+
+      const statusEmoji = live.status === "won" ? "✅" : live.status === "lost" ? "❌" : live.status === "open" ? "🟢" : "⚪";
+
+      repMap[rep].deals.push({
+        dealId: did,
+        title: live.title || dm.company,
+        value: live.value || 0,
+        status: live.status,
+        statusEmoji,
+        currentStage,
+        firstStage,
+        stageChanged,
+        daysInPipeline,
+        demoCount: dm.scores.length,
+        lastScore: lastScore?.score || 0,
+        lastRag: lastScore?.rag || "red",
+        lastDemoDate: lastScore?.date || "?",
+        avgScore,
+        scoreTrend,
+        scores: dm.scores.map(s => ({ score: s.score, rag: s.rag, date: s.date, stageAtScore: s.stageAtScore })),
+      });
+    }
+
+    // Sort each rep's deals: open first, then by days in pipeline desc
+    const pipeline = Object.values(repMap)
+      .filter(r => aeNames.has(r.rep))
+      .map(r => ({
+        ...r,
+        deals: r.deals
+          .sort((a, b) => {
+            if (a.status === "open" && b.status !== "open") return -1;
+            if (a.status !== "open" && b.status === "open") return 1;
+            return b.daysInPipeline - a.daysInPipeline;
+          })
+      }))
+      .sort((a, b) => a.rep.localeCompare(b.rep));
+
+    // Stats per rep
+    for (const r of pipeline) {
+      r.openDeals = r.deals.filter(d => d.status === "open").length;
+      r.wonDeals = r.deals.filter(d => d.status === "won").length;
+      r.lostDeals = r.deals.filter(d => d.status === "lost").length;
+      r.stageProgressed = r.deals.filter(d => d.stageChanged && d.status === "open").length;
+      r.stageStalled = r.deals.filter(d => !d.stageChanged && d.status === "open" && d.daysInPipeline > 14).length;
+    }
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      pipeline
+    });
+  } catch (err) {
+    console.error(`[/api/rep-pipeline] Error: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
