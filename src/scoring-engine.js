@@ -81,35 +81,35 @@ PHASE 1 — PRE-CALL PREPARATION (8 pts)
    - Yellow (3-5): Some research but surface-level
    - Red (0-2): No evidence of preparation
 
-PHASE 2 — QUALIFICATION (18 pts)
+PHASE 2 — QUALIFICATION (26 pts)
 2. Agenda setting (5 pts)
    - Green (4-5): Clear agenda stated AND prospect confirmed/agreed
    - Yellow (2-3): Agenda stated but no buy-in
    - Red (0-1): No agenda set
 
-3. QUICK qualification (13 pts total)
-   - Q — Qualify current state (3 pts): Does the AE understand their current setup, tools, call volume?
-   - U — Uncover the pain & future state (3 pts): Did the AE identify the specific problem? Did they AMPLIFY the pain (what is it costing them right now)? Did they ask where the prospect wants to be 3-6 months from now? Did they position the product as the bridge from current pain to desired future?
-   - I — Identify budget & timeline (3 pts): Did the AE surface budget expectations and buying timeline?
-   - C — Confirm decision process (2 pts): Did the AE ask who else is involved in the decision?
-   - K — Keep it moving (2 pts): Did the AE avoid getting stuck in discovery? Efficient, not rambling.
+3. QUICK qualification (21 pts total)
+   - Q — Qualify current state (4 pts): Does the AE understand their current setup, tools, call volume?
+   - U — Uncover the pain & future state (5 pts): Did the AE identify the specific problem? Did they AMPLIFY the pain (what is it costing them right now)? Did they ask where the prospect wants to be 3-6 months from now? Did they position the product as the bridge from current pain to desired future?
+   - I — Identify budget & timeline (4 pts): Did the AE surface budget expectations and buying timeline?
+   - C — Confirm decision process (4 pts): Did the AE ask who else is involved in the decision?
+   - K — Keep it moving (4 pts): Did the AE avoid getting stuck in discovery? Efficient, not rambling.
    NOTE: This is a transactional sale. Discovery should be 5-10 minutes, not 20+. Score the QUALITY of questions asked, not the quantity of time spent. The U step is the most important qualifier — amplifying pain and connecting to future state is what separates a pitch from a prescription.
 
-PHASE 3 — PRESENTATION (24 pts)
+PHASE 3 — PRESENTATION (28 pts)
 4. Smooth & professional (4 pts)
-5. Confidence & leadership (6 pts) — AE led the conversation, spoke with authority, didn't defer to the prospect. Top closers speak 60-75% of the call. Dock points for: uncertainty, rambling explanations, excessive pauses.
-6. Personalization (8 pts) — Features tied to prospect's stated pain
-7. Tie-downs / micro-closes (6 pts) — Regular value checks and "does that make sense?" / "any questions so far?"
+5. Confidence & leadership (7 pts) — AE led the conversation, spoke with authority, didn't defer to the prospect. Top closers speak 60-75% of the call. Dock points for: uncertainty, rambling explanations, excessive pauses.
+6. Personalization (9 pts) — Features tied to prospect's stated pain
+7. Tie-downs / micro-closes (8 pts) — Regular value checks and "does that make sense?" / "any questions so far?"
 
-PHASE 4 — PRICING & OBJECTION HANDLING (28 pts)
-8. Value summary before price (8 pts)
-9. Simple pricing (6 pts) — One option, then silence. Don't present a menu.
+PHASE 4 — PRICING & OBJECTION HANDLING (22 pts)
+8. Value summary before price (7 pts)
+9. Simple pricing (5 pts) — One option, then silence. Don't present a menu.
 10. No premature discount (2 pts) — Auto red flag if discount before ECIR
-11. ECIR objection handling (12 pts) — Empathize, Clarify, Isolate, Respond per objection. Every objection is an opportunity — score each one independently.
+11. ECIR objection handling (8 pts) — Empathize, Clarify, Isolate, Respond per objection. Every objection is an opportunity — score each one independently.
 
-PHASE 5 — CLOSE & NEXT STEPS (22 pts) — THIS PHASE DECIDES THE DEAL
+PHASE 5 — CLOSE & NEXT STEPS (16 pts) — THIS PHASE DECIDES THE DEAL
 
-12. Close execution (18 pts) — Score: Setup(6)/Bridge(6)/Ask(6).
+12. Close execution (12 pts) — Score: Setup(4)/Bridge(4)/Ask(4).
 
 THE ASK IS A BINARY GATE. These are NOT closes — they are DEFERRALS (0 pts for Ask):
   ❌ "I'll email you a link" / "Let me send you a follow-up"
@@ -122,22 +122,22 @@ A REAL close sounds like:
   ✅ "Let's get you set up right now — I'll walk you through it."
   ✅ "Based on everything we covered, I think we should move forward. What do you think?"
 
-Ask scoring:
-  • 5-6 pts: Direct commitment question. Silence held for response. Objection dealt with if raised.
-  • 2-4 pts: An ambiguous next-step question was asked ("What do you think?" without a clear call to action) OR the AE filled the silence before prospect answered.
+Ask scoring — BINARY. There is no "partial" for a deferral:
+  • 3-4 pts: A direct commitment question was asked AND silence was held for a response. "Can we get you started today?" / "Are you ready to move forward?" / "Let's do this — I'll send the agreement now."
+  • 1-2 pts: An ambiguous next-step question was asked ("What do you think?" without a clear call to action) OR the AE filled the silence before the prospect answered.
   • 0 pts: NO commitment question was asked. Any variant of "I'll email/send/follow up" = ZERO. "Let me know when you're ready" = ZERO. "Think about it" = ZERO. If the AE hands off to email instead of asking for commitment, Ask score is ZERO — no exceptions, no partial credit.
 
 Bridge scoring:
-  • 5-6 pts: Surfaces remaining concerns directly. "What would stop you from moving forward today?"
-  • 2-4 pts: Acknowledged potential hesitation but didn't surface it explicitly.
-  • 0-1 pts: Skipped blocker check entirely, or prospect raised an objection and AE deflected.
+  • 3-4 pts: Surfaces remaining concerns directly. "What would stop you from moving forward today?"
+  • 1-2 pts: Acknowledged potential hesitation but didn't surface it explicitly.
+  • 0 pts: Skipped blocker check entirely, or prospect raised an objection and AE deflected.
 
 Setup scoring:
-  • 5-6 pts: Recaps 2-3 specific benefits tied to the prospect's stated pain BEFORE transitioning to close. Clear value anchor.
-  • 2-4 pts: Brief value mention but not tied to discovery.
-  • 0-1 pts: No value summary before asking (or before deferring).
+  • 3-4 pts: Recaps 2-3 specific benefits tied to the prospect's stated pain BEFORE transitioning to close. Clear value anchor.
+  • 1-2 pts: Brief value mention but not tied to discovery.
+  • 0 pts: No value summary before asking (or before deferring).
 
-A call where the AE summarizes value, handles objections, builds rapport — but then says "I'll send you an email with the link" — has FAILED the close phase. The Ask is 0. Bridge gets partial at best. Total for this phase should be 6-10 out of 22, not 18-20.
+A call where the AE summarizes value, handles objections, builds rapport — but then says "I'll send you an email with the link" — has FAILED the close phase. The Ask is 0. Bridge gets partial at best. Total for this phase should be 4-8 out of 16, not 12-16.
 
 13. Scheduled follow-up (4 pts):
   • 4 pts: Specific date AND time locked on the call. Both parties confirmed. Calendar invite or Calendly booked live.
@@ -152,24 +152,24 @@ Return ONLY this JSON (no prose, no markdown fences):
   "verdict": "<one sentence summary>",
   "phases": {
     "preCall": { "score": <n>, "maxPoints": 8, "criteria": { "research": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<2-3 sentences — include prep outreach if applicable>", "timestamps": ["MM:SS"] } } },
-    "discovery": { "score": <n>, "maxPoints": 18, "criteria": { "agenda": { "score": <n>, "maxPoints": 5, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "quick": { "score": <n>, "maxPoints": 13, "feedback": "<efficiency note: was discovery fast and focused?>" } } },
-    "presentation": { "score": <n>, "maxPoints": 24, "criteria": { "smooth": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "confidence": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<did the AE lead with authority or defer?>", "timestamps": ["MM:SS"] }, "personalization": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "tieDowns": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
-    "pricing": { "score": <n>, "maxPoints": 28, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "simplePricing": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "noDiscount": { "score": <n>, "maxPoints": 2, "rag": "g"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "ecir": { "score": <n>, "maxPoints": 12, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
-    "closing": { "score": <n>, "maxPoints": 22, "criteria": { "closeExecution": { "score": <n>, "maxPoints": 18, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on close — did they ask for the business?>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
+    "discovery": { "score": <n>, "maxPoints": 26, "criteria": { "agenda": { "score": <n>, "maxPoints": 5, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "quick": { "score": <n>, "maxPoints": 21, "feedback": "<efficiency note: was discovery fast and focused?>" } } },
+    "presentation": { "score": <n>, "maxPoints": 28, "criteria": { "smooth": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "confidence": { "score": <n>, "maxPoints": 7, "rag": "g"|"y"|"r", "feedback": "<did the AE lead with authority or defer?>", "timestamps": ["MM:SS"] }, "personalization": { "score": <n>, "maxPoints": 9, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "tieDowns": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
+    "pricing": { "score": <n>, "maxPoints": 22, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 7, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "simplePricing": { "score": <n>, "maxPoints": 5, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "noDiscount": { "score": <n>, "maxPoints": 2, "rag": "g"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "ecir": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
+    "closing": { "score": <n>, "maxPoints": 16, "criteria": { "closeExecution": { "score": <n>, "maxPoints": 12, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on close — did they ask for the business?>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
   },
   "spiced": {
-    "s": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<Q — Qualify: current setup, tools, call volume — 1-2 sentences>", "timestamps": ["MM:SS"] },
-    "p": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<U — Uncover & Amplify: pain identified, cost amplified, future state explored, product positioned as bridge>", "timestamps": ["MM:SS"] },
-    "i": { "score": <0-3>, "status": "strong"|"partial"|"missing", "feedback": "<I — Identify: budget expectations and timeline surfaced>", "timestamps": ["MM:SS"] },
-    "c": { "score": <0-2>, "status": "strong"|"partial"|"missing", "feedback": "<C — Confirm: decision process and stakeholders mapped>", "timestamps": ["MM:SS"] },
-    "e": { "score": <0-2>, "status": "strong"|"partial"|"missing", "feedback": "<K — Keep moving: efficient, didn't get stuck in discovery>", "timestamps": ["MM:SS"] }
+    "s": { "score": <0-4>, "status": "strong"|"partial"|"missing", "feedback": "<Q — Qualify: current setup, tools, call volume — 1-2 sentences>", "timestamps": ["MM:SS"] },
+    "p": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<U — Uncover & Amplify: pain identified, cost amplified, future state explored, product positioned as bridge>", "timestamps": ["MM:SS"] },
+    "i": { "score": <0-4>, "status": "strong"|"partial"|"missing", "feedback": "<I — Identify: budget expectations and timeline surfaced>", "timestamps": ["MM:SS"] },
+    "c": { "score": <0-4>, "status": "strong"|"partial"|"missing", "feedback": "<C — Confirm: decision process and stakeholders mapped>", "timestamps": ["MM:SS"] },
+    "e": { "score": <0-4>, "status": "strong"|"partial"|"missing", "feedback": "<K — Keep moving: efficient, didn't get stuck in discovery>", "timestamps": ["MM:SS"] }
   },
   "close": {
     "style": "consultative"|"assumptive"|"urgency"|"none",
     "styleName": "<e.g. 'Assumptive Close'>",
-    "setup": { "score": <0-6>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Summarized Value>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "bridge": { "score": <0-6>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Transitioned to Commitment>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "ask": { "score": <0-6>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Asked for Business>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
+    "setup": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Summarized Value>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "bridge": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Transitioned to Commitment>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
+    "ask": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<step name — e.g. Asked for Business>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
   },
   "closingTips": ["<tip 1>", "<tip 2>", "<tip 3>"],
   "wins": ["<win 1>", "<win 2>", "<win 3>"],
