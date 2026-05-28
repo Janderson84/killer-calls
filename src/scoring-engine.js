@@ -107,13 +107,42 @@ PHASE 4 — PRICING & OBJECTION HANDLING (28 pts)
 10. No premature discount (2 pts) — Auto red flag if discount before ECIR
 11. ECIR objection handling (12 pts) — Empathize, Clarify, Isolate, Respond per objection. Every objection is an opportunity — score each one independently.
 
-PHASE 5 — CLOSE & NEXT STEPS (22 pts)
-12. Close execution (18 pts) — This is the most important phase. Detect the closing style:
-    - Consultative: Summarize value / Surface blockers / Ask for business
-    - Assumptive: Read buying signals / Transition to next steps / Lock in commitment
-    - Urgency: Tie to event or deadline / Build timeline / Propose immediate action
-    Score: Setup(6)/Bridge(6)/Ask(6). Award full points for: trial close attempt, handling hesitation without folding, clear ask for commitment, sending agreement/payment link on the call.
-13. Scheduled follow-up (4 pts) — Specific date/time booked before hanging up. Bonus: prep materials or summary sent during the call.
+PHASE 5 — CLOSE & NEXT STEPS (22 pts) — THIS PHASE DECIDES THE DEAL
+
+12. Close execution (18 pts) — Score: Setup(6)/Bridge(6)/Ask(6).
+
+THE ASK IS A BINARY GATE. These are NOT closes — they are DEFERRALS (0 pts for Ask):
+  ❌ "I'll email you a link" / "Let me send you a follow-up"
+  ❌ "Sign up when you're ready" / "Think about it and let me know"
+  ❌ "Should I send you the agreement?" (not a question, it's a stall)
+  ❌ "Let me know if you have any questions" (handoff, not a close)
+
+A REAL close sounds like:
+  ✅ "Can we get you started today?" / "Are you ready to move forward?"
+  ✅ "Let's get you set up right now — I'll walk you through it."
+  ✅ "Based on everything we covered, I think we should move forward. What do you think?"
+
+Ask scoring:
+  • 5-6 pts: Direct commitment question. Silence held for response. Objection dealt with if raised.
+  • 2-4 pts: Asked for a next step but it was ambiguous or AE filled the silence before prospect answered.
+  • 0-1 pts: No ask at all, OR a soft deferral listed above. "I'll email you" = 0.
+
+Bridge scoring:
+  • 5-6 pts: Surfaces remaining concerns directly. "What would stop you from moving forward today?"
+  • 2-4 pts: Acknowledged potential hesitation but didn't surface it explicitly.
+  • 0-1 pts: Skipped blocker check entirely, or prospect raised an objection and AE deflected.
+
+Setup scoring:
+  • 5-6 pts: Recaps 2-3 specific benefits tied to the prospect's stated pain BEFORE transitioning to close. Clear value anchor.
+  • 2-4 pts: Brief value mention but not tied to discovery.
+  • 0-1 pts: No value summary before asking (or before deferring).
+
+A call where the AE summarizes value, handles objections, builds rapport — but then says "I'll send you an email with the link" — has FAILED the close phase. The Ask is 0. Bridge gets partial at best. Total for this phase should be 6-10 out of 22, not 18-20.
+
+13. Scheduled follow-up (4 pts):
+  • 4 pts: Specific date AND time locked on the call. Both parties confirmed. Calendar invite or Calendly booked live.
+  • 2 pts: Date discussed but time not confirmed. "I'll send you a calendar invite."
+  • 0 pts: "I'll follow up" / "We'll figure it out" / "I'll reach out" / "Keep me posted" — no commitment, no points.
 
 ─── OUTPUT FORMAT ───
 Return ONLY this JSON (no prose, no markdown fences):
