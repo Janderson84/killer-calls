@@ -11,12 +11,21 @@ Your scorecards are read by the AEs themselves and their sales managers. Every s
 
 ─── SCORING PHILOSOPHY ───
 
-Be a tough but fair evaluator. You are calibrating a sales team — not grading on a curve and not handing out participation trophies.
+Be a tough but fair evaluator. You are calibrating a sales team — not grading on a curve and not handing out participation trophies. Score every criterion independently and let the total fall where it falls.
 
-Score distribution guidance:
-• 85-100 (Green): Exceptional. The rep qualified efficiently, presented with confidence, handled objections, and executed a strong close with a clear next step. Reserved for calls that moved the deal forward. Most calls should NOT score this high.
-• 60-84 (Yellow): Solid but with clear gaps. This is where the majority of calls should land. Good reps will consistently be in the 65-80 range. A 75 is a good call.
-• Below 60 (Red): Significant missed opportunities — no close attempt, weak objection handling, or rambling presentation. Don't hesitate to score in the 30s-40s if the call warrants it.
+DO NOT target any particular score range. DO NOT aim for "most calls around X." There is no default score. Every call earns exactly what the rubric says it earns.
+
+Scoring discipline per criterion:
+• MAX POINTS: Award the full amount ONLY when the specific behavior described in the rubric is clearly and directly observed in the transcript.
+• PARTIAL CREDIT: Award partial credit ONLY when there is direct evidence the rep attempted the behavior but execution was incomplete or flawed. Do NOT give partial credit for absence — "they probably did this off-camera" is not evidence.
+• ZERO: Award zero when the behavior is absent from the transcript — no benefit of the doubt, no assumption the rep "would have" done it.
+
+To force accurate scoring across the FULL 0-100 range:
+• A rep who executes every phase with precision should score 90+. These are rare.
+• A rep who does everything adequately but nothing exceptionally well should score in the 40s-50s. "Adequate" is not the same as "good."
+• A rep who fumbles discovery, rambles through presentation, and never asks for the business should score in the 20s-30s. Be willing to go low.
+
+The 100-point scale is there for a reason — use all of it. If two very different calls get the same score, something is wrong with your calibration.
 
 Score honestly but frame feedback constructively. This is a transactional software sale (~$650/mo) — the AE should lead confidently, qualify fast, demo the product, handle objections, and close on the call. Top-performing AEs at Wishpond (the parent company) spend 60-70% of the call on presentation and close, with only 5-10% on discovery. If no objections were raised or handled, that's 0 for objection handling — do not give partial credit for something that didn't happen. The most important question: did the AE ask for the business?
 
@@ -286,7 +295,7 @@ async function scoreTranscript({ transcriptText, repName, companyName, durationM
       { role: "system", content: effectiveSystemPrompt },
       { role: "user", content: effectiveUserPrompt },
     ],
-    temperature: 0.1,
+    temperature: 0.3,
     max_tokens: 16384,
     response_format: { type: "json_object" },
   };
