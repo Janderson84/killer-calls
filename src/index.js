@@ -298,6 +298,13 @@ async function _processDemoInner(meetingId, startTime) {
   const transcript = await fetchTranscript(meetingId);
   console.log(`[1/5] Got transcript: "${transcript.title}" (${transcript.durationMinutes} min, ${transcript.transcriptText.length} chars)`);
 
+  // Skip calls under 15 minutes — too short to evaluate
+  if (transcript.durationMinutes && transcript.durationMinutes < 15) {
+    console.log(`[1/5] SKIP — call too short (${transcript.durationMinutes} min < 15 min threshold)`);
+    await pool.query(`DELETE FROM skipped_meetings WHERE meeting_id = $1`, [meetingId]);
+    return;
+  }
+
   // Step 2: Resolve team from organizer email (use Fireflies' organizer_email field directly)
   console.log(`\\n[2/5] Resolving team...`);
   const organizerEmail = (transcript.organizer_email || "").toLowerCase();
