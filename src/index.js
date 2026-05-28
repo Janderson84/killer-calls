@@ -1482,6 +1482,20 @@ app.post("/api/admin/remove-reps", async (req, res) => {
   }
 });
 
+// Admin: delete scorecards by ID list
+app.post("/api/admin/delete-scorecards", async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: "Provide { ids: [...] }" });
+  }
+  try {
+    const result = await pool.query("DELETE FROM scorecards WHERE id = ANY($1) RETURNING id, rep_name", [ids]);
+    res.json({ deleted: result.rows.length, ids: result.rows.map(r => r.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(CONFIG.port, () => {
   console.log(`\n🚀 Killer Calls running on port ${CONFIG.port} (multi-team)`);
   console.log(`   Webhook URL: POST http://localhost:${CONFIG.port}/webhook/fireflies`);
