@@ -124,8 +124,8 @@ A REAL close sounds like:
 
 Ask scoring:
   • 5-6 pts: Direct commitment question. Silence held for response. Objection dealt with if raised.
-  • 2-4 pts: Asked for a next step but it was ambiguous or AE filled the silence before prospect answered.
-  • 0-1 pts: No ask at all, OR a soft deferral listed above. "I'll email you" = 0.
+  • 2-4 pts: An ambiguous next-step question was asked ("What do you think?" without a clear call to action) OR the AE filled the silence before prospect answered.
+  • 0 pts: NO commitment question was asked. Any variant of "I'll email/send/follow up" = ZERO. "Let me know when you're ready" = ZERO. "Think about it" = ZERO. If the AE hands off to email instead of asking for commitment, Ask score is ZERO — no exceptions, no partial credit.
 
 Bridge scoring:
   • 5-6 pts: Surfaces remaining concerns directly. "What would stop you from moving forward today?"
