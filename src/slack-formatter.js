@@ -137,7 +137,6 @@ function buildDemoReviewBlocks(scorecard, meta, scorecardId, appUrl, roster) {
   const tags = buildFrameworkTags(scorecard);
 
   let frameworksText = `*QUICK*\n${quickLine}`;
-  if (bantLine) frameworksText += `\n\n*BANT*\n${bantLine}`;
   if (closeLine) frameworksText += `\n\n*Close*\n${closeLine}`;
 
   const dealUrl = pipedriveDealUrl(meta.pipedriveDealId);
@@ -461,20 +460,21 @@ async function postKillerCall(scorecard, meta, scorecardId, teamConfig = {}) {
 }
 
 // ─── Stall Risk Calculation ──────────────────────────────────
-// Based on data analysis: QUICK-I (Impact), QUICK-C (Close Readiness),
-// and QUICK-K (Know-How) are the strongest predictors of deal progression.
+// Based on data analysis: QUICK-U (Uncover & Amplify Pain),
+// QUICK-C (Close Readiness), and QUICK-K (Know-How) are the
+// strongest predictors of deal progression.
 // Calls weak on all three have HIGH stall risk.
 
 function calculateStallRisk(spiced) {
   if (!spiced) return { level: "LOW", factors: [] };
 
-  const predictive = ["i", "c", "e"];
+  const predictive = ["p", "c", "e"];
   const weakFactors = [];
 
   for (const el of predictive) {
     const status = spiced[el]?.status;
     if (!status || status === "partial" || status === "missing") {
-      const names = { i: "Impact Quantified", c: "Close Readiness", e: "Know-How" };
+      const names = { p: "Uncover & Amplify Pain", c: "Close Readiness", e: "Know-How" };
       weakFactors.push(names[el]);
     }
   }
@@ -498,7 +498,7 @@ function stallRiskBlock(stallRisk) {
 
   const emoji = stallRiskEmoji(stallRisk.level);
   const text = stallRisk.level === "HIGH"
-    ? `${emoji} *Stall Risk: HIGH* — Coach on: quantify impact, establish close readiness, map decision process before next touch`
+    ? `${emoji} *Stall Risk: HIGH* — Coach on: uncover and amplify pain, confirm close readiness, keep discovery efficient`
     : `${emoji} *Stall Risk: MEDIUM* — Strengthen ${stallRisk.factors.join(" and ")} to reduce risk`;
 
   return {
