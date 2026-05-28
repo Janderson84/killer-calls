@@ -1626,21 +1626,13 @@ app.get("/api/rep-pipeline", async (req, res) => {
       });
     }
 
-    // 4. Build stages map from Pipedrive
-    const stagesResp = await fetch(
-      `https://api.pipedrive.com/v1/stages?api_token=${PIPEDRIVE_KEY}`
-    );
-    const stagesData = await stagesResp.json();
-    const stageNames = {};
-    if (stagesData.success && stagesData.data) {
-      for (const s of stagesData.data) stageNames[s.id] = s.name;
-    }
-
-    // 5. Fetch live deal statuses from Pipedrive
+    // 4. Fetch live deal statuses from Pipedrive (with embedded stage names)
     const dealIds = Object.keys(dealMap);
     const liveDeals = {};
-    for (let i = 0; i < dealIds.length; i += 10) {
-      const batch = dealIds.slice(i, i + 10);
+    const stageNames = {}; // cache: stage_id → name
+
+    for (let i = 0; i < dealIds.length; i += 5) {
+      const batch = dealIds.slice(i, i + 5);
       const results = await Promise.all(batch.map(async (did) => {
         try {
           const resp = await fetch(
@@ -1651,8 +1643,31 @@ app.get("/api/rep-pipeline", async (req, res) => {
         } catch {}
         return null;
       }));
-      results.forEach(d => { if (d) liveDeals[d.id] = d; });
-      if (i + 10 < dealIds.length) await new Promise(r => setTimeout(r, 300));
+      results.forEach(d => {
+        if (d) {
+          liveDeals[d.id] = d;
+          // Fetch stage name if we don't have it cached
+          if (d.stage_id && !stageNames[d.stage_id]) {
+            stageNames[d.stage_id] = null; // mark as in-flight
+          }
+        }
+      });
+      if (i + 5 < dealIds.length) await new Promise(r => setTimeout(r, 500));
+    }
+
+    // Resolve stage names (fetch only unique stage IDs we haven't cached)
+    const uncachedStages = Object.keys(stageNames).filter(k => stageNames[k] === null);
+    for (const sid of uncachedStages) {
+      try {
+        const stageResp = await fetch(
+          `https://api.pipedrive.com/v1/stages/${sid}?api_token=${PIPEDRIVE_KEY}`
+        );
+        const stageData = await stageResp.json();
+        stageNames[sid] = (stageData.success && stageData.data?.name) ? stageData.data.name : `Stage ${sid}`;
+      } catch {
+        stageNames[sid] = `Stage ${sid}`;
+      }
+      await new Promise(r => setTimeout(r, 200));
     }
 
     // 6. Build per-rep view
