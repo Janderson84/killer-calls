@@ -163,7 +163,7 @@ app.use(express.json());
 // ─── Health check ────────────────────────────────────────────────
 
 app.get("/", (req, res) => {
-  res.json({ status: "ok", service: "killer-calls-mvp", version: "2.1.0", deploy: "2026-05-27-23:35-fetch", node: process.version });
+  res.json({ status: "ok", service: "killer-calls-mvp", version: "2.2.0", deploy: "2026-05-28-rebalance", node: process.version });
 });
 
 // ─── Fireflies Webhook ──────────────────────────────────────────
