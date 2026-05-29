@@ -22,7 +22,9 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function fetchDeal(dealId) {
   try {
-    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}?api_token=${PIPEDRIVE_KEY}`);
+    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}`, {
+      headers: { "X-Api-Token": PIPEDRIVE_KEY }
+    });
     const json = await resp.json();
     if (json.success && json.data) {
       return {
@@ -57,7 +59,9 @@ async function run() {
     console.log(`Unique deals: ${dealIds.length}`);
 
     // Fetch stages first
-    const stagesResp = await fetch(`https://api.pipedrive.com/v1/stages?api_token=${PIPEDRIVE_KEY}`);
+    const stagesResp = await fetch(`https://api.pipedrive.com/v1/stages`, {
+      headers: { "X-Api-Token": PIPEDRIVE_KEY }
+    });
     const stagesJson = await stagesResp.json();
     const stageMap = {};
     if (stagesJson.data) {

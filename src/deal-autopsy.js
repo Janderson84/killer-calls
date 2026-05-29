@@ -54,7 +54,9 @@ async function fetchTranscript(meetingId, apiKey) {
 
 async function fetchDeal(dealId, apiKey) {
   try {
-    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}?api_token=${apiKey}`);
+    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}`, {
+      headers: { "X-Api-Token": apiKey }
+    });
     const text = await resp.text();
     const json = JSON.parse(text);
     if (json.success && json.data) {
@@ -104,8 +106,8 @@ async function runDealAutopsy({ dealId, repName, days, pool, pipedriveKey, firef
     // Direct Pipedrive call with raw response capture
     let rawPipedrive = "";
     try {
-      const url = `https://api.pipedrive.com/v1/deals/${dealId}?api_token=${pipedriveKey}`;
-      const resp = await fetch(url);
+      const url = `https://api.pipedrive.com/v1/deals/${dealId}`;
+      const resp = await fetch(url, { headers: { "X-Api-Token": pipedriveKey } });
       rawPipedrive = await resp.text();
       const json = JSON.parse(rawPipedrive);
       debugInfo.pdSuccess = json.success;

@@ -32,8 +32,9 @@ function extractProspectEmail(raw) {
 }
 
 async function pipedriveGet(path) {
-  const sep = path.includes('?') ? '&' : '?';
-  const resp = await fetch(`${PIPEDRIVE_API_BASE}${path}${sep}api_token=${PIPEDRIVE_API_KEY}`);
+  const resp = await fetch(`${PIPEDRIVE_API_BASE}${path}`, {
+    headers: { 'X-Api-Token': PIPEDRIVE_API_KEY }
+  });
   const data = await resp.json();
   return data;
 }

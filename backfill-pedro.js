@@ -31,11 +31,12 @@ function extractProspectEmail(raw) {
 }
 
 async function pipedriveGet(path) {
-  const sep = path.includes("?") ? "&" : "?";
-  const resp = await fetch(`${PIPEDRIVE_API_BASE}${path}${sep}api_token=${PIPEDRIVE_API_KEY}`);
-  return resp.json();
+  const resp = await fetch(`${PIPEDRIVE_API_BASE}${path}`, {
+    headers: { 'X-Api-Token': PIPEDRIVE_API_KEY }
+  });
+  const data = await resp.json();
+  return data;
 }
-
 async function findDealForProspect(email) {
   const personSearch = await pipedriveGet(
     `/persons/search?term=${encodeURIComponent(email)}&limit=3`

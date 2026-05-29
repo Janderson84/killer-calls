@@ -23,7 +23,9 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function fetchDeal(dealId) {
   try {
-    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}?api_token=${PIPEDRIVE_KEY}`);
+    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}`, {
+      headers: { "X-Api-Token": PIPEDRIVE_KEY }
+    });
     const json = await resp.json();
     if (json.success && json.data) {
       return { id: json.data.id, status: json.data.status, stage_id: json.data.stage_id, value: json.data.value, pipeline_id: json.data.pipeline_id };

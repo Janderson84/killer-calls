@@ -469,13 +469,15 @@ async function _processDemoInner(meetingId, startTime) {
   if (PIPEDRIVE_API_KEY && meta.prospectEmail) {
     try {
       const pdPersonResp = await fetch(
-        `https://api.pipedrive.com/v1/persons/search?term=${encodeURIComponent(meta.prospectEmail)}&limit=3&api_token=${PIPEDRIVE_API_KEY}`
+        `https://api.pipedrive.com/v1/persons/search?term=${encodeURIComponent(meta.prospectEmail)}&limit=3`,
+        { headers: { "X-Api-Token": PIPEDRIVE_API_KEY } }
       );
       const pdPersonData = await pdPersonResp.json();
       if (pdPersonData.success && pdPersonData.data?.items?.[0]?.item) {
         const personId = pdPersonData.data.items[0].item.id;
         const pdDealsResp = await fetch(
-          `https://api.pipedrive.com/v1/persons/${personId}/deals?api_token=${PIPEDRIVE_API_KEY}`
+          `https://api.pipedrive.com/v1/persons/${personId}/deals`,
+          { headers: { "X-Api-Token": PIPEDRIVE_API_KEY } }
         );
         const pdDealsData = await pdDealsResp.json();
         if (pdDealsData.success && pdDealsData.data?.length > 0) {
@@ -488,7 +490,8 @@ async function _processDemoInner(meetingId, startTime) {
           let stageName = String(deal.stage_id);
           try {
             const stageResp = await fetch(
-              `https://api.pipedrive.com/v1/stages/${deal.stage_id}?api_token=${PIPEDRIVE_API_KEY}`
+              `https://api.pipedrive.com/v1/stages/${deal.stage_id}`,
+              { headers: { "X-Api-Token": PIPEDRIVE_API_KEY } }
             );
             const stageData = await stageResp.json();
             if (stageData.success && stageData.data) stageName = stageData.data.name;
@@ -639,7 +642,9 @@ function avgVal(arr, key) {
 
 async function fetchPipedriveDeal(dealId, apiKey) {
   try {
-    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}?api_token=${apiKey}`);
+    const resp = await fetch(`https://api.pipedrive.com/v1/deals/${dealId}`, {
+      headers: { "X-Api-Token": apiKey }
+    });
     const json = await resp.json();
     if (json.success && json.data) {
       return { id: json.data.id, status: json.data.status, stage_id: json.data.stage_id, value: json.data.value, pipeline_id: json.data.pipeline_id };
@@ -1163,13 +1168,16 @@ app.post("/api/backfill", async (req, res) => {
       // Pipedrive lookup
       if (process.env.PIPEDRIVE_API_KEY && meta.prospectEmail) {
         try {
+          const pdKey = process.env.PIPEDRIVE_API_KEY;
           const pdResp = await fetch(
-            `https://api.pipedrive.com/v1/persons/search?term=${encodeURIComponent(meta.prospectEmail)}&limit=3&api_token=${process.env.PIPEDRIVE_API_KEY}`
+            `https://api.pipedrive.com/v1/persons/search?term=${encodeURIComponent(meta.prospectEmail)}&limit=3`,
+            { headers: { "X-Api-Token": pdKey } }
           );
           const pdData = await pdResp.json();
           if (pdData.success && pdData.data?.items?.[0]?.item) {
             const dealsResp = await fetch(
-              `https://api.pipedrive.com/v1/persons/${pdData.data.items[0].item.id}/deals?api_token=${process.env.PIPEDRIVE_API_KEY}`
+              `https://api.pipedrive.com/v1/persons/${pdData.data.items[0].item.id}/deals`,
+              { headers: { "X-Api-Token": pdKey } }
             );
             const dealsData = await dealsResp.json();
             if (dealsData.success && dealsData.data?.length > 0) {
@@ -1705,7 +1713,8 @@ app.get("/api/rep-pipeline", async (req, res) => {
       const results = await Promise.all(batch.map(async (did) => {
         try {
           const resp = await fetch(
-            `https://api.pipedrive.com/v1/deals/${did}?api_token=${PIPEDRIVE_KEY}`
+            `https://api.pipedrive.com/v1/deals/${did}`,
+            { headers: { "X-Api-Token": PIPEDRIVE_KEY } }
           );
           const data = await resp.json();
           if (data.success && data.data) return data.data;
@@ -1729,7 +1738,8 @@ app.get("/api/rep-pipeline", async (req, res) => {
     for (const sid of uncachedStages) {
       try {
         const stageResp = await fetch(
-          `https://api.pipedrive.com/v1/stages/${sid}?api_token=${PIPEDRIVE_KEY}`
+          `https://api.pipedrive.com/v1/stages/${sid}`,
+          { headers: { "X-Api-Token": PIPEDRIVE_KEY } }
         );
         const stageData = await stageResp.json();
         stageNames[sid] = (stageData.success && stageData.data?.name) ? stageData.data.name : `Stage ${sid}`;
