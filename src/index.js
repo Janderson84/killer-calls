@@ -1497,13 +1497,15 @@ app.get("/health", (req, res) => {
 // ─── Admin: remove test reps from frontend ────────────────────
 
 app.post("/api/admin/remove-reps", async (req, res) => {
-  const names = ["Marc Bowring", "Bob Oshidary"];
+  const names = req.body?.names || ["Marc Bowring", "Bob Oshidary"];
   try {
+    const removed = [];
     for (const name of names) {
       const result = await pool.query("DELETE FROM scorecards WHERE rep_name = $1", [name]);
       console.log(`[admin] Removed ${result.rowCount} scorecards for ${name}`);
+      if (result.rowCount > 0) removed.push(name);
     }
-    res.json({ status: "ok", removed: names });
+    res.json({ status: "ok", removed, totalRemoved: removed.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
