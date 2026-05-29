@@ -60,7 +60,12 @@ export async function GET(request: Request) {
           continue;
         }
         if (ae.email) {
+          // Only score calls from SalesCloser AEs (salescloser.ai domain)
           const email = ae.email.toLowerCase();
+          if (!email.endsWith("@salescloser.ai")) {
+            log.push(`  Skipping non-SalesCloser AE: ${ae.name} (${email})`);
+            continue;
+          }
           activeAeEmails.push(email);
           aeByEmail[email] = ae.name;
           aeTeamMap[email] = row.team_id as string;

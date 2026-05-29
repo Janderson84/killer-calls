@@ -107,6 +107,11 @@ async function resolveTeam(organizerEmail) {
     if (!Array.isArray(roster)) continue;
     for (const ae of roster) {
       if (ae.email && ae.email.toLowerCase() === organizerEmail.toLowerCase()) {
+        // Only score calls from SalesCloser AEs (salescloser.ai domain)
+        if (!ae.email.toLowerCase().endsWith("@salescloser.ai")) {
+          console.log(`[team] AE ${ae.name} (${ae.email}) is not SalesCloser — skipping`);
+          return null;
+        }
         if (ae.active === false) {
           console.log(`[team] AE ${ae.name} is inactive — skipping scoring`);
           return null;
