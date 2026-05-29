@@ -557,9 +557,29 @@ async function processOne(
   const teamRoster = (teamSettings.ae_roster || []) as { name: string; email: string; slackId: string }[];
 
   // Post to Slack via shared formatter
-  const slackToken = (teamSettings.slack_bot_token as string) || process.env.SLACK_BOT_TOKEN;
-  const reviewChannelId = (teamSettings.slack_channel_reviews as string) || process.env.SLACK_CHANNEL_REVIEWS;
-  const killerChannelId = (teamSettings.slack_channel_killer as string) || process.env.SLACK_CHANNEL_KILLER;
+  let slackToken = (teamSettings.slack_bot_token as string) || process.env.SLACK_BOT_TOKEN;
+  let reviewChannelId = (teamSettings.slack_channel_reviews as string) || process.env.SLACK_CHANNEL_REVIEWS;
+  let killerChannelId = (teamSettings.slack_channel_killer as string) || process.env.SLACK_CHANNEL_KILLER;
+
+  // Fallback: check global (team-agnostic) settings if team-specific ones are missing
+  if (!reviewChannelId || !slackToken) {
+    try {
+      const globalRows = await sql`SELECT key, value FROM settings WHERE key IN ('slack_channel_reviews', 'slack_channel_killer', 'slack_bot_token')`;
+      for (const row of globalRows) {
+        try {
+          const val = typeof row.value === "string" ? JSON.parse(row.value as string) : row.value;
+          if (row.key === "slack_channel_reviews" && !reviewChannelId) reviewChannelId = val as string;
+          if (row.key === "slack_channel_killer" && !killerChannelId) killerChannelId = val as string;
+          if (row.key === "slack_bot_token" && !slackToken) slackToken = val as string;
+        } catch { /* raw value */ }
+      }
+      if (globalRows.length > 0) {
+        log.push("  Using global Slack settings (team-specific not found)");
+      }
+    } catch (err: any) {
+      log.push(`  Could not check global Slack settings: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
   const killerThreshold = teamSettings.killer_threshold ? Number(teamSettings.killer_threshold) : 80;
   const appUrl = (teamSettings.app_url as string) || process.env.APP_URL;
 

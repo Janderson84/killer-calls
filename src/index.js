@@ -504,12 +504,34 @@ async function _processDemoInner(meetingId, startTime) {
   // Step 5: Post to Slack (using team-specific channel IDs)
   console.log(`\n[5/5] Posting to Slack...`);
 
-  const slackReviewsChannel = teamSettings.slack_channel_reviews || process.env.SLACK_CHANNEL_REVIEWS;
-  const slackKillerChannel = teamSettings.slack_channel_killer || process.env.SLACK_CHANNEL_KILLER;
+  let slackReviewsChannel = teamSettings.slack_channel_reviews || process.env.SLACK_CHANNEL_REVIEWS;
+  let slackKillerChannel = teamSettings.slack_channel_killer || process.env.SLACK_CHANNEL_KILLER;
   const appUrl = teamSettings.app_url || process.env.APP_URL;
   const roster = teamSettings.ae_roster || [];
-  const slackBotToken = teamSettings.slack_bot_token || undefined;
+  let slackBotToken = teamSettings.slack_bot_token || process.env.SLACK_BOT_TOKEN;
   const killerThreshold = teamSettings.killer_threshold || 80;
+
+  // Fallback: check global (team-agnostic) settings if team-specific ones are missing
+  if (!slackReviewsChannel || !slackBotToken) {
+    try {
+      const globalResult = await pool.query(
+        `SELECT key, value FROM settings WHERE key IN ('slack_channel_reviews', 'slack_channel_killer', 'slack_bot_token')`
+      );
+      for (const row of globalResult.rows) {
+        try {
+          const val = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+          if (row.key === "slack_channel_reviews" && !slackReviewsChannel) slackReviewsChannel = val;
+          if (row.key === "slack_channel_killer" && !slackKillerChannel) slackKillerChannel = val;
+          if (row.key === "slack_bot_token" && !slackBotToken) slackBotToken = val;
+        } catch { /* raw value, skip */ }
+      }
+      if (globalResult.rows.length > 0) {
+        console.log(`[5/5] Using global Slack settings (team-specific not found)`);
+      }
+    } catch (err) {
+      console.warn(`[5/5] Could not check global Slack settings: ${err.message}`);
+    }
+  }
 
   // Always post to #demo-reviews
   const reviewResult = await postDemoReview(scorecard, meta, scorecardId, {
