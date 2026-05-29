@@ -8,6 +8,7 @@ const { postDemoReview, postKillerCall, calculateStallRisk } = require("./src/sl
 const { readFileSync, writeFileSync, mkdirSync, existsSync } = require("fs");
 const path = require("path");
 const { CONFIG } = require("./src/constants");
+const { buildScoringPrompt } = require("./shared/scoring-prompts");
 
 // ─── AE organizer emails ────────────────────────────────────────
 const AE_EMAILS = [
@@ -90,136 +91,9 @@ async function getScoredMeetingIds() {
   return new Set(result.rows.map((r) => r.meeting_id));
 }
 
-// ─── Scoring prompt (same as batch-import-openclaw.js) ───────────
-function buildOpenClawPrompt(transcriptText, repName, companyName, durationMinutes) {
-  return `You are a supportive sales coach who believes every rep can improve. Score this demo call against a 14-criterion rubric. Your output is ONLY valid JSON — no prose, no markdown fences.
-
-REP: ${repName}
-PROSPECT: ${companyName}
-DURATION: ${durationMinutes || "unknown"} minutes
-
-─── SCORING PHILOSOPHY ───
-
-Score honestly but frame feedback constructively. A call where the AE talked for 80% of the time, skipped discovery, and ended with "I'll send you a proposal" is a 35, not a 55 — but the feedback should help them see the path to 65, not just document what went wrong.
-
-Award points only for behaviors you can directly observe in the transcript. "They probably prepared" is not evidence — you need to hear the rep reference specific details about the prospect's business. Absence of evidence is not ambiguous — it's a zero for that criterion.
-
-─── COACHING VOICE ───
-
-The AEs read these scorecards personally — every word shapes their confidence and growth.
-
-Rules:
-• Name the rep in feedback. These are real people reviewing their own calls.
-• Reference specific timestamps for every observation.
-• Frame fixes as "try this next time" or "here's how to level up" — NOT as failures or mistakes.
-• Lead with what went right before suggesting what to improve.
-• Wins should highlight what specifically worked and why, so the rep knows to repeat it.
-• The verdict should be encouraging and specific — like a coach who sees potential, not a grader pointing out flaws.
-• Never use harsh language. "Failed to", "didn't bother", "completely missed" — rewrite as "opportunity to", "next time try", "this is an area to develop".
-
-─── SCORING RUBRIC (100 points total) ───
-
-PHASE 1 — PRE-CALL PREPARATION (6 pts)
-1. Research & preparation (6 pts) - Green (5-6): Industry knowledge evident - Yellow (3-4): Surface-level - Red (0-2): No evidence
-
-PHASE 2 — DISCOVERY (32 pts)
-2. Agenda setting (7 pts) - Green (6-7): Clear agenda + prospect confirmed - Yellow (3-5): Stated but no buy-in - Red (0-2): No agenda
-3. SPICED discovery (25 pts — 5 each): S=Situation, P=Pain, I=Impact, C=Critical Event, E=Decision
-
-PHASE 3 — PRESENTATION (22 pts)
-4. Smooth & professional (4 pts)
-5. Talk ratio (6 pts) - Green: No AE monologue >90s, prospect spoke ~40%
-6. Personalization (8 pts) - Green: Tied to prospect pain - Red: Generic feature dump
-7. Tie-downs (4 pts) - Green: Regular value checks
-
-PHASE 4 — PRICING & OBJECTION HANDLING (28 pts)
-8. Value summary before price (8 pts)
-9. Simple pricing (6 pts) - One option, then silence
-10. No premature discount (2 pts) - Auto red flag if discount before ECIR
-11. ECIR objection handling (12 pts): Empathize→Clarify→Isolate→Respond
-
-PHASE 5 — CLOSE & NEXT STEPS (12 pts)
-12. Close execution (10 pts total — 4 + 3 + 3)
-    There are THREE valid closing styles. Identify which style the AE used, then score Setup (4 pts), Bridge (3 pts), Ask (3 pts):
-    STYLE A — CONSULTATIVE CLOSE: Setup=Summarize Value, Bridge=Surface Blockers, Ask=Ask for Commitment
-    STYLE B — ASSUMPTIVE CLOSE: Setup=Read Buying Signals, Bridge=Smooth Transition, Ask=Lock Specific Action
-    STYLE C — URGENCY CLOSE: Setup=Tie to Critical Event, Bridge=Build the Timeline, Ask=Propose the Plan
-    If no close attempted, score 0/10 and set style to "none".
-13. Scheduled follow-up (2 pts) - Green: Specific date/time confirmed
-
-BANT QUALIFICATION (evaluated separately — does NOT affect the 100-point score)
-Evaluate each BANT element independently. Score 0-5 per element.
-- B — Budget (5 pts): Did the AE establish whether the prospect has budget allocated or can secure it?
-  Strong (4-5): Budget explicitly discussed, amount or range confirmed
-  Partial (2-3): Budget mentioned but not confirmed
-  Missing (0-1): No budget discussion
-- A — Authority (5 pts): Did the AE confirm who the decision-maker is?
-  Strong (4-5): Decision-maker identified, role clear
-  Partial (2-3): Asked about decision process but didn't pin down authority
-  Missing (0-1): No discussion of buying decision
-- N — Need (5 pts): Did the AE uncover a clear, urgent business need?
-  Strong (4-5): Specific need articulated and tied to product
-  Partial (2-3): General need discussed but not specific
-  Missing (0-1): No clear need established
-- T — Timeline (5 pts): Did the AE establish a concrete decision timeline?
-  Strong (4-5): Specific date, event, or deadline
-  Partial (2-3): Vague timeframe without commitment
-  Missing (0-1): No timeline discussed
-
-BONUS FLAGS: Enthusiasm, Unprofessional language, Premature disqualification
-
-─── OUTPUT FORMAT ───
-Return ONLY this JSON:
-{
-  "score": <0-100>,
-  "rag": "green"|"yellow"|"red",
-  "verdict": "<one sentence summary>",
-  "phases": {
-    "preCall": { "score": <n>, "maxPoints": 6, "criteria": { "research": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<2-3 sentences>", "timestamps": ["MM:SS"] } } },
-    "discovery": { "score": <n>, "maxPoints": 32, "criteria": { "agenda": { "score": <n>, "maxPoints": 7, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "spiced": { "score": <n>, "maxPoints": 25 } } },
-    "presentation": { "score": <n>, "maxPoints": 22, "criteria": { "smooth": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "talkRatio": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "personalization": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "tieDowns": { "score": <n>, "maxPoints": 4, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } },
-    "pricing": { "score": <n>, "maxPoints": 28, "criteria": { "valueSummary": { "score": <n>, "maxPoints": 8, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "simplePricing": { "score": <n>, "maxPoints": 6, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "noDiscount": { "score": <n>, "maxPoints": 2, "rag": "g"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] }, "ecir": { "score": <n>, "maxPoints": 12, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"], "objectionsHandled": <n>, "objections": [{ "topic": "<...>", "timestamp": "MM:SS", "empathize": true|false, "clarify": true|false, "isolate": true|false, "respond": true|false }] } } },
-    "closing": { "score": <n>, "maxPoints": 12, "criteria": { "closeExecution": { "score": <n>, "maxPoints": 10, "rag": "g"|"y"|"r", "feedback": "<coaching feedback on the overall close attempt>", "timestamps": ["MM:SS"] }, "followUp": { "score": <n>, "maxPoints": 2, "rag": "g"|"y"|"r", "feedback": "<...>", "timestamps": ["MM:SS"] } } }
-  },
-  "spiced": {
-    "s": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "p": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "i": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "c": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "e": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
-  },
-  "bant": {
-    "b": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "a": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "n": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] },
-    "t": { "score": <0-5>, "status": "strong"|"partial"|"missing", "feedback": "<...>", "timestamps": ["MM:SS"] }
-  },
-  "close": {
-    "style": "consultative"|"assumptive"|"urgency"|"none",
-    "styleName": "<e.g. 'Consultative Close'>",
-    "setup": { "score": <0-4>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "bridge": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] },
-    "ask": { "score": <0-3>, "status": "strong"|"partial"|"missing", "label": "<step name>", "feedback": "<1-2 sentences>", "timestamps": ["MM:SS"] }
-  },
-  "closingTips": [
-    "<Specific, actionable closing tip #1 tailored to this call>",
-    "<Closing tip #2 referencing a specific moment where a different approach would improve the close>",
-    "<Closing tip #3 with a concrete technique or phrase the rep can use>"
-  ],
-  "wins": ["<win #1 with timestamp>", "<win #2>", "<win #3>"],
-  "fixes": ["<fix #1>", "<fix #2>"],
-  "flags": {
-    "enthusiasm": { "detected": true|false, "note": "<...>" },
-    "unprofessionalLanguage": { "detected": true|false, "note": "<...>" },
-    "prematureDisqualification": { "detected": true|false, "note": "<...>" }
-  },
-  "quoteOfTheCall": { "text": "<exact quote>", "timestamp": "MM:SS", "context": "<why it matters>" }
-}
-
-─── TRANSCRIPT ───
-
-${transcriptText}`;
-}
+// ─── Scoring prompt ──────────────────────────────────────────────
+// Uses shared scoring-prompts.js (single source of truth).
+// The buildScoringPrompt() function is imported at the top of this file.
 
 // ─── Score via OpenClaw ──────────────────────────────────────────
 function scoreViaOpenClaw(promptFilePath, sessionId) {
@@ -300,7 +174,7 @@ async function processOne(meetingId, label) {
     return { meetingId, skipped: true, reason: "no-show" };
   }
 
-  const prompt = buildOpenClawPrompt(
+  const prompt = buildScoringPrompt(
     transcript.transcriptText,
     transcript.repName,
     transcript.companyName,
