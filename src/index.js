@@ -1511,6 +1511,34 @@ app.post("/api/admin/remove-reps", async (req, res) => {
   }
 });
 
+// ─── Admin: remove AE from roster by email ─────────────────────
+app.post("/api/admin/remove-ae", async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: "Missing email" });
+  try {
+    const result = await pool.query(
+      `SELECT team_id, value FROM settings WHERE key = 'ae_roster'`
+    );
+    let removed = false;
+    for (const row of result.rows) {
+      const roster = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+      if (!Array.isArray(roster)) continue;
+      const filtered = roster.filter(ae => ae.email?.toLowerCase() !== email.toLowerCase());
+      if (filtered.length < roster.length) {
+        await pool.query(
+          `UPDATE settings SET value = $1, updated_at = now() WHERE team_id = $2 AND key = 'ae_roster'`,
+          [JSON.stringify(filtered), row.team_id]
+        );
+        console.log(`[admin] Removed ${email} from roster (team ${row.team_id})`);
+        removed = true;
+      }
+    }
+    res.json({ status: "ok", removed });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Admin: delete scorecards by ID list
 app.post("/api/admin/delete-scorecards", async (req, res) => {
   const { ids } = req.body;
