@@ -103,6 +103,7 @@ const AE_BY_EMAIL = {
   "pedro.c@salescloser.ai": "Pedro Cavagnari",
   "edgar.a@salescloser.ai": "Edgar Arana",
   "marc.b@salescloser.ai": "Marc James Beauchamp",
+  "marc.bowring@wishpond.com": "Marc James Beauchamp",
   "zachary.o@salescloser.ai": "Zachary Obando",
   "alfred.d@salescloser.ai": "Alfred Du",
   "vanessa.f@salescloser.ai": "Vanessa Fortune",
