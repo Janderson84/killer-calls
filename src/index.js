@@ -291,7 +291,8 @@ async function _processDemo(meetingId) {
     console.error(err.stack);
     pipelineErrors.unshift({ meetingId, step: 'crash', message: msg, time: new Date().toISOString() });
     if (pipelineErrors.length > MAX_ERRORS) pipelineErrors.length = MAX_ERRORS;
-    // Clean up the claim so this meeting can be retried
+  } finally {
+    // Always clean up the claim so this meeting can be retried
     try { await pool.query(`DELETE FROM skipped_meetings WHERE meeting_id = $1`, [meetingId]); } catch {}
   }
 }
