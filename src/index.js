@@ -2,7 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const { fetchTranscript } = require("./fireflies-client");
-const { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt, buildScoringPromptWithWeights } = require("./scoring-engine");
+const { scoreTranscript, SYSTEM_PROMPT, FOLLOWUP_SYSTEM_PROMPT, buildScoringPrompt, buildFollowupScoringPrompt, buildScoringPromptWithWeights } = require("./scoring-engine");
 const { postDemoReview, postKillerCall, calculateStallRisk, stallRiskBlock } = require("./slack-formatter");
 const { runDealAutopsy, saveAutopsy } = require("./deal-autopsy");
 const { saveScorecard, updateSlackTs, extractPlaybookExamples, pool } = require("./db");
@@ -350,31 +350,79 @@ async function _processDemoInner(meetingId, startTime) {
     console.log(`[2/5] Detected as FOLLOW-UP call${priorCallContext ? " (prior call found)" : " (title match)"}`);
   }
 
-  // Step 3: Score with Claude
+  // Step 3: Score with Claude (retry with backoff — see scoring-engine.js)
   console.log(`\n[3/5] Scoring with Claude (${callType})...`);
-  const scoringArgs = {
-    transcriptText: transcript.transcriptText,
-    repName: transcript.repName,
-    companyName: transcript.companyName,
-    durationMinutes: transcript.durationMinutes
-  };
+
+  // Always build system/user prompts explicitly so we can enqueue
+  // to pending_scores on failure.
+  let scoringSystemPrompt = SYSTEM_PROMPT;
+  let scoringUserPrompt = null;
 
   if (isFollowup) {
-    scoringArgs.systemPrompt = FOLLOWUP_SYSTEM_PROMPT;
-    scoringArgs.userPrompt = buildFollowupScoringPrompt(
+    scoringSystemPrompt = FOLLOWUP_SYSTEM_PROMPT;
+    scoringUserPrompt = buildFollowupScoringPrompt(
       transcript.transcriptText, transcript.repName, transcript.companyName,
       transcript.durationMinutes, priorCallContext
     );
   } else if (teamSettings.scoring_weights) {
-    scoringArgs.userPrompt = buildScoringPromptWithWeights(
+    scoringUserPrompt = buildScoringPromptWithWeights(
       transcript.transcriptText, transcript.repName, transcript.companyName,
       transcript.durationMinutes, teamSettings.scoring_weights
     );
+  } else {
+    scoringUserPrompt = buildScoringPrompt(
+      transcript.transcriptText, transcript.repName, transcript.companyName,
+      transcript.durationMinutes
+    );
   }
 
-  scoringArgs.meetingId = meetingId;
-  scoringArgs.pool = pool;
-  const scorecard = await scoreTranscript(scoringArgs);
+  const scoringArgs = {
+    transcriptText: transcript.transcriptText,
+    repName: transcript.repName,
+    companyName: transcript.companyName,
+    durationMinutes: transcript.durationMinutes,
+    systemPrompt: scoringSystemPrompt,
+    userPrompt: scoringUserPrompt,
+    meetingId,
+    pool,
+  };
+
+  let scorecard;
+  try {
+    scorecard = await scoreTranscript(scoringArgs);
+  } catch (scoringErr) {
+    console.error(`[3/5] Scoring FAILED after all retries: ${scoringErr.message}`);
+    console.log(`[3/5] Enqueuing to pending_scores for local poller...`);
+
+    try {
+      await pool.query(
+        `INSERT INTO pending_scores (meeting_id, rep_name, company_name, duration_minutes, system_prompt, user_prompt, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+         ON CONFLICT (meeting_id) DO UPDATE
+         SET user_prompt = EXCLUDED.user_prompt,
+             system_prompt = EXCLUDED.system_prompt,
+             status = 'pending',
+             updated_at = NOW()`,
+        [
+          meetingId,
+          transcript.repName,
+          transcript.companyName,
+          transcript.durationMinutes,
+          scoringSystemPrompt,
+          scoringUserPrompt,
+        ]
+      );
+      console.log(`[3/5] Enqueued to pending_scores — will be processed by local poller`);
+    } catch (enqueueErr) {
+      console.error(`[3/5] FAILED to enqueue to pending_scores: ${enqueueErr.message}`);
+    }
+
+    // Release the processing claim so next webhook/poll can retry
+    await pool.query("DELETE FROM skipped_meetings WHERE meeting_id = $1", [meetingId]);
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    console.log(`Pipeline complete in ${elapsed}s — scoring deferred to local poller`);
+    return;
+  }
 
   // If scoring was deferred, exit early
   if (scorecard._deferred) {

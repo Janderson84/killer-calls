@@ -75,14 +75,19 @@ function parseScorecardText(text) {
   return scorecard;
 }
 
-// ─── Main scoring function (DeepSeek only) ────────────────────────
+// ─── Main scoring function (DeepSeek only) with retry ───────────
 
-async function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt, userPrompt }) {
-  const effectiveSystemPrompt = systemPrompt || SYSTEM_PROMPT;
-  const effectiveUserPrompt = userPrompt || buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
+const RETRY_CONFIG = {
+  maxAttempts: 3,
+  delaysMs: [2000, 8000, 30000],       // exponential backoff
+  timeoutMs: 300000,                     // 5 minutes
+};
 
-  console.log('[scoring] Backend: deepseek');
-
+/**
+ * Single attempt to call DeepSeek. Uses manual AbortController for
+ * distinguishable timeout (vs AbortSignal.timeout which conflates).
+ */
+async function _scoreOnce(effectiveSystemPrompt, effectiveUserPrompt, timeoutMs) {
   if (!process.env.DEEPSEEK_API_KEY) {
     throw new Error("DEEPSEEK_API_KEY not configured");
   }
@@ -98,41 +103,93 @@ async function scoreTranscript({ transcriptText, repName, companyName, durationM
     response_format: { type: "json_object" },
   };
 
-  const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY,
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(300000),
-  });
+  // Use manual AbortController so we can set a descriptive reason string.
+  // This distinguishes "API slow" (timeout) from "API error" (non-200, etc.)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort(new Error(`DeepSeek API timeout after ${timeoutMs / 1000}s`));
+  }, timeoutMs);
 
-  const data = await resp.text();
-
-  if (resp.status !== 200) {
-    throw new Error("DeepSeek API " + resp.status + ": " + data.substring(0, 200));
-  }
-
-  let json;
   try {
-    json = JSON.parse(data);
-  } catch (err) {
-    throw new Error("DeepSeek returned non-JSON response (status " + resp.status + "). Raw: " + data.substring(0, 200));
+    const resp = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const data = await resp.text();
+
+    if (resp.status !== 200) {
+      throw new Error("DeepSeek API " + resp.status + ": " + data.substring(0, 200));
+    }
+
+    let json;
+    try {
+      json = JSON.parse(data);
+    } catch (err) {
+      throw new Error("DeepSeek returned non-JSON response (status " + resp.status + "). Raw: " + data.substring(0, 200));
+    }
+
+    // Check for API-level errors (DeepSeek returns 200 with error object on auth failures)
+    if (json.error) {
+      const errMsg = json.error.message || JSON.stringify(json.error);
+      throw new Error("DeepSeek API error: " + errMsg);
+    }
+
+    const text = json.choices?.[0]?.message?.content;
+    if (!text || text.trim().length === 0) {
+      throw new Error("DeepSeek returned empty response. Raw: " + data.substring(0, 300));
+    }
+
+    return parseScorecardText(text);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function scoreTranscript({ transcriptText, repName, companyName, durationMinutes, systemPrompt, userPrompt, meetingId }) {
+  const effectiveSystemPrompt = systemPrompt || SYSTEM_PROMPT;
+  const effectiveUserPrompt = userPrompt || buildScoringPrompt(transcriptText, repName, companyName, durationMinutes);
+
+  const prefix = meetingId ? `[scoring ${meetingId.substring(0, 8)}]` : "[scoring]";
+
+  console.log(`${prefix} Backend: deepseek (retry: up to ${RETRY_CONFIG.maxAttempts} attempts)`);
+
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
+    const delay = RETRY_CONFIG.delaysMs[attempt - 1] || 0;
+
+    if (attempt > 1) {
+      console.log(`${prefix} Retry attempt ${attempt}/${RETRY_CONFIG.maxAttempts} after ${delay / 1000}s delay (previous: ${lastError.message.substring(0, 120)})`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+
+    try {
+      console.log(`${prefix} Attempt ${attempt}/${RETRY_CONFIG.maxAttempts} — calling DeepSeek...`);
+      const result = await _scoreOnce(effectiveSystemPrompt, effectiveUserPrompt, RETRY_CONFIG.timeoutMs);
+      console.log(`${prefix} Attempt ${attempt} — success (score: ${result.score})`);
+      return result;
+    } catch (err) {
+      lastError = err;
+      const isTimeout = err.name === "AbortError" && err.message?.includes("timeout");
+      const errorType = isTimeout ? "TIMEOUT" : "ERROR";
+      console.error(`${prefix} Attempt ${attempt} FAILED [${errorType}]: ${err.message.substring(0, 200)}`);
+
+      // Non-retryable: auth errors, bad requests
+      if (err.message.includes("401") || err.message.includes("403") || err.message.includes("not configured")) {
+        console.error(`${prefix} Non-retryable error — aborting`);
+        break;
+      }
+    }
   }
 
-  // Check for API-level errors (DeepSeek returns 200 with error object on auth failures)
-  if (json.error) {
-    const errMsg = json.error.message || JSON.stringify(json.error);
-    throw new Error("DeepSeek API error: " + errMsg);
-  }
-
-  const text = json.choices?.[0]?.message?.content;
-  if (!text || text.trim().length === 0) {
-    throw new Error("DeepSeek returned empty response. Raw: " + data.substring(0, 300));
-  }
-
-  return parseScorecardText(text);
+  // All attempts exhausted
+  throw new Error(`Scoring failed after ${RETRY_CONFIG.maxAttempts} attempts. Last error: ${lastError.message}`);
 }
 
 module.exports = {
