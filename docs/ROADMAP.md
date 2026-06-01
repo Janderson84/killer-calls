@@ -107,7 +107,7 @@ Killer Calls evolves from a post-call scoring tool into a revenue operating syst
 
 **Goal 5.1 — Multi-tenant architecture**
 - What: Separate orgs, separate data, separate Slack workspaces. One Killer Calls instance serving multiple sales teams.
-- Success: SalesCloser team + 1 beta customer running on the same infrastructure with isolated data.
+- Success: SalesCloser team + 1 beta customer (wishpond/PIQ/Invigo) running on the same infrastructure with isolated data.
 - Depends on: Auth layer, tenant isolation in DB, per-tenant API keys for Fireflies/Pipedrive.
 
 **Goal 5.2 — Self-serve onboarding**
