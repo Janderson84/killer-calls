@@ -12,7 +12,7 @@ const AE_SLACK_IDS: Record<string, string> = {
   "Marysol Ortega": "U0A6YPVA53R",
   "Gleidson Rocha": "U0A88GBQQQ0",
   "David Morawietz": "U0A89DVTWQ1",
-  "Donavyn Meadows": "PLACEHOLDER_SLACK_ID",
+  "Donavyn Meadows": "D0B7JBC8WUR",
 };
 
 export const maxDuration = 30;
