@@ -7,6 +7,7 @@ const AE_NAMES = [
   "Pedro Cavagnari", "Edgar Arana", "Marc James Beauchamp",
   "Zachary Obando", "Alfred Du", "Vanessa Fortune",
   "Marysol Ortega", "Gleidson Rocha", "David Morawietz",
+  "Donavyn Meadows",
 ];
 
 // Also match partial / variant names

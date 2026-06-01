@@ -87,6 +87,7 @@ const AE_ROSTER = [
   { name: "Vanessa Fortune", email: "vanessa.f@salescloser.ai", slack: "U0A7T58H2MP" },
   { name: "Gleidson Rocha", email: "gleidson.r@salescloser.ai", slack: "U0A88GBQQQ0" },
   { name: "David Morawietz", email: "david.m@salescloser.ai", slack: "U0A89DVTWQ1" },
+  { name: "Donavyn Meadows", email: "donavyn.m@salescloser.ai", slack: "PLACEHOLDER" },
 ];
 
 // Map rep_name variations to roster entries

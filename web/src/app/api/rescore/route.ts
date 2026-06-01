@@ -14,6 +14,7 @@ const AE_BY_EMAIL: Record<string, string> = {
   "marysol.o@salescloser.ai": "Marysol Ortega",
   "gleidson.r@salescloser.ai": "Gleidson Rocha",
   "david.m@salescloser.ai": "David Morawietz",
+  "donavyn.m@salescloser.ai": "Donavyn Meadows",
 };
 
 const SCORING_SYSTEM_PROMPT = `You are an expert sales call analyst and coaching system for SalesCloser.ai. Your role is to evaluate AI demo sales calls with rigor, precision, and a coaching mindset — the goal is rep improvement, not punishment.

@@ -6,6 +6,7 @@ const AE_EMAILS = [
   "pedro.c@salescloser.ai", "edgar.a@salescloser.ai", "marc.b@salescloser.ai",
   "zachary.o@salescloser.ai", "alfred.d@salescloser.ai", "vanessa.f@salescloser.ai",
   "marysol.o@salescloser.ai", "gleidson.r@salescloser.ai", "david.m@salescloser.ai",
+  "donavyn.m@salescloser.ai",
 ];
 
 const AE_BY_EMAIL: Record<string, string> = {
@@ -18,6 +19,7 @@ const AE_BY_EMAIL: Record<string, string> = {
   "marysol.o@salescloser.ai": "Marysol Ortega",
   "gleidson.r@salescloser.ai": "Gleidson Rocha",
   "david.m@salescloser.ai": "David Morawietz",
+  "donavyn.m@salescloser.ai": "Donavyn Meadows",
 };
 
 const FIREFLIES_ENDPOINT = "https://api.fireflies.ai/graphql";

@@ -110,6 +110,7 @@ const AE_BY_EMAIL = {
   "marysol.o@salescloser.ai": "Marysol Ortega",
   "gleidson.r@salescloser.ai": "Gleidson Rocha",
   "david.m@salescloser.ai": "David Morawietz",
+  "donavyn.m@salescloser.ai": "Donavyn Meadows",
 };
 
 function extractCallMeta(transcript) {
