@@ -2,8 +2,9 @@ require("dotenv").config();
 
 const express = require("express");
 const { fetchTranscript } = require("./fireflies-client");
-const { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt, buildScoringPromptWithWeights } = require("./scoring-engine");
-const { postDemoReview, postKillerCall, calculateStallRisk, stallRiskBlock } = require("./slack-formatter");
+const { scoreTranscript, FOLLOWUP_SYSTEM_PROMPT, buildFollowupScoringPrompt, buildScoringPromptWithWeights, DRILL_SYSTEM_PROMPT, buildDrillScoringPrompt } = require("./scoring-engine");
+const { postDemoReview, postKillerCall, postDrillScorecard, calculateStallRisk, stallRiskBlock } = require("./slack-formatter");
+const { execFile } = require("child_process");
 const { runDealAutopsy, saveAutopsy } = require("./deal-autopsy");
 const { saveScorecard, updateSlackTs, extractPlaybookExamples, pool } = require("./db");
 const { CONFIG } = require("./constants");
@@ -1551,6 +1552,210 @@ app.post("/api/admin/delete-scorecards", async (req, res) => {
     res.json({ deleted: result.rows.length, ids: result.rows.map(r => r.id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Discovery Sandbox — Start Drill Session ────────────────────
+// POST /sandbox/start — creates a SalesCloser agent for a drill
+// Body: { rep_slug: "pedro", persona_name: "u-step-level-2" }
+// Calls sandbox.py, returns meeting URL, DMs the rep on Slack.
+
+const { getSlack } = require("./slack-formatter");
+
+app.post("/sandbox/start", async (req, res) => {
+  const { rep_slug, persona_name } = req.body;
+
+  if (!rep_slug || !persona_name) {
+    return res.status(400).json({ error: "rep_slug and persona_name are required" });
+  }
+
+  console.log(`[/sandbox/start] Creating drill: rep=${rep_slug}, persona=${persona_name}`);
+
+  try {
+    // Call sandbox.py create
+    const result = await new Promise((resolve, reject) => {
+      execFile("python3", [
+        "/data/sandbox/sandbox.py", "create", rep_slug, persona_name
+      ], {
+        maxBuffer: 1024 * 1024,
+        timeout: 60000,
+      }, (err, stdout, stderr) => {
+        if (err) {
+          // sandbox.py exits with code 1 on errors — capture output
+          console.error(`[sandbox] stderr: ${stderr}`);
+          console.error(`[sandbox] stdout: ${stdout}`);
+          reject(new Error(stderr || stdout || err.message));
+        } else {
+          resolve({ stdout, stderr });
+        }
+      });
+    });
+
+    console.log(`[sandbox] Output:\n${result.stdout}`);
+
+    // Parse the session data from the output
+    // Look for the session file — it's saved with the session_id
+    const sessionsDir = "/data/sandbox/sessions";
+    const fs = require("fs");
+    const path = require("path");
+
+    // Find the most recently created session JSON
+    let sessionData = null;
+    const files = fs.readdirSync(sessionsDir)
+      .filter(f => f.endsWith(".json"))
+      .map(f => ({ name: f, mtime: fs.statSync(path.join(sessionsDir, f)).mtime }))
+      .sort((a, b) => b.mtime - a.mtime);
+
+    if (files.length > 0) {
+      const sessionPath = path.join(sessionsDir, files[0].name);
+      sessionData = JSON.parse(fs.readFileSync(sessionPath, "utf-8"));
+    }
+
+    if (!sessionData) {
+      throw new Error("Failed to parse session data from sandbox.py output");
+    }
+
+    // Try to DM the rep via Slack
+    let slackResult = null;
+    try {
+      const repName = sessionData.rep;
+      const meetingUrl = sessionData.meeting_url;
+      const personaLabel = sessionData.persona_name || persona_name;
+
+      // Look up rep's Slack ID from the roster
+      const rosterResult = await pool.query(
+        "SELECT team_id, value as roster FROM settings WHERE key = 'ae_roster'"
+      );
+      let slackUserId = null;
+      let slackToken = process.env.SLACK_BOT_TOKEN;
+
+      for (const row of rosterResult.rows) {
+        const roster = typeof row.roster === "string" ? JSON.parse(row.roster) : row.roster;
+        if (!Array.isArray(roster)) continue;
+
+        // Check for team-specific bot token
+        const teamSettings = await getTeamSettings(row.team_id);
+        if (teamSettings.slack_bot_token) slackToken = teamSettings.slack_bot_token;
+
+        for (const ae of roster) {
+          if (ae.name && ae.name.toLowerCase() === repName.toLowerCase() && ae.slackId) {
+            slackUserId = ae.slackId;
+            break;
+          }
+        }
+        if (slackUserId) break;
+      }
+
+      if (slackUserId && slackToken) {
+        const slack = getSlack(slackToken);
+        slackResult = await slack.chat.postMessage({
+          channel: slackUserId,
+          text: `🏋️ *Your drill is ready!*\n\n*Drill:* ${personaLabel}\n*Session:* ${sessionData.session_id}\n\n🔗 <${meetingUrl}|Start your drill call>\n\n_After the call, use_ \`/sandbox score ${sessionData.session_id}\` _to get scored._`,
+          unfurl_links: false,
+        });
+        console.log(`[sandbox] DM sent to ${repName} (${slackUserId}) — ts=${slackResult.ts}`);
+      } else {
+        console.log(`[sandbox] Could not find Slack user for rep: ${repName} (slackId=${slackUserId}, token=${slackToken ? "yes" : "no"})`);
+      }
+    } catch (slackErr) {
+      console.error(`[sandbox] Slack DM failed: ${slackErr.message}`);
+    }
+
+    return res.json({
+      status: "ok",
+      session: sessionData,
+      slack_dm_sent: !!slackResult,
+    });
+  } catch (err) {
+    console.error(`[/sandbox/start] Error: ${err.message}`);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Discovery Sandbox — Score a Drill ───────────────────────────
+// POST /score/drill — scores a drill transcript against the U-Step rubric
+// Body: { meetingId, transcriptText, repName, personaName, drillType }
+// Posts scorecard to #killer-calls with [DRILL] prefix.
+
+app.post("/score/drill", async (req, res) => {
+  const { meetingId, transcriptText, repName, personaName, drillType } = req.body;
+
+  if (!transcriptText || !repName) {
+    return res.status(400).json({ error: "transcriptText and repName are required" });
+  }
+
+  console.log(`[/score/drill] Scoring drill: rep=${repName}, type=${drillType || "u_step"}`);
+
+  try {
+    const userPrompt = buildDrillScoringPrompt(transcriptText, repName, personaName, drillType);
+
+    const scorecard = await scoreTranscript({
+      transcriptText,
+      repName,
+      companyName: personaName || "Discovery Sandbox",
+      durationMinutes: null,
+      systemPrompt: DRILL_SYSTEM_PROMPT,
+      userPrompt,
+    });
+
+    console.log(`[/score/drill] Score: ${scorecard.score}/100 (${scorecard.rag})`);
+
+    // Build meta object for Slack posting
+    const meta = {
+      repName,
+      personaName: personaName || "Discovery Sandbox",
+      date: new Date().toISOString().split("T")[0],
+      meetingId: meetingId || `drill_${Date.now()}`,
+    };
+
+    // Get Slack channel and token from settings
+    let slackChannel = process.env.SLACK_CHANNEL_KILLER;
+    let slackToken = process.env.SLACK_BOT_TOKEN;
+    let roster = [];
+
+    try {
+      const rosterResult = await pool.query(
+        "SELECT team_id, value as roster FROM settings WHERE key = 'ae_roster' LIMIT 1"
+      );
+      if (rosterResult.rows.length > 0) {
+        const row = rosterResult.rows[0];
+        roster = typeof row.roster === "string" ? JSON.parse(row.roster) : row.roster;
+        if (!Array.isArray(roster)) roster = [];
+
+        const teamSettings = await getTeamSettings(row.team_id);
+        if (teamSettings.slack_channel_killer) slackChannel = teamSettings.slack_channel_killer;
+        if (teamSettings.slack_bot_token) slackToken = teamSettings.slack_bot_token;
+      }
+    } catch (settingsErr) {
+      console.warn(`[/score/drill] Could not read team settings: ${settingsErr.message}`);
+    }
+
+    if (!slackChannel || !slackToken) {
+      console.warn("[/score/drill] Missing Slack config — returning scorecard only");
+      return res.json({
+        status: "ok",
+        scorecard,
+        slack_posted: false,
+        message: "Slack not configured; scorecard returned inline",
+      });
+    }
+
+    // Post to #killer-calls with [DRILL] prefix
+    const drillResult = await postDrillScorecard(scorecard, meta, null, {
+      channelId: slackChannel,
+      appUrl: process.env.APP_URL,
+      roster,
+      slackBotToken: slackToken,
+    });
+
+    return res.json({
+      status: "ok",
+      scorecard,
+      slack_posted: !!drillResult,
+    });
+  } catch (err) {
+    console.error(`[/score/drill] Error: ${err.message}`);
+    return res.status(500).json({ error: err.message });
   }
 });
 

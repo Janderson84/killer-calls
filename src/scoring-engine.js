@@ -366,6 +366,76 @@ async function scoreTranscript({ transcriptText, repName, companyName, durationM
   return parseScorecardText(text);
 }
 
+// ─── Drill Scoring (Discovery Sandbox) ────────────────────────────
+
+const DRILL_SYSTEM_PROMPT = `You are the scoring engine for Killer Calls Discovery Sandbox — a practice environment where sales reps run live voice drills against AI prospects. You evaluate drill transcripts against a targeted rubric that measures specific skills, not overall demo quality.
+
+Your scorecards are read by the rep and their coach. Be honest, direct, and constructive. This is practice — the goal is skill development, not pipeline qualification.
+
+─── SCORING PHILOSOPHY ───
+
+You are scoring a PRACTICE DRILL, not a real demo. The rep is practicing specific skills in a controlled environment. Score strictly against the drill rubric. Do not evaluate presentation quality, closing technique, or other full-demo criteria unless specified in the drill rubric.
+
+Be tough but fair. If the rep didn't capture the required information, score it zero. Partial credit only when the rep made a genuine attempt but execution was incomplete.
+
+─── OUTPUT ───
+
+Your output is ONLY valid JSON. No prose before or after. No markdown code fences. Just the JSON object.
+
+MANDATORY KEYS: score, rag, verdict, criteria (array of criterion results with name, score, max_score, passed, feedback), wins, fixes, quoteOfTheCall.`;
+
+const DRILL_CRITERIA = {
+  u_step: [
+    { name: "dollar_figure_captured", max_score: 30, description: "Rep captured a specific dollar figure from the prospect" },
+    { name: "six_month_consequence", max_score: 30, description: "Rep uncovered the 6-month consequence of inaction" },
+    { name: "follow_up_depth", max_score: 20, description: "Rep asked at least 2 follow-up questions after the first pain answer" },
+    { name: "discovery_under_15_min", max_score: 10, description: "Discovery phase ended before 15:00 mark" },
+    { name: "talk_ratio_under_40pct", max_score: 10, description: "Rep spoke less than 40% of the discovery phase" },
+  ]
+};
+
+function buildDrillScoringPrompt(transcriptText, repName, personaName, drillType) {
+  const criteria = DRILL_CRITERIA[drillType] || DRILL_CRITERIA.u_step;
+
+  return `Score the following drill call transcript against the U-Step drill rubric.
+
+REP: ${repName}
+DRILL: ${personaName || "Discovery Sandbox"}
+TYPE: ${drillType || "u_step"}
+
+─── DRILL SCORING RUBRIC (U-Step — 100 points) ───
+
+${criteria.map((c, i) => `${i + 1}. ${c.name.replace(/_/g, " ")} (${c.max_score} pts) — ${c.description}`).join("\n")}
+
+SCORING RULES:
+- MAX POINTS: Award full credit ONLY when the specific behavior is clearly observed in the transcript.
+- PARTIAL CREDIT: Award partial credit ONLY when there is direct evidence the rep attempted but execution was incomplete.
+- ZERO: Award zero when the behavior is absent — no benefit of the doubt.
+
+OUTPUT FORMAT:
+Return a JSON object with:
+{
+  "score": <total 0-100>,
+  "rag": "<green|yellow|red>",
+  "verdict": "<one sentence overall assessment>",
+  "criteria": [
+    { "name": "<criterion_name>", "score": <0-max>, "max_score": <max>, "passed": <bool>, "feedback": "<specific evidence>" },
+    ...
+  ],
+  "wins": ["<what went well>", ...],
+  "fixes": ["<specific improvement>", ...],
+  "quoteOfTheCall": "<verbatim quote from the transcript that best illustrates performance>"
+}
+
+SCORING THRESHOLDS:
+- Green: ≥ 70
+- Yellow: ≥ 50
+- Red: < 50
+
+TRANSCRIPT:
+${transcriptText}`;
+}
+
 module.exports = {
   scoreTranscript,
   SYSTEM_PROMPT,
@@ -373,4 +443,7 @@ module.exports = {
   buildScoringPrompt,
   buildFollowupScoringPrompt,
   buildScoringPromptWithWeights,
+  DRILL_SYSTEM_PROMPT,
+  buildDrillScoringPrompt,
+  DRILL_CRITERIA,
 };

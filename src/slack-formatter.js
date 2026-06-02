@@ -507,4 +507,97 @@ function stallRiskBlock(stallRisk) {
   };
 }
 
-module.exports = { postDemoReview, postKillerCall, calculateStallRisk, stallRiskBlock };
+// ─── Discovery Sandbox — Drill Scorecard ─────────────────────────
+
+function formatDrillCriteriaLine(criteria) {
+  if (!criteria || !Array.isArray(criteria)) return "";
+  return criteria
+    .map((c) => {
+      const emoji = c.passed ? "✅" : c.score > 0 ? "🟡" : "🔴";
+      return `${emoji} ${c.name.replace(/_/g, " ")}: ${c.score}/${c.max_score}`;
+    })
+    .join("   ");
+}
+
+function buildDrillScorecardBlocks(scorecard, meta, scorecardId, appUrl, roster) {
+  const rag = getRAG(scorecard.score);
+  const criteriaLine = formatDrillCriteriaLine(scorecard.criteria);
+
+  const blocks = [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `🏋️ *[DRILL] ${slackMention(meta.repName, roster)} — ${meta.personaName || "Discovery Sandbox"}*`
+      }
+    },
+    {
+      type: "section",
+      fields: [
+        { type: "mrkdwn", text: `*Score*\\n${scorecard.score}/100 · ${rag.label} ${rag.emoji}` },
+        { type: "mrkdwn", text: `*Pass*\\n${scorecard.score >= 70 ? "✅ PASS" : "❌ RE-DRILL"}` },
+        { type: "mrkdwn", text: `*Criteria*\\n${criteriaLine}` },
+      ]
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `> _${scorecard.verdict}_`
+      }
+    }
+  ];
+
+  // Wins and fixes in context block
+  const feedbackParts = [];
+  if (scorecard.wins && scorecard.wins.length > 0) {
+    feedbackParts.push(`✅ ${scorecard.wins[0]}`);
+  }
+  if (scorecard.fixes && scorecard.fixes.length > 0) {
+    feedbackParts.push(`🎯 ${scorecard.fixes[0]}`);
+  }
+
+  if (feedbackParts.length > 0) {
+    blocks.push({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: feedbackParts.join("  ·  ") }]
+    });
+  }
+
+  // Quote
+  if (scorecard.quoteOfTheCall) {
+    blocks.push({
+      type: "context",
+      elements: [{ type: "mrkdwn", text: `💬 *Quote:* \"${scorecard.quoteOfTheCall.substring(0, 200)}\"` }]
+    });
+  }
+
+  return blocks;
+}
+
+async function postDrillScorecard(scorecard, meta, scorecardId, { channelId, appUrl, roster, slackBotToken }) {
+  if (!channelId || !slackBotToken) {
+    console.warn("[drill] Missing channelId or slackBotToken — skipping drill scorecard post");
+    return null;
+  }
+
+  try {
+    const slack = getSlack(slackBotToken);
+    const blocks = buildDrillScorecardBlocks(scorecard, meta, scorecardId, appUrl, roster);
+
+    const result = await slack.chat.postMessage({
+      channel: channelId,
+      text: `[DRILL] ${meta.repName} — ${meta.personaName}: ${scorecard.score}/100 (${scorecard.rag})`,
+      blocks,
+      unfurl_links: false,
+    });
+
+    console.log(`[drill] Posted drill scorecard to ${channelId} — ts=${result.ts}`);
+    return result;
+  } catch (err) {
+    console.error(`[drill] Failed to post scorecard: ${err.message}`);
+    return null;
+  }
+}
+
+module.exports = { postDemoReview, postKillerCall, postDrillScorecard, calculateStallRisk, stallRiskBlock, getSlack };
